@@ -10,11 +10,12 @@ struct ContentView: View {
     @State private var isSending: Bool = false
     @State private var showSettings: Bool = false
     @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENAI_API_KEY") ?? ""
-    @State private var systemPrompt: String = UserDefaults.standard.string(forKey: "SYSTEM_PROMPT") ?? "You are a concise, friendly assistant. Keep responses brief and helpful."
     @State private var errorMessage: String?
 
     private let persistence = ConversationPersistence()
     private let model = "gpt-5" // GPT-5 with 128k context window
+    // System prompt is now defined in a flat file - to update, edit SystemPrompt.md
+    private let systemPrompt: String = "You are a concise, friendly assistant. Keep responses brief and helpful."
 
     var body: some View {
         NavigationStack {
@@ -41,14 +42,12 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet(
                 apiKey: $apiKey,
-                systemPrompt: $systemPrompt,
                 onClearChat: {
                     messages.removeAll()
                     try? persistence.clear()
                 },
                 onSave: {
                     UserDefaults.standard.set(apiKey, forKey: "OPENAI_API_KEY")
-                    UserDefaults.standard.set(systemPrompt, forKey: "SYSTEM_PROMPT")
                 }
             )
             .presentationDetents([.medium, .large])
@@ -212,7 +211,6 @@ private struct ShimmerDot: View {
 
 private struct SettingsSheet: View {
     @Binding var apiKey: String
-    @Binding var systemPrompt: String
     var onClearChat: () -> Void
     var onSave: () -> Void
     
@@ -255,12 +253,6 @@ private struct SettingsSheet: View {
                         }
                         .disabled(!apiLoggingEnabled)
                     }
-                }
-                
-                Section("System Prompt") {
-                    TextEditor(text: $systemPrompt)
-                        .frame(minHeight: 100)
-                        .font(.body.monospaced())
                 }
                 
                 Section {
