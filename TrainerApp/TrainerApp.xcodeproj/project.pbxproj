@@ -11,42 +11,6 @@
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
 		B759471B2E07006C00BE6537 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B759471A2E07006C00BE6537 /* Preview Assets.xcassets */; };
-		B75947402E0703BD00BE6537 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B759472E2E0703BD00BE6537 /* ChatView.swift */; };
-		B75947412E0703BD00BE6537 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B759472F2E0703BD00BE6537 /* MainTabView.swift */; };
-		B75947422E0703BD00BE6537 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947302E0703BD00BE6537 /* ProfileView.swift */; };
-		B75947452E0703BD00BE6537 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947342E0703BD00BE6537 /* HealthKitManager.swift */; };
-		B75947462E0703BD00BE6537 /* UserManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947352E0703BD00BE6537 /* UserManager.swift */; };
-		B75947482E0703BD00BE6537 /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947392E0703BD00BE6537 /* DataModels.swift */; };
-		B75947492E0703BD00BE6537 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B759473A2E0703BD00BE6537 /* PersistenceController.swift */; };
-		B759474C2E07500000BE6537 /* LLMModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B759474A2E07500000BE6537 /* LLMModels.swift */; };
-		B759474D2E07500000BE6537 /* ContextModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B759474B2E07500000BE6537 /* ContextModels.swift */; };
-		B759474F2E07500100BE6537 /* SecurityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B759474E2E07500100BE6537 /* SecurityManager.swift */; };
-		B75947512E07500200BE6537 /* DataCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947502E07500200BE6537 /* DataCollector.swift */; };
-		B75947532E07500300BE6537 /* ResponseParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947522E07500300BE6537 /* ResponseParser.swift */; };
-		B75947552E07500400BE6537 /* ActionExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947542E07500400BE6537 /* ActionExecutor.swift */; };
-		B75947572E07500500BE6537 /* AICoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947562E07500500BE6537 /* AICoachService.swift */; };
-		B7D1A5612E073CCC00D19700 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A53A2E073CCB00D19700 /* MessageBubble.swift */; };
-		B7D1A5622E073CCC00D19700 /* QuickActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A53B2E073CCB00D19700 /* QuickActionsView.swift */; };
-		B7D1A5632E073CCC00D19700 /* TypingIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A53C2E073CCB00D19700 /* TypingIndicator.swift */; };
-		B7D1A5692E073CCC00D19700 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A5442E073CCB00D19700 /* ChatModels.swift */; };
-		B7D1A56F2E073CCC00D19700 /* ChatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A54B2E073CCB00D19700 /* ChatManager.swift */; };
-		B7D1A5722E073CCC00D19700 /* MessageParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A54E2E073CCB00D19700 /* MessageParser.swift */; };
-		B7D1A5772E073CCC00D19700 /* ChatState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A5782E073CCB00D19700 /* ChatState.swift */; };
-		B7D1A5892E073CCC00D19700 /* EquipmentManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A58A2E073CCB00D19700 /* EquipmentManagerView.swift */; };
-		B7D1A58B2E073CCC00D19700 /* APIConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A58C2E073CCB00D19700 /* APIConfigurationView.swift */; };
-		B7D1A58D2E073CCC00D19700 /* UserPreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A58E2E073CCB00D19700 /* UserPreferencesView.swift */; };
-		B7D1A58F2E073CCC00D19700 /* DataExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A5902E073CCB00D19700 /* DataExportView.swift */; };
-		B7D1A5912E073CCC00D19700 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D1A5922E073CCB00D19700 /* OnboardingView.swift */; };
-		B7IA00012E08000000BE6537 /* IntelligentAgentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA00002E08000000BE6537 /* IntelligentAgentModels.swift */; };
-		B7IA00032E08000100BE6537 /* IntelligentAgentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA00022E08000100BE6537 /* IntelligentAgentController.swift */; };
-		B7IA00052E08000200BE6537 /* MemoryManagementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA00042E08000200BE6537 /* MemoryManagementService.swift */; };
-		B7IA00072E08000300BE6537 /* ToolOrchestrationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA00062E08000300BE6537 /* ToolOrchestrationService.swift */; };
-		B7IA00092E08000400BE6537 /* DecisionReasoningService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA00082E08000400BE6537 /* DecisionReasoningService.swift */; };
-		B7IA000B2E08000500BE6537 /* WorkoutDatabaseTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA000A2E08000500BE6537 /* WorkoutDatabaseTool.swift */; };
-		B7IA000D2E08000600BE6537 /* ContextAnalysisTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA000C2E08000600BE6537 /* ContextAnalysisTool.swift */; };
-		B7IA000F2E08000700BE6537 /* PatternRecognitionTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA000E2E08000700BE6537 /* PatternRecognitionTool.swift */; };
-		B7IA00112E08000800BE6537 /* PeriodizationTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA00102E08000800BE6537 /* PeriodizationTool.swift */; };
-		B7IA00132E08000900BE6537 /* PerformanceModelingTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7IA00122E08000900BE6537 /* PerformanceModelingTool.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -70,6 +34,9 @@
 		B75947522E07500300BE6537 /* ResponseParser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ResponseParser.swift; sourceTree = "<group>"; };
 		B75947542E07500400BE6537 /* ActionExecutor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActionExecutor.swift; sourceTree = "<group>"; };
 		B75947562E07500500BE6537 /* AICoachService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AICoachService.swift; sourceTree = "<group>"; };
+		B75C33342E5993D8004C515B /* APILogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogEntry.swift; sourceTree = "<group>"; };
+		B75C33352E5993D8004C515B /* APILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogger.swift; sourceTree = "<group>"; };
+		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
 		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
 		B7D1A53A2E073CCB00D19700 /* MessageBubble.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		B7D1A53B2E073CCB00D19700 /* QuickActionsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QuickActionsView.swift; sourceTree = "<group>"; };
@@ -130,6 +97,7 @@
 				B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */,
 				B759474B2E07048400BE6537 /* TrainerApp.entitlements */,
 				B759473C2E0703BD00BE6537 /* Extensions */,
+				B75C33372E5993D8004C515B /* Logging */,
 				B75947362E0703BD00BE6537 /* Managers */,
 				B759473B2E0703BD00BE6537 /* Models */,
 				B759473D2E0703BD00BE6537 /* Services */,
@@ -210,16 +178,14 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		B7IA00142E08000A00BE6537 /* Tools */ = {
+		B75C33372E5993D8004C515B /* Logging */ = {
 			isa = PBXGroup;
 			children = (
-				B7IA000C2E08000600BE6537 /* ContextAnalysisTool.swift */,
-				B7IA000E2E08000700BE6537 /* PatternRecognitionTool.swift */,
-				B7IA00122E08000900BE6537 /* PerformanceModelingTool.swift */,
-				B7IA00102E08000800BE6537 /* PeriodizationTool.swift */,
-				B7IA000A2E08000500BE6537 /* WorkoutDatabaseTool.swift */,
+				B75C33342E5993D8004C515B /* APILogEntry.swift */,
+				B75C33352E5993D8004C515B /* APILogger.swift */,
+				B75C33362E5993D8004C515B /* LoggingPersistence.swift */,
 			);
-			path = Tools;
+			path = Logging;
 			sourceTree = "<group>";
 		};
 		B7D1A53D2E073CCB00D19700 /* Components */ = {
@@ -235,6 +201,18 @@
 				B7D1A58E2E073CCB00D19700 /* UserPreferencesView.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		B7IA00142E08000A00BE6537 /* Tools */ = {
+			isa = PBXGroup;
+			children = (
+				B7IA000C2E08000600BE6537 /* ContextAnalysisTool.swift */,
+				B7IA000E2E08000700BE6537 /* PatternRecognitionTool.swift */,
+				B7IA00122E08000900BE6537 /* PerformanceModelingTool.swift */,
+				B7IA00102E08000800BE6537 /* PeriodizationTool.swift */,
+				B7IA000A2E08000500BE6537 /* WorkoutDatabaseTool.swift */,
+			);
+			path = Tools;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -312,7 +290,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-	/* End PBXSourcesBuildPhase section */
+/* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		B759471C2E07006C00BE6537 /* Debug */ = {
