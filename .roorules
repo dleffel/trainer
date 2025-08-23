@@ -1,0 +1,20 @@
+# Roo Rules for TrainerApp Project
+
+## Build Commands
+- NEVER use `cd` to change directories when running xcodebuild
+- Always use the `-project` flag with the full path from the current working directory
+- Example: `xcodebuild -project TrainerApp/TrainerApp.xcodeproj -scheme TrainerApp build`
+
+## File Operations
+- All file paths should be relative to the current working directory (/Users/danielleffel/repos/trainer)
+- Use proper relative paths when referencing files in subdirectories
+
+## Project Structure
+- Main project is in TrainerApp/ subdirectory
+- Xcode project file is at TrainerApp/TrainerApp.xcodeproj/project.pbxproj
+- Source files are in TrainerApp/TrainerApp/
+
+## Reminders
+- Test builds without changing directories
+- Maintain proper file path references
+- Keep all operations relative to the workspace root
