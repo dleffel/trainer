@@ -42,6 +42,7 @@
 		B75C33382E59A5A6004C515B /* ToolProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolProcessor.swift; sourceTree = "<group>"; };
 		B75C33402E59A6C7004C515B /* HealthKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		B75C33422E59A829004C515B /* SystemPrompt.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = SystemPrompt.md; sourceTree = "<group>"; };
+		B75C33452E5B53D9004C515B /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
 		B7D1A53A2E073CCB00D19700 /* MessageBubble.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		B7D1A53B2E073CCB00D19700 /* QuickActionsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QuickActionsView.swift; sourceTree = "<group>"; };
@@ -85,6 +86,7 @@
 				B7D1A55A2E073CCB00D19700 /* Info.plist */,
 				B75947102E07006B00BE6537 /* TrainerApp */,
 				B759470F2E07006B00BE6537 /* Products */,
+				B75C33442E5B53D9004C515B /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -193,6 +195,14 @@
 				B75C33362E5993D8004C515B /* LoggingPersistence.swift */,
 			);
 			path = Logging;
+			sourceTree = "<group>";
+		};
+		B75C33442E5B53D9004C515B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B75C33452E5B53D9004C515B /* HealthKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		B7D1A53D2E073CCB00D19700 /* Components */ = {

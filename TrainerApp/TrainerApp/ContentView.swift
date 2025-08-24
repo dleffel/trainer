@@ -94,17 +94,16 @@ struct ContentView: View {
         }
         .onAppear {
             messages = (try? persistence.load()) ?? []
-            // TODO: Uncomment when files are added to project
             // Request HealthKit authorization on app launch
-            // Task {
-            //     if healthKitManager.isHealthKitAvailable {
-            //         do {
-            //             _ = try await healthKitManager.requestAuthorization()
-            //         } catch {
-            //             print("HealthKit authorization failed: \(error)")
-            //         }
-            //     }
-            // }
+            Task {
+                if healthKitManager.isHealthKitAvailable {
+                    do {
+                        _ = try await healthKitManager.requestAuthorization()
+                    } catch {
+                        print("HealthKit authorization failed: \(error)")
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(

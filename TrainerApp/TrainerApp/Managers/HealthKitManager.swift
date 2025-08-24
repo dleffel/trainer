@@ -14,6 +14,8 @@ class HealthKitManager: ObservableObject {
         var bodyFatPercentage: Double?
         var leanBodyMass: Double? // in pounds
         var height: Double? // in feet and inches (e.g., 6.17 for 6'2")
+        var age: Int? // in years
+        var dateOfBirth: Date?
         var lastUpdated: Date
         
         /// Convert to dictionary for easy JSON serialization
@@ -34,6 +36,12 @@ class HealthKitManager: ObservableObject {
             }
             if let height = height {
                 dict["height"] = height
+            }
+            if let age = age {
+                dict["age"] = age
+            }
+            if let dateOfBirth = dateOfBirth {
+                dict["dateOfBirth"] = dateOfBirth.ISO8601Format()
             }
             
             return dict
@@ -59,14 +67,19 @@ class HealthKitManager: ObservableObject {
             HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage)!,
             HKQuantityType.quantityType(forIdentifier: .leanBodyMass)!,
             HKQuantityType.quantityType(forIdentifier: .height)!,
-            HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)!
+            HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)!,
+            HKObjectType.characteristicType(forIdentifier: .dateOfBirth)!
         ]
+        
+        print("🔐 Requesting HealthKit authorization for: \(typesToRead.count) types including date of birth")
         
         return try await withCheckedThrowingContinuation { continuation in
             healthStore.requestAuthorization(toShare: nil, read: typesToRead) { success, error in
                 if let error = error {
+                    print("❌ HealthKit authorization error: \(error)")
                     continuation.resume(throwing: error)
                 } else {
+                    print("✅ HealthKit authorization success: \(success)")
                     continuation.resume(returning: success)
                 }
             }
@@ -85,6 +98,7 @@ class HealthKitManager: ObservableObject {
         async let leanMass = fetchLatestLeanBodyMass()
         async let height = fetchLatestHeight()
         async let sleep = fetchSleepHours(for: Date())
+        async let ageData = fetchDateOfBirth()
         
         // Await all results
         healthData.weight = try? await weight
@@ -92,6 +106,27 @@ class HealthKitManager: ObservableObject {
         healthData.leanBodyMass = try? await leanMass
         healthData.height = try? await height
         healthData.timeAsleepHours = try? await sleep
+        
+        // Handle age data separately since it returns a tuple
+        do {
+            let ageInfo = try await ageData
+            healthData.age = ageInfo.age
+            healthData.dateOfBirth = ageInfo.date
+            print("✅ Successfully fetched age: \(ageInfo.age) years")
+        } catch {
+            print("❌ Failed to fetch age data: \(error)")
+            // Log specific error types for debugging
+            if let hkError = error as? HealthKitError {
+                switch hkError {
+                case .authorizationFailed:
+                    print("   → Authorization not granted for date of birth")
+                case .noData:
+                    print("   → No date of birth set in Apple Health")
+                default:
+                    print("   → Other error: \(hkError)")
+                }
+            }
+        }
         
         return healthData
     }
@@ -184,6 +219,46 @@ class HealthKitManager: ObservableObject {
             
             healthStore.execute(query)
         }
+    }
+    
+    private func fetchDateOfBirth() async throws -> (date: Date, age: Int) {
+        guard let dateOfBirthType = HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth) else {
+            throw HealthKitError.dataTypeNotAvailable
+        }
+        
+        // Check authorization status
+        let status = healthStore.authorizationStatus(for: dateOfBirthType)
+        
+        // For characteristic types, we can only check if sharing is authorized
+        // If not determined or denied, we can't access the data
+        switch status {
+        case .sharingAuthorized:
+            // Continue with fetching
+            break
+        case .notDetermined:
+            // Don't try to request authorization here - it should have been done
+            // in the initial requestAuthorization call
+            throw HealthKitError.authorizationFailed
+        case .sharingDenied:
+            throw HealthKitError.authorizationFailed
+        @unknown default:
+            throw HealthKitError.authorizationFailed
+        }
+        
+        // Fetch date of birth
+        guard let dateOfBirthComponents = try? healthStore.dateOfBirthComponents(),
+              let dateOfBirth = dateOfBirthComponents.date else {
+            throw HealthKitError.noData
+        }
+        
+        // Calculate age
+        let calendar = Calendar.current
+        let ageComponents = calendar.dateComponents([.year], from: dateOfBirth, to: Date())
+        guard let age = ageComponents.year else {
+            throw HealthKitError.noData
+        }
+        
+        return (dateOfBirth, age)
     }
     
     // MARK: - Helper Methods

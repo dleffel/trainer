@@ -19,13 +19,18 @@ class ToolProcessor {
     
     /// Detect tool calls in the AI response
     func detectToolCalls(in response: String) -> [ToolCall] {
+        print("🔍 ToolProcessor: Detecting tool calls in response of length \(response.count)")
+        print("🔍 ToolProcessor: Pattern: \(toolCallPattern)")
+        
         var toolCalls: [ToolCall] = []
         
         guard let regex = try? NSRegularExpression(pattern: toolCallPattern, options: []) else {
+            print("❌ ToolProcessor: Failed to create regex")
             return []
         }
         
         let matches = regex.matches(in: response, options: [], range: NSRange(response.startIndex..., in: response))
+        print("🔍 ToolProcessor: Found \(matches.count) matches")
         
         for match in matches {
             if let nameRange = Range(match.range(at: 1), in: response) {
@@ -47,17 +52,23 @@ class ToolProcessor {
     
     /// Execute a tool call and return the result
     func executeTool(_ toolCall: ToolCall) async throws -> String {
+        print("🔧 ToolProcessor: Executing tool '\(toolCall.name)' with parameters: \(toolCall.parameters)")
+        
         switch toolCall.name {
         case "get_health_data":
+            print("📊 ToolProcessor: Matched get_health_data tool")
             return try await executeGetHealthData()
         default:
+            print("❌ ToolProcessor: Unknown tool '\(toolCall.name)'")
             throw ToolError.unknownTool(toolCall.name)
         }
     }
     
     /// Execute the get_health_data tool
     private func executeGetHealthData() async throws -> String {
+        print("🏥 ToolProcessor: Starting executeGetHealthData")
         let healthData = try await HealthKitManager.shared.fetchHealthData()
+        print("✅ ToolProcessor: Received health data from HealthKitManager")
         
         // Format the health data as a readable string
         var components: [String] = []
@@ -84,6 +95,10 @@ class ToolProcessor {
             components.append("Height: \(feet)'\(inches)\"")
         }
         
+        if let age = healthData.age {
+            components.append("Age: \(age) years")
+        }
+        
         if components.isEmpty {
             return "[No health data available]"
         }
@@ -93,11 +108,17 @@ class ToolProcessor {
     
     /// Process a response that may contain tool calls
     func processResponse(_ response: String) async throws -> String {
+        print("🎯 ToolProcessor: Processing response")
+        print("🎯 ToolProcessor: Response preview: \(String(response.prefix(200)))...")
+        
         let toolCalls = detectToolCalls(in: response)
         
         if toolCalls.isEmpty {
+            print("🎯 ToolProcessor: No tool calls found, returning original response")
             return response
         }
+        
+        print("🎯 ToolProcessor: Found \(toolCalls.count) tool calls")
         
         var processedResponse = response
         

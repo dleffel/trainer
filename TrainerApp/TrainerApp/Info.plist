@@ -42,7 +42,7 @@
 		</dict>
 	</dict>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Trainer reads your health data to provide personalized fitness coaching and track your progress.</string>
+	<string>Trainer reads your health data including weight, body composition, sleep, height, and date of birth to provide personalized fitness coaching and track your progress.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Trainer updates your health data to log workouts and track fitness metrics.</string>
 	<key>NSUserNotificationsUsageDescription</key>
