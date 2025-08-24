@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 import UniformTypeIdentifiers
+import HealthKit
 
 // MARK: - Original ContentView with Logging Integration
 
@@ -11,11 +12,66 @@ struct ContentView: View {
     @State private var showSettings: Bool = false
     @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENAI_API_KEY") ?? ""
     @State private var errorMessage: String?
+    @State private var isLoadingHealthData: Bool = false
 
     private let persistence = ConversationPersistence()
     private let model = "gpt-5" // GPT-5 with 128k context window
-    // System prompt is now defined in a flat file - to update, edit SystemPrompt.md
-    private let systemPrompt: String = "You are a concise, friendly assistant. Keep responses brief and helpful."
+    private let healthKitManager = HealthKitManager.shared
+    
+    // Load system prompt from file
+    private var systemPrompt: String {
+        loadSystemPromptFromFile()
+    }
+    
+    private func loadSystemPromptFromFile() -> String {
+        // First, try Bundle (for when file is added to Xcode project)
+        if let bundleURL = Bundle.main.url(forResource: "SystemPrompt", withExtension: "md") {
+            do {
+                let content = try String(contentsOf: bundleURL, encoding: .utf8)
+                print("✅ Loaded SystemPrompt.md from Bundle")
+                return content
+            } catch {
+                print("❌ Error loading from Bundle: \(error)")
+            }
+        }
+        
+        // Try multiple possible paths for development
+        let fileManager = FileManager.default
+        let possiblePaths = [
+            // Absolute path
+            "/Users/danielleffel/repos/trainer/TrainerApp/TrainerApp/SystemPrompt.md",
+            // Relative to current directory
+            "\(fileManager.currentDirectoryPath)/TrainerApp/TrainerApp/SystemPrompt.md",
+            "TrainerApp/TrainerApp/SystemPrompt.md",
+            // Just in case we're in TrainerApp directory
+            "TrainerApp/SystemPrompt.md"
+        ]
+        
+        print("📁 Current directory: \(fileManager.currentDirectoryPath)")
+        print("🔍 Searching for SystemPrompt.md in paths:")
+        
+        for path in possiblePaths {
+            print("  - \(path)")
+            if fileManager.fileExists(atPath: path) {
+                do {
+                    let content = try String(contentsOfFile: path, encoding: .utf8)
+                    print("✅ Loaded SystemPrompt.md from: \(path)")
+                    // Verify we got the rowing coach content
+                    if content.contains("Rowing‑Coach GPT") {
+                        print("✅ Verified: Found rowing coach content!")
+                        return content
+                    } else {
+                        print("⚠️ Warning: File found but doesn't contain expected content")
+                    }
+                } catch {
+                    print("❌ Error loading from \(path): \(error)")
+                }
+            }
+        }
+        
+        // FATAL: Cannot load system prompt - this is an irrecoverable error
+        fatalError("❌ FATAL ERROR: SystemPrompt.md not found! The app cannot function without the system prompt file.")
+    }
 
     var body: some View {
         NavigationStack {
@@ -38,6 +94,17 @@ struct ContentView: View {
         }
         .onAppear {
             messages = (try? persistence.load()) ?? []
+            // TODO: Uncomment when files are added to project
+            // Request HealthKit authorization on app launch
+            // Task {
+            //     if healthKitManager.isHealthKitAvailable {
+            //         do {
+            //             _ = try await healthKitManager.requestAuthorization()
+            //         } catch {
+            //             print("HealthKit authorization failed: \(error)")
+            //         }
+            //     }
+            // }
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(
@@ -162,7 +229,12 @@ struct ContentView: View {
                 systemPrompt: systemPrompt,
                 history: messages
             )
-            let assistantMsg = ChatMessage(role: .assistant, content: assistantText)
+            
+            // Process any tool calls in the response
+            let toolProcessor = ToolProcessor.shared
+            let processedText = try await toolProcessor.processResponse(assistantText)
+            
+            let assistantMsg = ChatMessage(role: .assistant, content: processedText)
             messages.append(assistantMsg)
             persist()
         } catch {

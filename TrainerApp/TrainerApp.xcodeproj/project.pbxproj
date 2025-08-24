@@ -11,6 +11,9 @@
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
 		B759471B2E07006C00BE6537 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B759471A2E07006C00BE6537 /* Preview Assets.xcassets */; };
+		B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33382E59A5A6004C515B /* ToolProcessor.swift */; };
+		B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33402E59A6C7004C515B /* HealthKitManager.swift */; };
+		B75C33432E59A829004C515B /* SystemPrompt.md in Resources */ = {isa = PBXBuildFile; fileRef = B75C33422E59A829004C515B /* SystemPrompt.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,7 +25,6 @@
 		B759472E2E0703BD00BE6537 /* ChatView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		B759472F2E0703BD00BE6537 /* MainTabView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		B75947302E0703BD00BE6537 /* ProfileView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		B75947342E0703BD00BE6537 /* HealthKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		B75947352E0703BD00BE6537 /* UserManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserManager.swift; sourceTree = "<group>"; };
 		B75947392E0703BD00BE6537 /* DataModels.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
 		B759473A2E0703BD00BE6537 /* PersistenceController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
@@ -37,6 +39,9 @@
 		B75C33342E5993D8004C515B /* APILogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogEntry.swift; sourceTree = "<group>"; };
 		B75C33352E5993D8004C515B /* APILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogger.swift; sourceTree = "<group>"; };
 		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
+		B75C33382E59A5A6004C515B /* ToolProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolProcessor.swift; sourceTree = "<group>"; };
+		B75C33402E59A6C7004C515B /* HealthKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+		B75C33422E59A829004C515B /* SystemPrompt.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = SystemPrompt.md; sourceTree = "<group>"; };
 		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
 		B7D1A53A2E073CCB00D19700 /* MessageBubble.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		B7D1A53B2E073CCB00D19700 /* QuickActionsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QuickActionsView.swift; sourceTree = "<group>"; };
@@ -94,6 +99,7 @@
 		B75947102E07006B00BE6537 /* TrainerApp */ = {
 			isa = PBXGroup;
 			children = (
+				B75C33422E59A829004C515B /* SystemPrompt.md */,
 				B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */,
 				B759474B2E07048400BE6537 /* TrainerApp.entitlements */,
 				B759473C2E0703BD00BE6537 /* Extensions */,
@@ -132,8 +138,8 @@
 		B75947362E0703BD00BE6537 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
+				B75C33402E59A6C7004C515B /* HealthKitManager.swift */,
 				B7D1A54B2E073CCB00D19700 /* ChatManager.swift */,
-				B75947342E0703BD00BE6537 /* HealthKitManager.swift */,
 				B759474E2E07500100BE6537 /* SecurityManager.swift */,
 				B75947352E0703BD00BE6537 /* UserManager.swift */,
 			);
@@ -164,6 +170,7 @@
 		B759473D2E0703BD00BE6537 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B75C33382E59A5A6004C515B /* ToolProcessor.swift */,
 				B7IA00142E08000A00BE6537 /* Tools */,
 				B75947542E07500400BE6537 /* ActionExecutor.swift */,
 				B75947562E07500500BE6537 /* AICoachService.swift */,
@@ -274,6 +281,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B759471B2E07006C00BE6537 /* Preview Assets.xcassets in Resources */,
+				B75C33432E59A829004C515B /* SystemPrompt.md in Resources */,
 				B75947182E07006C00BE6537 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -286,6 +294,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
+				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
+				B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */,
 				B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
