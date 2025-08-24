@@ -70,6 +70,19 @@ class ToolProcessor {
         let healthData = try await HealthKitManager.shared.fetchHealthData()
         print("✅ ToolProcessor: Received health data from HealthKitManager")
         
+        // Log the age status for debugging
+        if let age = healthData.age {
+            print("📊 ToolProcessor: Age retrieved successfully: \(age) years")
+        } else {
+            print("⚠️ ToolProcessor: Age data is nil")
+        }
+        
+        if let dob = healthData.dateOfBirth {
+            print("📅 ToolProcessor: Date of birth available: \(dob)")
+        } else {
+            print("⚠️ ToolProcessor: Date of birth is nil")
+        }
+        
         // Format the health data as a readable string
         var components: [String] = []
         

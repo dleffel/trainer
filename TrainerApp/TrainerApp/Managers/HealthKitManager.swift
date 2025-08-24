@@ -222,43 +222,78 @@ class HealthKitManager: ObservableObject {
     }
     
     private func fetchDateOfBirth() async throws -> (date: Date, age: Int) {
+        print("🎂 HealthKitManager: Starting fetchDateOfBirth")
+        
         guard let dateOfBirthType = HKCharacteristicType.characteristicType(forIdentifier: .dateOfBirth) else {
+            print("❌ HealthKitManager: Date of birth characteristic type not available")
             throw HealthKitError.dataTypeNotAvailable
         }
         
         // Check authorization status
         let status = healthStore.authorizationStatus(for: dateOfBirthType)
+        print("🔐 HealthKitManager: Date of birth authorization status: \(status.rawValue)")
         
-        // For characteristic types, we can only check if sharing is authorized
-        // If not determined or denied, we can't access the data
+        // Map status to string for clearer logging
+        let statusString: String
         switch status {
-        case .sharingAuthorized:
-            // Continue with fetching
-            break
         case .notDetermined:
-            // Don't try to request authorization here - it should have been done
-            // in the initial requestAuthorization call
-            throw HealthKitError.authorizationFailed
+            statusString = "notDetermined (0)"
         case .sharingDenied:
-            throw HealthKitError.authorizationFailed
+            statusString = "sharingDenied (1)"
+        case .sharingAuthorized:
+            statusString = "sharingAuthorized (2)"
         @unknown default:
-            throw HealthKitError.authorizationFailed
+            statusString = "unknown (\(status.rawValue))"
         }
+        print("🔐 HealthKitManager: Authorization status details: \(statusString)")
         
-        // Fetch date of birth
-        guard let dateOfBirthComponents = try? healthStore.dateOfBirthComponents(),
-              let dateOfBirth = dateOfBirthComponents.date else {
-            throw HealthKitError.noData
+        // For characteristic types, authorization status can be misleading
+        // Let's try to fetch the date of birth regardless and see if it works
+        print("📅 HealthKitManager: Attempting to fetch date of birth components (ignoring authorization status)")
+        
+        do {
+            guard let dateOfBirthComponents = try? healthStore.dateOfBirthComponents() else {
+                print("❌ HealthKitManager: dateOfBirthComponents() returned nil")
+                
+                // Only now check the authorization status to determine the error
+                switch status {
+                case .sharingAuthorized:
+                    print("   → But authorization shows as authorized - likely no data in Health app")
+                    throw HealthKitError.noData
+                case .notDetermined:
+                    print("   → Authorization not determined")
+                    throw HealthKitError.authorizationFailed
+                case .sharingDenied:
+                    print("   → Authorization denied")
+                    throw HealthKitError.authorizationFailed
+                @unknown default:
+                    print("   → Unknown authorization status")
+                    throw HealthKitError.authorizationFailed
+                }
+            }
+            
+            guard let dateOfBirth = dateOfBirthComponents.date else {
+                print("❌ HealthKitManager: Date components exist but date is nil")
+                throw HealthKitError.noData
+            }
+            
+            print("✅ HealthKitManager: Successfully retrieved date of birth: \(dateOfBirth)")
+            
+            // Calculate age
+            let calendar = Calendar.current
+            let ageComponents = calendar.dateComponents([.year], from: dateOfBirth, to: Date())
+            guard let age = ageComponents.year else {
+                print("❌ HealthKitManager: Failed to calculate age from date of birth")
+                throw HealthKitError.noData
+            }
+            
+            print("✅ HealthKitManager: Calculated age: \(age) years")
+            return (dateOfBirth, age)
+            
+        } catch {
+            print("❌ HealthKitManager: Exception while fetching date of birth: \(error)")
+            throw error
         }
-        
-        // Calculate age
-        let calendar = Calendar.current
-        let ageComponents = calendar.dateComponents([.year], from: dateOfBirth, to: Date())
-        guard let age = ageComponents.year else {
-            throw HealthKitError.noData
-        }
-        
-        return (dateOfBirth, age)
     }
     
     // MARK: - Helper Methods
