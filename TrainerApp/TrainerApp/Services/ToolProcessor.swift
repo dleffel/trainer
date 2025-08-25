@@ -17,6 +17,28 @@ class ToolProcessor {
         let range: NSRange
     }
     
+    /// Represents the result of executing a tool
+    struct ToolCallResult {
+        let toolName: String
+        let result: String
+        let success: Bool
+        let error: String?
+        
+        init(toolName: String, result: String, success: Bool = true, error: String? = nil) {
+            self.toolName = toolName
+            self.result = result
+            self.success = success
+            self.error = error
+        }
+    }
+    
+    /// Represents the processed response with tool information
+    struct ProcessedResponse {
+        let cleanedResponse: String  // Response with tool calls removed
+        let requiresFollowUp: Bool   // Whether tool calls were found and executed
+        let toolResults: [ToolCallResult]  // Results from tool execution
+    }
+    
     /// Detect tool calls in the AI response
     func detectToolCalls(in response: String) -> [ToolCall] {
         print("🔍 ToolProcessor: Detecting tool calls in response of length \(response.count)")
@@ -51,16 +73,26 @@ class ToolProcessor {
     }
     
     /// Execute a tool call and return the result
-    func executeTool(_ toolCall: ToolCall) async throws -> String {
+    func executeTool(_ toolCall: ToolCall) async throws -> ToolCallResult {
         print("🔧 ToolProcessor: Executing tool '\(toolCall.name)' with parameters: \(toolCall.parameters)")
         
-        switch toolCall.name {
-        case "get_health_data":
-            print("📊 ToolProcessor: Matched get_health_data tool")
-            return try await executeGetHealthData()
-        default:
-            print("❌ ToolProcessor: Unknown tool '\(toolCall.name)'")
-            throw ToolError.unknownTool(toolCall.name)
+        do {
+            switch toolCall.name {
+            case "get_health_data":
+                print("📊 ToolProcessor: Matched get_health_data tool")
+                let result = try await executeGetHealthData()
+                return ToolCallResult(toolName: toolCall.name, result: result)
+            default:
+                print("❌ ToolProcessor: Unknown tool '\(toolCall.name)'")
+                throw ToolError.unknownTool(toolCall.name)
+            }
+        } catch {
+            return ToolCallResult(
+                toolName: toolCall.name,
+                result: "",
+                success: false,
+                error: error.localizedDescription
+            )
         }
     }
     
@@ -120,7 +152,8 @@ class ToolProcessor {
     }
     
     /// Process a response that may contain tool calls
-    func processResponse(_ response: String) async throws -> String {
+    /// Returns cleaned response, whether follow-up is needed, and tool results
+    func processResponseWithToolCalls(_ response: String) async throws -> ProcessedResponse {
         print("🎯 ToolProcessor: Processing response")
         print("🎯 ToolProcessor: Response preview: \(String(response.prefix(200)))...")
         
@@ -128,31 +161,55 @@ class ToolProcessor {
         
         if toolCalls.isEmpty {
             print("🎯 ToolProcessor: No tool calls found, returning original response")
-            return response
+            return ProcessedResponse(
+                cleanedResponse: response,
+                requiresFollowUp: false,
+                toolResults: []
+            )
         }
         
         print("🎯 ToolProcessor: Found \(toolCalls.count) tool calls")
         
-        var processedResponse = response
+        var cleanedResponse = response
+        var toolResults: [ToolCallResult] = []
         
         // Process tool calls in reverse order to maintain string indices
         for toolCall in toolCalls.reversed() {
-            do {
-                let result = try await executeTool(toolCall)
-                
-                // Replace the tool call with its result
-                if let range = Range(toolCall.range, in: processedResponse) {
-                    processedResponse.replaceSubrange(range, with: result)
-                }
-            } catch {
-                // Replace with error message
-                if let range = Range(toolCall.range, in: processedResponse) {
-                    processedResponse.replaceSubrange(range, with: "[Error executing \(toolCall.name): \(error.localizedDescription)]")
-                }
+            // Execute the tool
+            let result = try await executeTool(toolCall)
+            toolResults.insert(result, at: 0) // Insert at beginning to maintain order
+            
+            // Remove the tool call from the response
+            if let range = Range(toolCall.range, in: cleanedResponse) {
+                cleanedResponse.replaceSubrange(range, with: "")
             }
         }
         
-        return processedResponse
+        // Clean up any trailing spaces or punctuation before removed tool calls
+        cleanedResponse = cleanedResponse
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return ProcessedResponse(
+            cleanedResponse: cleanedResponse,
+            requiresFollowUp: true,
+            toolResults: toolResults
+        )
+    }
+    
+    /// Format tool results for inclusion in conversation
+    func formatToolResults(_ results: [ToolCallResult]) -> String {
+        var formattedResults: [String] = []
+        
+        for result in results {
+            if result.success {
+                formattedResults.append("Tool '\(result.toolName)' executed successfully:\n\(result.result)")
+            } else {
+                formattedResults.append("Tool '\(result.toolName)' failed: \(result.error ?? "Unknown error")")
+            }
+        }
+        
+        return formattedResults.joined(separator: "\n\n")
     }
 }
 

@@ -13,10 +13,12 @@ struct ContentView: View {
     @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENAI_API_KEY") ?? ""
     @State private var errorMessage: String?
     @State private var isLoadingHealthData: Bool = false
+    @State private var isProcessingTools: Bool = false
 
     private let persistence = ConversationPersistence()
     private let model = "gpt-5" // GPT-5 with 128k context window
     private let healthKitManager = HealthKitManager.shared
+    private let maxConversationTurns = 5 // Maximum turns for tool processing
     
     // Load system prompt from file
     private var systemPrompt: String {
@@ -136,8 +138,13 @@ struct ContentView: View {
                             .id(msg.id)
                     }
                     if isSending {
-                        typingIndicator
-                            .id("typing")
+                        if isProcessingTools {
+                            processingToolsIndicator
+                                .id("processing")
+                        } else {
+                            typingIndicator
+                                .id("typing")
+                        }
                     }
                 }
                 .padding(.horizontal, 12)
@@ -146,7 +153,11 @@ struct ContentView: View {
             .onChange(of: messages.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.25)) {
                     if isSending {
-                        proxy.scrollTo("typing", anchor: .bottom)
+                        if isProcessingTools {
+                            proxy.scrollTo("processing", anchor: .bottom)
+                        } else {
+                            proxy.scrollTo("typing", anchor: .bottom)
+                        }
                     } else if let last = messages.last?.id {
                         proxy.scrollTo(last, anchor: .bottom)
                     }
@@ -156,16 +167,23 @@ struct ContentView: View {
     }
 
     private func bubble(for message: ChatMessage) -> some View {
-        HStack {
-            if message.role == .assistant {
-                Bubble(text: message.content, isUser: false)
-                Spacer(minLength: 40)
-            } else {
-                Spacer(minLength: 40)
-                Bubble(text: message.content, isUser: true)
-            }
+        // Don't show system messages in the UI
+        if message.role == .system {
+            return AnyView(EmptyView())
         }
-        .padding(.vertical, 2)
+        
+        return AnyView(
+            HStack {
+                if message.role == .assistant {
+                    Bubble(text: message.content, isUser: false)
+                    Spacer(minLength: 40)
+                } else {
+                    Spacer(minLength: 40)
+                    Bubble(text: message.content, isUser: true)
+                }
+            }
+            .padding(.vertical, 2)
+        )
     }
 
     private var typingIndicator: some View {
@@ -173,6 +191,26 @@ struct ContentView: View {
             ShimmerDot()
             ShimmerDot(delay: 0.2)
             ShimmerDot(delay: 0.4)
+            Spacer()
+        }
+        .padding(10)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .frame(maxWidth: 220, alignment: .leading)
+    }
+    
+    private var processingToolsIndicator: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "gearshape.2.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .rotationEffect(.degrees(isProcessingTools ? 360 : 0))
+                .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: isProcessingTools)
+            
+            Text("Checking health data...")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            
             Spacer()
         }
         .padding(10)
@@ -221,25 +259,65 @@ struct ContentView: View {
         persist()
 
         isSending = true
+        isProcessingTools = false
+        
         do {
-            let assistantText = try await LLMClient.complete(
-                apiKey: apiKey,
-                model: model,
-                systemPrompt: systemPrompt,
-                history: messages
-            )
+            // Create a working copy of messages for the conversation
+            var conversationHistory = messages
+            var finalResponse = ""
+            var turns = 0
             
-            // Process any tool calls in the response
-            let toolProcessor = ToolProcessor.shared
-            let processedText = try await toolProcessor.processResponse(assistantText)
+            repeat {
+                turns += 1
+                
+                // Get AI response
+                let assistantText = try await LLMClient.complete(
+                    apiKey: apiKey,
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    history: conversationHistory
+                )
+                
+                // Process any tool calls in the response
+                let toolProcessor = ToolProcessor.shared
+                let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
+                
+                if processedResponse.requiresFollowUp && !processedResponse.toolResults.isEmpty {
+                    isProcessingTools = true
+                    
+                    // Add the cleaned assistant response if it has content
+                    if !processedResponse.cleanedResponse.isEmpty {
+                        conversationHistory.append(
+                            ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
+                        )
+                    }
+                    
+                    // Format and add tool results as a system message
+                    let toolResultsMessage = toolProcessor.formatToolResults(processedResponse.toolResults)
+                    conversationHistory.append(
+                        ChatMessage(role: .system, content: toolResultsMessage)
+                    )
+                    
+                    // Continue the loop to get AI's response to the tool results
+                } else {
+                    // No tool calls, this is the final response
+                    finalResponse = processedResponse.cleanedResponse
+                    break
+                }
+                
+            } while turns < maxConversationTurns
             
-            let assistantMsg = ChatMessage(role: .assistant, content: processedText)
+            // Add the final assistant message to the visible conversation
+            let assistantMsg = ChatMessage(role: .assistant, content: finalResponse)
             messages.append(assistantMsg)
             persist()
+            
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+        
         isSending = false
+        isProcessingTools = false
     }
 
     private func persist() {
@@ -364,7 +442,7 @@ struct ChatMessage: Identifiable, Codable {
     }
 
     enum Role: String, Codable {
-        case user, assistant
+        case user, assistant, system
     }
 }
 
@@ -450,7 +528,12 @@ enum LLMClient {
             msgs.append(APIMessage(role: "system", content: systemPrompt))
         }
         for m in history {
-            msgs.append(APIMessage(role: m.role == .user ? "user" : "assistant", content: m.content))
+            let role = switch m.role {
+                case .user: "user"
+                case .assistant: "assistant"
+                case .system: "system"
+            }
+            msgs.append(APIMessage(role: role, content: m.content))
         }
 
         let body = try JSONEncoder().encode(RequestBody(model: model, messages: msgs))
