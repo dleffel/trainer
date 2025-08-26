@@ -22,20 +22,7 @@
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B75947172E07006C00BE6537 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B759471A2E07006C00BE6537 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		B759472E2E0703BD00BE6537 /* ChatView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
-		B759472F2E0703BD00BE6537 /* MainTabView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
-		B75947302E0703BD00BE6537 /* ProfileView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
-		B75947352E0703BD00BE6537 /* UserManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserManager.swift; sourceTree = "<group>"; };
-		B75947392E0703BD00BE6537 /* DataModels.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
-		B759473A2E0703BD00BE6537 /* PersistenceController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
-		B759474A2E07500000BE6537 /* LLMModels.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LLMModels.swift; sourceTree = "<group>"; };
 		B759474B2E07048400BE6537 /* TrainerApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerApp.entitlements; sourceTree = "<group>"; };
-		B759474B2E07500000BE6537 /* ContextModels.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContextModels.swift; sourceTree = "<group>"; };
-		B759474E2E07500100BE6537 /* SecurityManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SecurityManager.swift; sourceTree = "<group>"; };
-		B75947502E07500200BE6537 /* DataCollector.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataCollector.swift; sourceTree = "<group>"; };
-		B75947522E07500300BE6537 /* ResponseParser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ResponseParser.swift; sourceTree = "<group>"; };
-		B75947542E07500400BE6537 /* ActionExecutor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ActionExecutor.swift; sourceTree = "<group>"; };
-		B75947562E07500500BE6537 /* AICoachService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AICoachService.swift; sourceTree = "<group>"; };
 		B75C33342E5993D8004C515B /* APILogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogEntry.swift; sourceTree = "<group>"; };
 		B75C33352E5993D8004C515B /* APILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogger.swift; sourceTree = "<group>"; };
 		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
@@ -44,29 +31,7 @@
 		B75C33422E59A829004C515B /* SystemPrompt.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = SystemPrompt.md; sourceTree = "<group>"; };
 		B75C33452E5B53D9004C515B /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
-		B7D1A53A2E073CCB00D19700 /* MessageBubble.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
-		B7D1A53B2E073CCB00D19700 /* QuickActionsView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = QuickActionsView.swift; sourceTree = "<group>"; };
-		B7D1A53C2E073CCB00D19700 /* TypingIndicator.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TypingIndicator.swift; sourceTree = "<group>"; };
-		B7D1A5442E073CCB00D19700 /* ChatModels.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
-		B7D1A54B2E073CCB00D19700 /* ChatManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatManager.swift; sourceTree = "<group>"; };
-		B7D1A54E2E073CCB00D19700 /* MessageParser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageParser.swift; sourceTree = "<group>"; };
 		B7D1A55A2E073CCB00D19700 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TrainerApp/Info.plist; sourceTree = "<group>"; };
-		B7D1A5782E073CCB00D19700 /* ChatState.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatState.swift; sourceTree = "<group>"; };
-		B7D1A58A2E073CCB00D19700 /* EquipmentManagerView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EquipmentManagerView.swift; sourceTree = "<group>"; };
-		B7D1A58C2E073CCB00D19700 /* APIConfigurationView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = APIConfigurationView.swift; sourceTree = "<group>"; };
-		B7D1A58E2E073CCB00D19700 /* UserPreferencesView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UserPreferencesView.swift; sourceTree = "<group>"; };
-		B7D1A5902E073CCB00D19700 /* DataExportView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DataExportView.swift; sourceTree = "<group>"; };
-		B7D1A5922E073CCB00D19700 /* OnboardingView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		B7IA00002E08000000BE6537 /* IntelligentAgentModels.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IntelligentAgentModels.swift; sourceTree = "<group>"; };
-		B7IA00022E08000100BE6537 /* IntelligentAgentController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IntelligentAgentController.swift; sourceTree = "<group>"; };
-		B7IA00042E08000200BE6537 /* MemoryManagementService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MemoryManagementService.swift; sourceTree = "<group>"; };
-		B7IA00062E08000300BE6537 /* ToolOrchestrationService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolOrchestrationService.swift; sourceTree = "<group>"; };
-		B7IA00082E08000400BE6537 /* DecisionReasoningService.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DecisionReasoningService.swift; sourceTree = "<group>"; };
-		B7IA000A2E08000500BE6537 /* WorkoutDatabaseTool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WorkoutDatabaseTool.swift; sourceTree = "<group>"; };
-		B7IA000C2E08000600BE6537 /* ContextAnalysisTool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContextAnalysisTool.swift; sourceTree = "<group>"; };
-		B7IA000E2E08000700BE6537 /* PatternRecognitionTool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PatternRecognitionTool.swift; sourceTree = "<group>"; };
-		B7IA00102E08000800BE6537 /* PeriodizationTool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PeriodizationTool.swift; sourceTree = "<group>"; };
-		B7IA00122E08000900BE6537 /* PerformanceModelingTool.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PerformanceModelingTool.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,15 +66,14 @@
 		B75947102E07006B00BE6537 /* TrainerApp */ = {
 			isa = PBXGroup;
 			children = (
+				B75A865E2E5D6C4600CB5792 /* CoreData */,
 				B75C33422E59A829004C515B /* SystemPrompt.md */,
 				B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */,
 				B759474B2E07048400BE6537 /* TrainerApp.entitlements */,
 				B759473C2E0703BD00BE6537 /* Extensions */,
 				B75C33372E5993D8004C515B /* Logging */,
 				B75947362E0703BD00BE6537 /* Managers */,
-				B759473B2E0703BD00BE6537 /* Models */,
 				B759473D2E0703BD00BE6537 /* Services */,
-				B75947322E0703BD00BE6537 /* Views */,
 				B75947112E07006B00BE6537 /* TrainerAppApp.swift */,
 				B75947132E07006B00BE6537 /* ContentView.swift */,
 				B75947172E07006C00BE6537 /* Assets.xcassets */,
@@ -126,40 +90,12 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
-		B75947322E0703BD00BE6537 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				B7D1A53D2E073CCB00D19700 /* Components */,
-				B759472E2E0703BD00BE6537 /* ChatView.swift */,
-				B759472F2E0703BD00BE6537 /* MainTabView.swift */,
-				B75947302E0703BD00BE6537 /* ProfileView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
 		B75947362E0703BD00BE6537 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
 				B75C33402E59A6C7004C515B /* HealthKitManager.swift */,
-				B7D1A54B2E073CCB00D19700 /* ChatManager.swift */,
-				B759474E2E07500100BE6537 /* SecurityManager.swift */,
-				B75947352E0703BD00BE6537 /* UserManager.swift */,
 			);
 			path = Managers;
-			sourceTree = "<group>";
-		};
-		B759473B2E0703BD00BE6537 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				B7D1A5442E073CCB00D19700 /* ChatModels.swift */,
-				B7D1A5782E073CCB00D19700 /* ChatState.swift */,
-				B759474B2E07500000BE6537 /* ContextModels.swift */,
-				B75947392E0703BD00BE6537 /* DataModels.swift */,
-				B7IA00002E08000000BE6537 /* IntelligentAgentModels.swift */,
-				B759474A2E07500000BE6537 /* LLMModels.swift */,
-				B759473A2E0703BD00BE6537 /* PersistenceController.swift */,
-			);
-			path = Models;
 			sourceTree = "<group>";
 		};
 		B759473C2E0703BD00BE6537 /* Extensions */ = {
@@ -173,18 +109,15 @@
 			isa = PBXGroup;
 			children = (
 				B75C33382E59A5A6004C515B /* ToolProcessor.swift */,
-				B7IA00142E08000A00BE6537 /* Tools */,
-				B75947542E07500400BE6537 /* ActionExecutor.swift */,
-				B75947562E07500500BE6537 /* AICoachService.swift */,
-				B75947502E07500200BE6537 /* DataCollector.swift */,
-				B7IA00082E08000400BE6537 /* DecisionReasoningService.swift */,
-				B7IA00022E08000100BE6537 /* IntelligentAgentController.swift */,
-				B7IA00042E08000200BE6537 /* MemoryManagementService.swift */,
-				B7D1A54E2E073CCB00D19700 /* MessageParser.swift */,
-				B75947522E07500300BE6537 /* ResponseParser.swift */,
-				B7IA00062E08000300BE6537 /* ToolOrchestrationService.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		B75A865E2E5D6C4600CB5792 /* CoreData */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = CoreData;
 			sourceTree = "<group>";
 		};
 		B75C33372E5993D8004C515B /* Logging */ = {
@@ -203,33 +136,6 @@
 				B75C33452E5B53D9004C515B /* HealthKit.framework */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		B7D1A53D2E073CCB00D19700 /* Components */ = {
-			isa = PBXGroup;
-			children = (
-				B7D1A58C2E073CCB00D19700 /* APIConfigurationView.swift */,
-				B7D1A5902E073CCB00D19700 /* DataExportView.swift */,
-				B7D1A58A2E073CCB00D19700 /* EquipmentManagerView.swift */,
-				B7D1A53A2E073CCB00D19700 /* MessageBubble.swift */,
-				B7D1A5922E073CCB00D19700 /* OnboardingView.swift */,
-				B7D1A53B2E073CCB00D19700 /* QuickActionsView.swift */,
-				B7D1A53C2E073CCB00D19700 /* TypingIndicator.swift */,
-				B7D1A58E2E073CCB00D19700 /* UserPreferencesView.swift */,
-			);
-			path = Components;
-			sourceTree = "<group>";
-		};
-		B7IA00142E08000A00BE6537 /* Tools */ = {
-			isa = PBXGroup;
-			children = (
-				B7IA000C2E08000600BE6537 /* ContextAnalysisTool.swift */,
-				B7IA000E2E08000700BE6537 /* PatternRecognitionTool.swift */,
-				B7IA00122E08000900BE6537 /* PerformanceModelingTool.swift */,
-				B7IA00102E08000800BE6537 /* PeriodizationTool.swift */,
-				B7IA000A2E08000500BE6537 /* WorkoutDatabaseTool.swift */,
-			);
-			path = Tools;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

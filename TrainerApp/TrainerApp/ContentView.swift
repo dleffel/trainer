@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 import UniformTypeIdentifiers
 import HealthKit
+import CloudKit
 
 // MARK: - Original ContentView with Logging Integration
 
@@ -14,6 +15,7 @@ struct ContentView: View {
     @State private var errorMessage: String?
     @State private var isLoadingHealthData: Bool = false
     @State private var isProcessingTools: Bool = false
+    @State private var iCloudAvailable = false
 
     private let persistence = ConversationPersistence()
     private let model = "gpt-5" // GPT-5 with 128k context window
@@ -84,6 +86,17 @@ struct ContentView: View {
             .navigationTitle("Chat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if iCloudAvailable {
+                        Image(systemName: "icloud.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    } else {
+                        Image(systemName: "icloud.slash")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showSettings = true
@@ -96,6 +109,29 @@ struct ContentView: View {
         }
         .onAppear {
             messages = (try? persistence.load()) ?? []
+            
+            // Check iCloud availability
+            CKContainer.default().accountStatus { status, _ in
+                DispatchQueue.main.async {
+                    iCloudAvailable = status == .available
+                    if !iCloudAvailable {
+                        print("⚠️ iCloud not available")
+                    } else {
+                        print("✅ iCloud is available")
+                    }
+                }
+            }
+            
+            // Listen for iCloud changes
+            NotificationCenter.default.addObserver(
+                forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+                object: NSUbiquitousKeyValueStore.default,
+                queue: .main
+            ) { _ in
+                print("📲 iCloud data changed")
+                messages = (try? persistence.load()) ?? messages
+            }
+            
             // Request HealthKit authorization on app launch
             Task {
                 if healthKitManager.isHealthKitAvailable {
@@ -321,8 +357,13 @@ struct ContentView: View {
     }
 
     private func persist() {
-        do { try persistence.save(messages) }
-        catch { print("Persist error: \(error)") }
+        do {
+            try persistence.save(messages)
+            print("💾 Persist called with \(messages.count) messages")
+        }
+        catch {
+            print("❌ Persist error: \(error)")
+        }
     }
 }
 
@@ -454,32 +495,78 @@ private struct StoredMessage: Codable {
 }
 
 private struct ConversationPersistence {
-    private var url: URL {
+    private let keyValueStore = NSUbiquitousKeyValueStore.default
+    private let conversationKey = "trainer_conversations"
+    
+    // Local backup URL
+    private var localURL: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         return dir.appendingPathComponent("conversation.json")
     }
-
-    func load() throws -> [ChatMessage] {
-        let data = try Data(contentsOf: url)
-        let stored = try JSONDecoder().decode([StoredMessage].self, from: data)
-        return stored.compactMap { s in
-            guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
-            return ChatMessage(id: s.id, role: role, content: s.content, date: s.date)
-        }
+    
+    init() {
+        // Synchronize with iCloud to get latest data
+        let synchronized = keyValueStore.synchronize()
+        print("🔄 iCloud synchronize on init: \(synchronized)")
     }
-
+    
+    func load() throws -> [ChatMessage] {
+        // Try iCloud first
+        if let data = keyValueStore.data(forKey: conversationKey) {
+            let messages = try JSONDecoder().decode([StoredMessage].self, from: data)
+            print("✅ Loaded from iCloud")
+            return messages.compactMap { s in
+                guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
+                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date)
+            }
+        }
+        
+        // Fallback to local
+        if FileManager.default.fileExists(atPath: localURL.path) {
+            let data = try Data(contentsOf: localURL)
+            let stored = try JSONDecoder().decode([StoredMessage].self, from: data)
+            print("📱 Loaded from local storage")
+            return stored.compactMap { s in
+                guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
+                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date)
+            }
+        }
+        
+        return []
+    }
+    
     func save(_ messages: [ChatMessage]) throws {
         let stored = messages.map { m in
             StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, date: m.date)
         }
         let data = try JSONEncoder().encode(stored)
-        try data.write(to: url, options: [.atomic])
-    }
-
-    func clear() throws {
-        if FileManager.default.fileExists(atPath: url.path) {
-            try FileManager.default.removeItem(at: url)
+        
+        // Save to both local and iCloud
+        try data.write(to: localURL, options: [.atomic])
+        
+        // Save to iCloud (1MB limit)
+        if data.count < 1_000_000 {
+            keyValueStore.set(data, forKey: conversationKey)
+            let synced = keyValueStore.synchronize()
+            print("☁️ Saved to iCloud (\(data.count) bytes) - Sync started: \(synced)")
+            
+            // Verify the save
+            if let savedData = keyValueStore.data(forKey: conversationKey) {
+                print("✅ Verified: Data exists in iCloud store (\(savedData.count) bytes)")
+            } else {
+                print("⚠️ Warning: Data not found in iCloud store after save")
+            }
+        } else {
+            print("⚠️ Data too large for iCloud key-value store (\(data.count) bytes)")
         }
+    }
+    
+    func clear() throws {
+        if FileManager.default.fileExists(atPath: localURL.path) {
+            try FileManager.default.removeItem(at: localURL)
+        }
+        keyValueStore.removeObject(forKey: conversationKey)
+        keyValueStore.synchronize()
     }
 }
 
