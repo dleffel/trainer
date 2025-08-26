@@ -182,20 +182,40 @@ struct ContentView: View {
                                 .id("typing")
                         }
                     }
+                    
+                    // Add invisible spacer at bottom to ensure last message isn't cut off
+                    Color.clear
+                        .frame(height: 20)
+                        .id("bottom-spacer")
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
             }
             .onChange(of: messages.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.25)) {
                     if isSending {
+                        // When sending, scroll to show indicators properly
                         if isProcessingTools {
                             proxy.scrollTo("processing", anchor: .bottom)
                         } else {
                             proxy.scrollTo("typing", anchor: .bottom)
                         }
-                    } else if let last = messages.last?.id {
-                        proxy.scrollTo(last, anchor: .bottom)
+                    } else {
+                        // When not sending, scroll to bottom spacer to ensure last message is fully visible
+                        proxy.scrollTo("bottom-spacer", anchor: .bottom)
+                    }
+                }
+            }
+            .onAppear {
+                // Scroll to bottom when view appears
+                if messages.count > 0 {
+                    // Use DispatchQueue to ensure the scroll happens after the view is laid out
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            // Scroll to the bottom spacer to ensure last message is fully visible
+                            proxy.scrollTo("bottom-spacer", anchor: .bottom)
+                        }
                     }
                 }
             }
