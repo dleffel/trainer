@@ -206,7 +206,7 @@ class HealthKitManager: ObservableObject {
                 // Calculate total sleep time (excluding "in bed" time)
                 let asleepSamples = samples.filter { sample in
                     let value = HKCategoryValueSleepAnalysis(rawValue: sample.value)
-                    return value == .asleepREM || value == .asleepDeep || value == .asleepCore || value == .asleep
+                    return value == .asleepREM || value == .asleepDeep || value == .asleepCore || value == .asleepUnspecified
                 }
                 
                 let totalSeconds = asleepSamples.reduce(0) { total, sample in

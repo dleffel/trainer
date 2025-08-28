@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var input: String = ""
     @State private var isSending: Bool = false
     @State private var showSettings: Bool = false
+    @State private var showCalendar: Bool = false
     @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENAI_API_KEY") ?? ""
     @State private var errorMessage: String?
     @State private var isLoadingHealthData: Bool = false
@@ -98,12 +99,23 @@ struct ContentView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
+                    HStack(spacing: 16) {
+                        Button {
+                            showCalendar = true
+                        } label: {
+                            Image(systemName: "calendar")
+                                .font(.body)
+                        }
+                        .accessibilityLabel("Training Calendar")
+                        
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.body)
+                        }
+                        .accessibilityLabel("Settings")
                     }
-                    .accessibilityLabel("Settings")
                 }
             }
         }
@@ -155,6 +167,9 @@ struct ContentView: View {
                 }
             )
             .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showCalendar) {
+            CalendarView()
         }
         .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
             Button("OK") { errorMessage = nil }

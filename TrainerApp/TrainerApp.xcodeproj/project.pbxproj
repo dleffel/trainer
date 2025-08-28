@@ -11,9 +11,15 @@
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
 		B759471B2E07006C00BE6537 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B759471A2E07006C00BE6537 /* Preview Assets.xcassets */; };
+		B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A86662E5D884700CB5792 /* CalendarView.swift */; };
+		B75A866A2E5D884700CB5792 /* WeeklyCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */; };
+		B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */; };
+		B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866D2E5D886800CB5792 /* TrainingBlock.swift */; };
+		B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */; };
 		B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33382E59A5A6004C515B /* ToolProcessor.swift */; };
 		B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33402E59A6C7004C515B /* HealthKitManager.swift */; };
 		B75C33432E59A829004C515B /* SystemPrompt.md in Resources */ = {isa = PBXBuildFile; fileRef = B75C33422E59A829004C515B /* SystemPrompt.md */; };
+		B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +29,11 @@
 		B75947172E07006C00BE6537 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B759471A2E07006C00BE6537 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		B759474B2E07048400BE6537 /* TrainerApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerApp.entitlements; sourceTree = "<group>"; };
+		B75A86662E5D884700CB5792 /* CalendarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
+		B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WeeklyCalendarView.swift; sourceTree = "<group>"; };
+		B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingScheduleManager.swift; sourceTree = "<group>"; };
+		B75A866D2E5D886800CB5792 /* TrainingBlock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingBlock.swift; sourceTree = "<group>"; };
+		B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingCalendar.swift; sourceTree = "<group>"; };
 		B75C33342E5993D8004C515B /* APILogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogEntry.swift; sourceTree = "<group>"; };
 		B75C33352E5993D8004C515B /* APILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogger.swift; sourceTree = "<group>"; };
 		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
@@ -30,6 +41,7 @@
 		B75C33402E59A6C7004C515B /* HealthKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		B75C33422E59A829004C515B /* SystemPrompt.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = SystemPrompt.md; sourceTree = "<group>"; };
 		B75C33452E5B53D9004C515B /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
+		B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptLoader.swift; sourceTree = "<group>"; };
 		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
 		B7D1A55A2E073CCB00D19700 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TrainerApp/Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -66,7 +78,9 @@
 		B75947102E07006B00BE6537 /* TrainerApp */ = {
 			isa = PBXGroup;
 			children = (
-				B75A865E2E5D6C4600CB5792 /* CoreData */,
+				B781C91E2E60C1A400B866CE /* Utilities */,
+				B75A86682E5D884700CB5792 /* Views */,
+				B75A866F2E5D886800CB5792 /* Models */,
 				B75C33422E59A829004C515B /* SystemPrompt.md */,
 				B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */,
 				B759474B2E07048400BE6537 /* TrainerApp.entitlements */,
@@ -93,6 +107,7 @@
 		B75947362E0703BD00BE6537 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
+				B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */,
 				B75C33402E59A6C7004C515B /* HealthKitManager.swift */,
 			);
 			path = Managers;
@@ -113,11 +128,22 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		B75A865E2E5D6C4600CB5792 /* CoreData */ = {
+		B75A86682E5D884700CB5792 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				B75A86662E5D884700CB5792 /* CalendarView.swift */,
+				B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */,
 			);
-			path = CoreData;
+			path = Views;
+			sourceTree = "<group>";
+		};
+		B75A866F2E5D886800CB5792 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B75A866D2E5D886800CB5792 /* TrainingBlock.swift */,
+				B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		B75C33372E5993D8004C515B /* Logging */ = {
@@ -136,6 +162,14 @@
 				B75C33452E5B53D9004C515B /* HealthKit.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B781C91E2E60C1A400B866CE /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */,
+			);
+			path = Utilities;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -209,10 +243,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
+				B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */,
+				B75A866A2E5D884700CB5792 /* WeeklyCalendarView.swift in Sources */,
 				B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */,
+				B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */,
+				B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */,
 				B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */,
+				B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
