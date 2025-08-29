@@ -486,6 +486,40 @@ private struct SettingsSheet: View {
                     } label: {
                         Label("Clear Conversation", systemImage: "trash")
                     }
+                    
+                    Button(role: .destructive) {
+                        // Clear workout data without starting a new program
+                        let manager = TrainingScheduleManager.shared
+                        manager.currentProgram = nil
+                        manager.currentBlock = nil
+                        manager.workoutDays = []
+                        
+                        // Clear from UserDefaults and iCloud
+                        let userDefaults = UserDefaults.standard
+                        let iCloudStore = NSUbiquitousKeyValueStore.default
+                        
+                        // Clear program key
+                        userDefaults.removeObject(forKey: "TrainingProgram")
+                        iCloudStore.removeObject(forKey: "TrainingProgram")
+                        
+                        // Clear workout completion keys for a reasonable date range
+                        let calendar = Calendar.current
+                        for dayOffset in -365...365 {
+                            if let date = calendar.date(byAdding: .day, value: dayOffset, to: Date()) {
+                                let formatter = DateFormatter()
+                                formatter.dateFormat = "yyyy-MM-dd"
+                                let dateKey = formatter.string(from: date)
+                                let workoutKey = "workout_\(dateKey)"
+                                
+                                userDefaults.removeObject(forKey: workoutKey)
+                                iCloudStore.removeObject(forKey: workoutKey)
+                            }
+                        }
+                        
+                        iCloudStore.synchronize()
+                    } label: {
+                        Label("Clear Workout Data", systemImage: "calendar.badge.minus")
+                    }
                 }
             }
             .navigationTitle("Settings")
