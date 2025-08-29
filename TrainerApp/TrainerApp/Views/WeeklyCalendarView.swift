@@ -4,7 +4,6 @@ struct WeeklyCalendarView: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
     @State private var selectedWeek = Date()
     @State private var weekDays: [WorkoutDay] = []
-    @State private var showingWorkoutDetail = false
     @State private var selectedDay: WorkoutDay?
     
     private let calendar = Calendar.current
@@ -29,10 +28,8 @@ struct WeeklyCalendarView: View {
         .onChange(of: selectedWeek) { oldValue, newValue in
             loadWeek()
         }
-        .sheet(isPresented: $showingWorkoutDetail) {
-            if let day = selectedDay {
-                WorkoutDetailSheet(day: day, scheduleManager: scheduleManager)
-            }
+        .sheet(item: $selectedDay) { day in
+            WorkoutDetailSheet(day: day, scheduleManager: scheduleManager)
         }
     }
     
@@ -114,7 +111,6 @@ struct WeeklyCalendarView: View {
                 DayCard(day: day, isToday: calendar.isDateInToday(day.date))
                     .onTapGesture {
                         selectedDay = day
-                        showingWorkoutDetail = true
                     }
             }
         }

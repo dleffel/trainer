@@ -84,7 +84,6 @@ struct MonthlyCalendarView: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
     @State private var selectedMonth = Date()
     @State private var monthDays: [WorkoutDay] = []
-    @State private var showingWorkoutDetail = false
     @State private var selectedDay: WorkoutDay?
     
     private let calendar = Calendar.current
@@ -110,10 +109,8 @@ struct MonthlyCalendarView: View {
         .onChange(of: selectedMonth) { oldValue, newValue in
             loadMonth()
         }
-        .sheet(isPresented: $showingWorkoutDetail) {
-            if let day = selectedDay {
-                WorkoutDetailSheet(day: day, scheduleManager: scheduleManager)
-            }
+        .sheet(item: $selectedDay) { day in
+            WorkoutDetailSheet(day: day, scheduleManager: scheduleManager)
         }
     }
     
@@ -169,7 +166,6 @@ struct MonthlyCalendarView: View {
                     )
                     .onTapGesture {
                         selectedDay = day
-                        showingWorkoutDetail = true
                     }
                 } else {
                     Color.clear
