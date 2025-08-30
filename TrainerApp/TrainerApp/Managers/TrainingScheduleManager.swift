@@ -138,6 +138,8 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Generate all training blocks for a macro-cycle
     private func generateAllBlocks(from startDate: Date, macroCycle: Int) -> [TrainingBlock] {
+        print("🔍 DEBUG generateAllBlocks - Program start: \(startDate)")
+        
         let calendar = Calendar.current
         let blockDurations: [(BlockType, Int)] = [
             (.aerobicCapacity, 8),
@@ -159,6 +161,7 @@ class TrainingScheduleManager: ObservableObject {
                 weekNumber: blocks.count + 1
             )
             blocks.append(block)
+            print("🔍 DEBUG generateAllBlocks - Added \(blockType.rawValue) from \(currentStartDate) to \(endDate)")
             
             currentStartDate = endDate
         }
@@ -192,7 +195,32 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Generate workout days for a specific week
     func generateWeek(containing date: Date) -> [WorkoutDay] {
-        guard let currentBlock = currentBlock else { return [] }
+        print("🔍 DEBUG generateWeek - Requested date: \(date)")
+        print("🔍 DEBUG generateWeek - Current block: \(currentBlock?.type.rawValue ?? "nil")")
+        
+        // Find the appropriate block for the requested date, not just current block
+        guard let program = currentProgram else {
+            print("⚠️ DEBUG generateWeek - No current program")
+            return []
+        }
+        
+        let blocks = generateAllBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
+        var blockForDate: TrainingBlock? = nil
+        
+        // Find which block contains this date
+        for block in blocks {
+            if block.contains(date: date) {
+                blockForDate = block
+                break
+            }
+        }
+        
+        guard let targetBlock = blockForDate else {
+            print("⚠️ DEBUG generateWeek - No block found for date \(date)")
+            return []
+        }
+        
+        print("🔍 DEBUG generateWeek - Block for requested week: \(targetBlock.type.rawValue)")
         
         let calendar = Calendar.current
         let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
@@ -201,7 +229,7 @@ class TrainingScheduleManager: ObservableObject {
         
         for dayOffset in 0..<7 {
             if let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) {
-                let workoutDay = WorkoutDay(date: dayDate, blockType: currentBlock.type)
+                let workoutDay = WorkoutDay(date: dayDate, blockType: targetBlock.type)
                 days.append(workoutDay)
             }
         }
@@ -639,6 +667,21 @@ class TrainingScheduleManager: ObservableObject {
         } else {
             return (.deload, 1)
         }
+    }
+    
+    /// Get the training block that contains a specific date
+    func getBlockForDate(_ date: Date) -> TrainingBlock? {
+        guard let program = currentProgram else { return nil }
+        
+        let blocks = generateAllBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
+        
+        for block in blocks {
+            if block.contains(date: date) {
+                return block
+            }
+        }
+        
+        return nil
     }
 }
 

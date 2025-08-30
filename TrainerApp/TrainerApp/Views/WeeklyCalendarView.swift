@@ -5,6 +5,8 @@ struct WeeklyCalendarView: View {
     @State private var selectedWeek = Date()
     @State private var weekDays: [WorkoutDay] = []
     @State private var selectedDay: WorkoutDay?
+    @State private var selectedWeekBlock: TrainingBlock?
+    @State private var selectedWeekNumber: Int = 1
     
     private let calendar = Calendar.current
     
@@ -13,9 +15,9 @@ struct WeeklyCalendarView: View {
             // Week selector
             weekSelector
             
-            // Current block info
-            if let block = scheduleManager.currentBlock {
-                blockInfoCard(block: block)
+            // Selected week block info
+            if let block = selectedWeekBlock {
+                blockInfoCard(block: block, weekNumber: selectedWeekNumber)
             }
             
             // Days of the week
@@ -70,7 +72,7 @@ struct WeeklyCalendarView: View {
         }
     }
     
-    private func blockInfoCard(block: TrainingBlock) -> some View {
+    private func blockInfoCard(block: TrainingBlock, weekNumber: Int) -> some View {
         HStack {
             Image(systemName: block.type.icon)
                 .font(.title3)
@@ -82,14 +84,14 @@ struct WeeklyCalendarView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(block.type.rawValue)
                     .font(.headline)
-                Text("Week \(scheduleManager.currentWeekInBlock) of \(block.type.duration)")
+                Text("Week \(weekNumber) of \(block.type.duration)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
             
             Spacer()
             
-            if let daysUntilDeload = scheduleManager.daysUntilNextDeload(), daysUntilDeload > 0 {
+            if let daysUntilDeload = calculateDaysUntilDeload(from: selectedWeek, block: block), daysUntilDeload > 0 {
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("\(daysUntilDeload)")
                         .font(.title2)
@@ -103,6 +105,14 @@ struct WeeklyCalendarView: View {
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(12)
+    }
+    
+    private func calculateDaysUntilDeload(from date: Date, block: TrainingBlock) -> Int? {
+        guard block.type != .deload else { return 0 }
+        
+        let calendar = Calendar.current
+        let daysUntilBlockEnd = calendar.dateComponents([.day], from: date, to: block.endDate).day ?? 0
+        return max(0, daysUntilBlockEnd)
     }
     
     private var weekGrid: some View {
@@ -138,7 +148,29 @@ struct WeeklyCalendarView: View {
     }
     
     private func loadWeek() {
+        print("🔍 DEBUG - Loading week for date: \(selectedWeek)")
+        
         weekDays = scheduleManager.generateWeek(containing: selectedWeek)
+        
+        // Calculate block info for selected week
+        if let program = scheduleManager.currentProgram {
+            let calendar = Calendar.current
+            let weeksSinceStart = calendar.dateComponents([.weekOfYear],
+                                                         from: program.startDate,
+                                                         to: selectedWeek).weekOfYear ?? 0
+            let totalWeek = weeksSinceStart + 1
+            print("🔍 DEBUG - Weeks since program start: \(totalWeek)")
+            
+            // Get block info for this week
+            let blockInfo = scheduleManager.getBlockForWeek(totalWeek)
+            selectedWeekNumber = blockInfo.weekInBlock
+            
+            // Get the actual block for this date
+            if let block = scheduleManager.getBlockForDate(selectedWeek) {
+                selectedWeekBlock = block
+                print("🔍 DEBUG - Selected week is: \(block.type.rawValue) - Week \(selectedWeekNumber)")
+            }
+        }
     }
 }
 
