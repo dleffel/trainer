@@ -2,6 +2,20 @@ import Foundation
 
 /// Represents a single API request/response log entry
 struct APILogEntry: Codable, Identifiable {
+    enum APILogPhase: String, Codable {
+        case sent = "Sent"
+        case streaming = "Streaming"
+        case completed = "Completed"
+        case failed = "Failed"
+        case timedOut = "Timed Out"
+    }
+    
+    enum StreamingStatus: String, Codable {
+        case streamingStarted = "Streaming Started"
+        case streamingProgress = "Streaming Progress"
+        case streamingCompleted = "Streaming Completed"
+    }
+    
     let id: UUID
     let timestamp: Date
     let requestURL: String
@@ -15,6 +29,11 @@ struct APILogEntry: Codable, Identifiable {
     let error: String?
     let apiKeyPreview: String // Last 4 chars only for security
     
+    // Enhanced fields
+    var phase: APILogPhase?
+    var streamingStatus: StreamingStatus?
+    var bytesReceived: Int64?
+    
     init(
         id: UUID = UUID(),
         timestamp: Date = Date(),
@@ -27,7 +46,10 @@ struct APILogEntry: Codable, Identifiable {
         responseBody: Data? = nil,
         duration: TimeInterval = 0,
         error: String? = nil,
-        apiKeyPreview: String = ""
+        apiKeyPreview: String = "",
+        phase: APILogPhase? = nil,
+        streamingStatus: StreamingStatus? = nil,
+        bytesReceived: Int64? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -41,6 +63,9 @@ struct APILogEntry: Codable, Identifiable {
         self.duration = duration
         self.error = error
         self.apiKeyPreview = apiKeyPreview
+        self.phase = phase
+        self.streamingStatus = streamingStatus
+        self.bytesReceived = bytesReceived
     }
     
     /// Computed property to get pretty-printed request body as string
@@ -69,6 +94,58 @@ struct APILogEntry: Codable, Identifiable {
     var isSuccess: Bool {
         guard let statusCode = responseStatusCode else { return false }
         return (200...299).contains(statusCode)
+    }
+    
+    /// Check if this is an active/pending request
+    var isActive: Bool {
+        guard let phase = phase else { return false }
+        return phase == .sent || phase == .streaming
+    }
+    
+    /// Format bytes received for display
+    var formattedBytesReceived: String? {
+        guard let bytes = bytesReceived else { return nil }
+        
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB]
+        formatter.countStyle = .binary
+        return formatter.string(fromByteCount: bytes)
+    }
+    
+    /// Status description for UI
+    var statusDescription: String {
+        if let phase = phase {
+            switch phase {
+            case .sent:
+                return "⏳ Waiting for response..."
+            case .streaming:
+                if let bytes = formattedBytesReceived {
+                    return "📥 Streaming... (\(bytes) received)"
+                }
+                return "📥 Streaming response..."
+            case .completed:
+                if let statusCode = responseStatusCode {
+                    return "✅ Completed (\(statusCode))"
+                }
+                return "✅ Completed"
+            case .failed:
+                if let errorMsg = error {
+                    return "❌ Failed: \(errorMsg)"
+                }
+                return "❌ Failed"
+            case .timedOut:
+                return "⏱️ Timed out after \(formattedDuration)"
+            }
+        }
+        
+        // Fallback to old status logic
+        if let statusCode = responseStatusCode {
+            return "Status: \(statusCode)"
+        } else if error != nil {
+            return "❌ Error"
+        }
+        
+        return "Unknown"
     }
     
     /// Generate cURL command for this request

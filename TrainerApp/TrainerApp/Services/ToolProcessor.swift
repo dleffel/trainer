@@ -136,7 +136,8 @@ class ToolProcessor {
                 print("✅ ToolProcessor: Matched mark_workout_complete tool")
                 let dateParam = toolCall.parameters["date"] as? String ?? "today"
                 let notesParam = toolCall.parameters["notes"] as? String
-                let result = try await executeMarkWorkoutComplete(date: dateParam, notes: notesParam)
+                let workoutParam = toolCall.parameters["workout"] as? String
+                let result = try await executeMarkWorkoutComplete(date: dateParam, notes: notesParam, workout: workoutParam)
                 return ToolCallResult(toolName: toolCall.name, result: result)
                 
             case "plan_week":
@@ -415,8 +416,10 @@ class ToolProcessor {
     }
     
     /// Mark workout as complete
-    private func executeMarkWorkoutComplete(date: String, notes: String?) async throws -> String {
+    private func executeMarkWorkoutComplete(date: String, notes: String?, workout: String? = nil) async throws -> String {
         print("✅ ToolProcessor: Marking workout complete")
+        print("📝 ToolProcessor: Workout: \(workout ?? "not specified")")
+        print("📝 ToolProcessor: Notes: \(notes ?? "none")")
         
         return await MainActor.run {
             let manager = TrainingScheduleManager.shared
@@ -427,25 +430,44 @@ class ToolProcessor {
             
             let targetDate = parseDate(date)
             
-            guard var workoutDay = manager.currentWeekDays.first(where: { 
-                Calendar.current.isDate($0.date, inSameDayAs: targetDate) 
+            guard var workoutDay = manager.currentWeekDays.first(where: {
+                Calendar.current.isDate($0.date, inSameDayAs: targetDate)
             }) else {
                 return "[Workout Tracking: No workout scheduled for this date]"
             }
             
             workoutDay.completed = true
+            
+            // Store workout details in actualWorkout field
+            if let workout = workout {
+                workoutDay.actualWorkout = workout
+            }
+            
+            // Store performance notes in notes field
             if let notes = notes {
                 workoutDay.notes = notes
             }
+            
             manager.updateWorkoutDay(workoutDay)
             
-            return """
-            [Workout Completed! ✅]
-            • Date: \(formatDate(targetDate))
-            • Day: \(workoutDay.dayOfWeek.name)
-            \(notes.map { "• Notes: \($0)" } ?? "")
-            Great job!
-            """
+            // Build response message
+            var responseLines = [
+                "[Workout Completed! ✅]",
+                "• Date: \(formatDate(targetDate))",
+                "• Day: \(workoutDay.dayOfWeek.name)"
+            ]
+            
+            if let workout = workout {
+                responseLines.append("• Workout: \(workout)")
+            }
+            
+            if let notes = notes {
+                responseLines.append("• Notes: \(notes)")
+            }
+            
+            responseLines.append("Great job!")
+            
+            return responseLines.joined(separator: "\n")
         }
     }
     
