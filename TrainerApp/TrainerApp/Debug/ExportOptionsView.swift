@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ExportOptionsView: View {
     let logs: [APILogEntry]

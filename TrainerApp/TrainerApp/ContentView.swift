@@ -144,6 +144,17 @@ struct ContentView: View {
                 messages = (try? persistence.load()) ?? messages
             }
             
+            // Listen for proactive messages
+            NotificationCenter.default.addObserver(
+                forName: Notification.Name("ProactiveMessageAdded"),
+                object: nil,
+                queue: .main
+            ) { notification in
+                print("🤖 Proactive message received")
+                // Reload messages to include the new proactive message
+                messages = (try? persistence.load()) ?? messages
+            }
+            
             // Request HealthKit authorization on app launch
             Task {
                 if healthKitManager.isHealthKitAvailable {
@@ -442,6 +453,7 @@ private struct SettingsSheet: View {
     @State private var developerModeEnabled = UserDefaults.standard.bool(forKey: "DeveloperModeEnabled")
     @State private var apiLoggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
     @State private var showDebugMenu = false
+    @State private var showProactiveSettings = false
 
     var body: some View {
         NavigationStack {
@@ -451,6 +463,24 @@ private struct SettingsSheet: View {
                         .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+                }
+                
+                Section("Smart Reminders") {
+                    Button {
+                        showProactiveSettings = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "bell.badge")
+                                .foregroundColor(.blue)
+                                .frame(width: 30)
+                            Text("Configure Smart Reminders")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .foregroundColor(.primary)
                 }
                 
                 Section("Developer Options") {
@@ -532,6 +562,10 @@ private struct SettingsSheet: View {
         .sheet(isPresented: $showDebugMenu) {
             DebugMenuView()
                 .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showProactiveSettings) {
+            ProactiveMessagingSettingsView()
+                .presentationDetents([.medium, .large])
         }
     }
 }
@@ -1093,417 +1127,6 @@ final class LoggingPersistence {
     }
 }
 
-// MARK: - URLSession Extension
-
-extension URLSession {
-    func loggedData(for request: URLRequest) async throws -> (Data, URLResponse) {
-        let startTime = Date()
-        
-        do {
-            let (data, response) = try await self.data(for: request)
-            
-            APILogger.shared.log(
-                request: request,
-                response: response,
-                data: data,
-                error: nil,
-                startTime: startTime
-            )
-            
-            return (data, response)
-        } catch {
-            APILogger.shared.log(
-                request: request,
-                response: nil,
-                data: nil,
-                error: error,
-                startTime: startTime
-            )
-            
-            throw error
-        }
-    }
-}
-
-// MARK: - Debug Menu View
-
-struct DebugMenuView: View {
-    @State private var logs: [APILogEntry] = []
-    @State private var filteredLogs: [APILogEntry] = []
-    @State private var searchText = ""
-    @State private var selectedLog: APILogEntry?
-    
-    var body: some View {
-        NavigationStack {
-            VStack {
-                searchBar
-                
-                if filteredLogs.isEmpty {
-                    emptyState
-                } else {
-                    logsList
-                }
-            }
-            .navigationTitle("API Debug Logs")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Clear All") {
-                        APILogger.shared.clearAllLogs()
-                        loadLogs()
-                    }
-                }
-            }
-        }
-        .onAppear {
-            loadLogs()
-        }
-        .sheet(item: $selectedLog) { log in
-            NavigationStack {
-                APILogDetailView(log: log)
-            }
-            .presentationDetents([.large])
-        }
-    }
-    
-    private var searchBar: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search URLs or response content", text: $searchText)
-                .textFieldStyle(.roundedBorder)
-                .onChange(of: searchText) { _, _ in
-                    applyFilters()
-                }
-        }
-        .padding()
-    }
-    
-    private var logsList: some View {
-        List(filteredLogs) { log in
-            Button {
-                selectedLog = log
-            } label: {
-                APILogRowView(log: log)
-            }
-            .buttonStyle(.plain)
-        }
-        .listStyle(.plain)
-    }
-    
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            
-            Text("No Logs Found")
-                .font(.headline)
-            
-            Text("No API requests have been logged yet.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-    }
-    
-    private func loadLogs() {
-        logs = APILogger.shared.getAllLogs()
-        applyFilters()
-    }
-    
-    private func applyFilters() {
-        var filtered = logs
-        
-        if !searchText.isEmpty {
-            let searchLower = searchText.lowercased()
-            filtered = filtered.filter { log in
-                log.requestURL.lowercased().contains(searchLower) ||
-                log.responseBodyString?.lowercased().contains(searchLower) ?? false
-            }
-        }
-        
-        filtered.sort { $0.timestamp > $1.timestamp }
-        filteredLogs = filtered
-    }
-}
-
-struct APILogRowView: View {
-    let log: APILogEntry
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                
-                Text(log.requestMethod)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                
-                Text(log.formattedTimestamp)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                
-                Spacer()
-                
-                Text(log.formattedDuration)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Text(formatURL(log.requestURL))
-                .font(.footnote)
-                .lineLimit(1)
-            
-            HStack {
-                if let statusCode = log.responseStatusCode {
-                    Text("HTTP \(statusCode)")
-                        .font(.caption2)
-                        .foregroundStyle(statusColor)
-                }
-                
-                if let usage = log.tokenUsage {
-                    Spacer()
-                    
-                    // Token usage display
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc.text")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("\(usage.totalTokens) tokens")
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                            
-                            HStack(spacing: 4) {
-                                Text("↑\(usage.promptTokens)")
-                                    .font(.caption2)
-                                    .foregroundStyle(.blue)
-                                
-                                Text("↓\(usage.completionTokens)")
-                                    .font(.caption2)
-                                    .foregroundStyle(.green)
-                            }
-                        }
-                        
-                        // Context usage indicator
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color(.systemGray5))
-                                .frame(width: 60, height: 8)
-                            
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(contextUsageColor(for: usage.contextPercentage))
-                                .frame(width: 60 * min(usage.contextPercentage / 100.0, 1.0), height: 8)
-                        }
-                        
-                        Text("\(Int(usage.contextPercentage))%")
-                            .font(.caption2)
-                            .fontWeight(.medium)
-                            .foregroundStyle(contextUsageColor(for: usage.contextPercentage))
-                            .frame(width: 35, alignment: .trailing)
-                    }
-                }
-            }
-        }
-        .padding(.vertical, 8)
-    }
-    
-    private func contextUsageColor(for percentage: Double) -> Color {
-        switch percentage {
-        case 0..<50:
-            return .green
-        case 50..<75:
-            return .orange
-        default:
-            return .red
-        }
-    }
-    
-    private var statusColor: Color {
-        guard let statusCode = log.responseStatusCode else {
-            return .orange
-        }
-        
-        switch statusCode {
-        case 200...299:
-            return .green
-        case 400...499:
-            return .orange
-        case 500...599:
-            return .red
-        default:
-            return .gray
-        }
-    }
-    
-    private func formatURL(_ url: String) -> String {
-        return url
-            .replacingOccurrences(of: "https://", with: "")
-            .replacingOccurrences(of: "api.openai.com/", with: "")
-    }
-}
-
-struct APILogDetailView: View {
-    let log: APILogEntry
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // Token Usage Summary
-                if let usage = log.tokenUsage {
-                    detailSection("Token Usage") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Label("Total Tokens", systemImage: "sum")
-                                    .font(.footnote)
-                                Spacer()
-                                Text("\(usage.totalTokens)")
-                                    .font(.footnote)
-                                    .fontWeight(.semibold)
-                            }
-                            
-                            HStack {
-                                Label("Prompt Tokens", systemImage: "arrow.up.circle")
-                                    .font(.footnote)
-                                    .foregroundStyle(.blue)
-                                Spacer()
-                                Text("\(usage.promptTokens)")
-                                    .font(.footnote)
-                                    .fontWeight(.medium)
-                            }
-                            
-                            HStack {
-                                Label("Completion Tokens", systemImage: "arrow.down.circle")
-                                    .font(.footnote)
-                                    .foregroundStyle(.green)
-                                Spacer()
-                                Text("\(usage.completionTokens)")
-                                    .font(.footnote)
-                                    .fontWeight(.medium)
-                            }
-                            
-                            Divider()
-                            
-                            HStack {
-                                Label("Context Usage", systemImage: "chart.bar.fill")
-                                    .font(.footnote)
-                                Spacer()
-                                
-                                ZStack(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color(.systemGray5))
-                                        .frame(width: 100, height: 12)
-                                    
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(contextUsageColor(for: usage.contextPercentage))
-                                        .frame(width: 100 * min(usage.contextPercentage / 100.0, 1.0), height: 12)
-                                }
-                                
-                                Text("\(Int(usage.contextPercentage))%")
-                                    .font(.footnote)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(contextUsageColor(for: usage.contextPercentage))
-                                    .frame(width: 40, alignment: .trailing)
-                            }
-                        }
-                    }
-                }
-                
-                detailSection("Request") {
-                    Text("URL: \(log.requestURL)")
-                        .font(.footnote)
-                    Text("Method: \(log.requestMethod)")
-                        .font(.footnote)
-                    
-                    if let body = log.requestBodyString {
-                        Text("Body:")
-                            .font(.footnote)
-                            .fontWeight(.semibold)
-                        Text(body)
-                            .font(.caption)
-                            .fontDesign(.monospaced)
-                            .padding(8)
-                            .background(Color(.systemGray6))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-                }
-                
-                detailSection("Response") {
-                    if let statusCode = log.responseStatusCode {
-                        Text("Status: \(statusCode)")
-                            .font(.footnote)
-                    }
-                    
-                    Text("Duration: \(log.formattedDuration)")
-                        .font(.footnote)
-                    
-                    if let body = log.responseBodyString {
-                        Text("Body:")
-                            .font(.footnote)
-                            .fontWeight(.semibold)
-                        ScrollView(.horizontal) {
-                            Text(body)
-                                .font(.caption)
-                                .fontDesign(.monospaced)
-                                .padding(8)
-                                .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                        }
-                    }
-                }
-                
-                detailSection("cURL") {
-                    Text(log.curlCommand)
-                        .font(.caption)
-                        .fontDesign(.monospaced)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-            }
-            .padding()
-        }
-        .navigationTitle("Log Details")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
-        }
-    }
-    
-    private func detailSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                content()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-    
-    private func contextUsageColor(for percentage: Double) -> Color {
-        switch percentage {
-        case 0..<50:
-            return .green
-        case 50..<75:
-            return .orange
-        default:
-            return .red
-        }
-    }
-}
 
 // MARK: - Preview
 
