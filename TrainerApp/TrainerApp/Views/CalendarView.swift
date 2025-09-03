@@ -74,6 +74,7 @@ struct CalendarView: View {
             }
         }
         .onAppear {
+            print("🧭 CalendarView.onAppear - program nil? \(scheduleManager.currentProgram == nil ? "yes" : "no")")
             // Check if we need to start a new program
             if scheduleManager.currentProgram == nil {
                 showingProgramSetup = true
@@ -81,15 +82,25 @@ struct CalendarView: View {
             
             // Handle deep link navigation
             if let targetDate = navigationState.targetWorkoutDate, !navigatedToWorkout {
+                print("🧭 CalendarView detected deep link target: \(targetDate)")
                 navigatedToWorkout = true
-                // Find the workout day for the target date
-                if let workoutDay = scheduleManager.currentWeekDays.first(where: {
+                // Find the workout day for the target date in CURRENT week cache
+                if let _ = scheduleManager.currentWeekDays.first(where: {
                     Calendar.current.isDate($0.date, inSameDayAs: targetDate)
                 }) {
                     // Switch to week view to show the target day
+                    print("🧭 CalendarView found target in current week; switching to week view")
                     viewMode = .week
                     // Clear the navigation state
                     navigationState.targetWorkoutDate = nil
+                } else {
+                    print("🧭 CalendarView did NOT find target in current week; passing to WeeklyCalendarView via navigationState")
+                }
+            } else {
+                if navigationState.targetWorkoutDate == nil {
+                    print("🧭 CalendarView: no targetWorkoutDate set")
+                } else if navigatedToWorkout {
+                    print("🧭 CalendarView: already navigated to target")
                 }
             }
         }

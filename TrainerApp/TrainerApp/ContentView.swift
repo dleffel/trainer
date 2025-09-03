@@ -451,19 +451,28 @@ private struct Bubble: View {
     }
     
     private func handleURL(_ url: URL) {
+        print("🔗 Chat link tapped: \(url.absoluteString)")
         if url.scheme == "trainer" && url.host == "calendar" {
             // Extract the date from the path
             let pathComponents = url.pathComponents.filter { $0 != "/" }
             if let dateString = pathComponents.first {
+                print("🗓️ Deep link date string: \(dateString)")
                 // Parse the date string
                 let dateFormatter = ISO8601DateFormatter()
                 dateFormatter.formatOptions = [.withFullDate]
                 
                 if let date = dateFormatter.date(from: dateString) {
+                    print("✅ Parsed deep link date: \(date)")
                     navigationState.targetWorkoutDate = date
                     showCalendar = true
+                } else {
+                    print("❌ Failed to parse deep link date: \(dateString)")
                 }
+            } else {
+                print("❌ No date component found in URL path components: \(url.pathComponents)")
             }
+        } else {
+            print("⚠️ Unsupported URL tapped: \(url.scheme ?? "nil")://\(url.host ?? "nil")\(url.path)")
         }
     }
 }
@@ -484,14 +493,25 @@ private struct LinkDetectingText: View {
             // Build text with tappable links
             components.reduce(Text("")) { result, component in
                 if component.isLink, let url = URL(string: component.text) {
-                    return result + Text(" [\(getLinkDisplayText(from: component.text))](\(component.text)) ")
+                    // Build markdown with dynamic URL using AttributedString to avoid "%@" placeholder issue
+                    let label = getLinkDisplayText(from: component.text)
+                    let markdown = " [\(label)](\(url.absoluteString)) "
+                    let attributed = (try? AttributedString(
+                        markdown: markdown,
+                        options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+                    )) ?? AttributedString(label)
+                    
+                    let linkText = Text(attributed)
                         .foregroundColor(isUser ? .white : .blue)
                         .underline()
+                    
+                    return result + linkText
                 } else {
                     return result + Text(component.text)
                 }
             }
             .environment(\.openURL, OpenURLAction { url in
+                print("🔗 openURL action invoked with URL: \(url.absoluteString)")
                 onTap(url)
                 return .handled
             })
