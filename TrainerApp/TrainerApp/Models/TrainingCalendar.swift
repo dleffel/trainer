@@ -147,6 +147,45 @@ enum DayOfWeek: Int, CaseIterable, Codable {
     }
 }
 
+/// Represents detailed workout instructions
+struct WorkoutInstructions: Codable, Identifiable {
+    let id = UUID()
+    let generatedAt: Date
+    let sections: [InstructionSection]
+    
+    /// Quick access to formatted text for display
+    var formattedText: String {
+        sections.map { $0.formattedContent }.joined(separator: "\n\n")
+    }
+}
+
+/// Represents a section of workout instructions
+struct InstructionSection: Codable {
+    enum SectionType: String, Codable, CaseIterable {
+        case overview = "Overview"
+        case heartRateZones = "Heart Rate Zones"
+        case warmUp = "Warm-up"
+        case mainSet = "Main Set"
+        case coolDown = "Cool-down"
+        case technique = "Technique Focus"
+        case hydration = "Hydration"
+        case nutrition = "Nutrition"
+        case recovery = "Recovery"
+        case alternatives = "Alternative Options"
+        case notes = "Additional Notes"
+    }
+    
+    let type: SectionType
+    let title: String
+    let content: [String] // Array for bullet points or paragraphs
+    
+    var formattedContent: String {
+        var result = "## \(title)\n"
+        result += content.map { "• \($0)" }.joined(separator: "\n")
+        return result
+    }
+}
+
 /// Represents a single day in the training calendar
 struct WorkoutDay: Codable, Identifiable {
     let id = UUID()
@@ -157,6 +196,9 @@ struct WorkoutDay: Codable, Identifiable {
     var completed: Bool = false
     var notes: String?
     var actualWorkout: String?
+    
+    // New field for detailed instructions
+    var detailedInstructions: WorkoutInstructions?
     
     init(date: Date, blockType: BlockType) {
         self.date = date

@@ -75,6 +75,17 @@
 	<array>
 		<string>com.trainerapp.coachCheck</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>trainer</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.trainerapp.urlscheme</string>
+		</dict>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>

@@ -7,6 +7,8 @@ struct WeeklyCalendarView: View {
     @State private var selectedDay: WorkoutDay?
     @State private var selectedWeekBlock: TrainingBlock?
     @State private var selectedWeekNumber: Int = 1
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var hasNavigatedToTarget = false
     
     private let calendar = Calendar.current
     
@@ -26,9 +28,13 @@ struct WeeklyCalendarView: View {
         .padding()
         .onAppear {
             loadWeek()
+            handleDeepLinkNavigation()
         }
         .onChange(of: selectedWeek) { oldValue, newValue in
             loadWeek()
+        }
+        .onChange(of: navigationState.targetWorkoutDate) { _, _ in
+            handleDeepLinkNavigation()
         }
         .sheet(item: $selectedDay) { day in
             WorkoutDetailSheet(day: day, scheduleManager: scheduleManager)
@@ -172,6 +178,28 @@ struct WeeklyCalendarView: View {
             }
         }
     }
+    
+    private func handleDeepLinkNavigation() {
+        guard let targetDate = navigationState.targetWorkoutDate,
+              !hasNavigatedToTarget else { return }
+        
+        // Mark as navigated to prevent loops
+        hasNavigatedToTarget = true
+        
+        // Navigate to the week containing the target date
+        selectedWeek = targetDate
+        loadWeek()
+        
+        // Find and select the workout day
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            if let targetDay = weekDays.first(where: {
+                Calendar.current.isDate($0.date, inSameDayAs: targetDate)
+            }) {
+                selectedDay = targetDay
+                navigationState.targetWorkoutDate = nil
+            }
+        }
+    }
 }
 
 struct DayCard: View {
@@ -193,14 +221,23 @@ struct DayCard: View {
                 .font(.system(size: 20))
                 .foregroundColor(workoutIconColor)
             
-            if day.completed {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.green)
-            } else if day.dayOfWeek == .monday {
-                Image(systemName: "moon.zzz.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.indigo)
+            // Status indicators row
+            HStack(spacing: 4) {
+                if day.detailedInstructions != nil {
+                    Image(systemName: "doc.text.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.blue)
+                }
+                
+                if day.completed {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.green)
+                } else if day.dayOfWeek == .monday {
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.indigo)
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -244,6 +281,7 @@ struct WorkoutDetailSheet: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
     @State private var notes: String = ""
     @State private var actualWorkout: String = ""
+    @State private var showingInstructions = false
     
     var body: some View {
         NavigationStack {
@@ -278,6 +316,14 @@ struct WorkoutDetailSheet: View {
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
+                    
+                    // Detailed Instructions (if available)
+                    if let instructions = day.detailedInstructions {
+                        DetailedInstructionsCard(
+                            instructions: instructions,
+                            isExpanded: $showingInstructions
+                        )
+                    }
                     
                     // Planned workout
                     VStack(alignment: .leading, spacing: 12) {
@@ -367,6 +413,10 @@ struct WorkoutDetailSheet: View {
         .onAppear {
             notes = day.notes ?? ""
             actualWorkout = day.actualWorkout ?? ""
+            // Auto-expand instructions if navigated from deep link
+            if day.detailedInstructions != nil {
+                showingInstructions = true
+            }
         }
     }
     
@@ -375,5 +425,95 @@ struct WorkoutDetailSheet: View {
         formatter.dateStyle = .long
         formatter.timeStyle = .none
         return formatter
+    }
+}
+
+// MARK: - Detailed Instructions Components
+
+struct DetailedInstructionsCard: View {
+    let instructions: WorkoutInstructions
+    @Binding var isExpanded: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Detailed Instructions", systemImage: "doc.text.fill")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Button {
+                    withAnimation(.easeInOut) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(instructions.sections.indices, id: \.self) { index in
+                        InstructionSectionView(section: instructions.sections[index])
+                        
+                        if index < instructions.sections.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(.top, 8)
+            } else {
+                HStack {
+                    Text("Tap to view detailed workout instructions")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("Generated \(relativeTimeString(from: instructions.generatedAt))")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    private func relativeTimeString(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+struct InstructionSectionView: View {
+    let section: InstructionSection
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(section.title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.blue)
+            
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(section.content.indices, id: \.self) { index in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("•")
+                            .foregroundColor(.secondary)
+                            .font(.body)
+                        Text(section.content[index])
+                            .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
     }
 }

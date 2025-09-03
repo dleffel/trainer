@@ -17,6 +17,9 @@ struct ContentView: View {
     @State private var isLoadingHealthData: Bool = false
     @State private var isProcessingTools: Bool = false
     @State private var iCloudAvailable = false
+    
+    // Navigation state for deep linking
+    @EnvironmentObject var navigationState: NavigationState
 
     private let persistence = ConversationPersistence()
     private let model = "gpt-5" // GPT-5 with 128k context window
@@ -181,6 +184,13 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showCalendar) {
             CalendarView()
+                .environmentObject(navigationState)
+        }
+        .onChange(of: navigationState.showCalendar) { _, newValue in
+            if newValue {
+                showCalendar = true
+                navigationState.showCalendar = false
+            }
         }
         .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
             Button("OK") { errorMessage = nil }
@@ -258,10 +268,12 @@ struct ContentView: View {
             HStack {
                 if message.role == .assistant {
                     Bubble(text: message.content, isUser: false)
+                        .environmentObject(navigationState)
                     Spacer(minLength: 40)
                 } else {
                     Spacer(minLength: 40)
                     Bubble(text: message.content, isUser: true)
+                        .environmentObject(navigationState)
                 }
             }
             .padding(.vertical, 2)
@@ -418,16 +430,124 @@ struct ContentView: View {
 private struct Bubble: View {
     let text: String
     let isUser: Bool
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var showCalendar = false
 
     var body: some View {
-        Text(text)
-            .font(.body)
-            .foregroundStyle(isUser ? .white : .primary)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 14)
-            .background(isUser ? Color.blue : Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        LinkDetectingText(text: text, isUser: isUser) { url in
+            handleURL(url)
+        }
+        .font(.body)
+        .foregroundStyle(isUser ? .white : .primary)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 14)
+        .background(isUser ? Color.blue : Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        .sheet(isPresented: $showCalendar) {
+            CalendarView()
+                .environmentObject(navigationState)
+        }
+    }
+    
+    private func handleURL(_ url: URL) {
+        if url.scheme == "trainer" && url.host == "calendar" {
+            // Extract the date from the path
+            let pathComponents = url.pathComponents.filter { $0 != "/" }
+            if let dateString = pathComponents.first {
+                // Parse the date string
+                let dateFormatter = ISO8601DateFormatter()
+                dateFormatter.formatOptions = [.withFullDate]
+                
+                if let date = dateFormatter.date(from: dateString) {
+                    navigationState.targetWorkoutDate = date
+                    showCalendar = true
+                }
+            }
+        }
+    }
+}
+
+// Custom view to detect and make links tappable
+private struct LinkDetectingText: View {
+    let text: String
+    let isUser: Bool
+    let onTap: (URL) -> Void
+    
+    var body: some View {
+        let components = parseTextForLinks(text)
+        
+        if components.count == 1 && !components[0].isLink {
+            // No links found, just show plain text
+            Text(text)
+        } else {
+            // Build text with tappable links
+            components.reduce(Text("")) { result, component in
+                if component.isLink, let url = URL(string: component.text) {
+                    return result + Text(" [\(getLinkDisplayText(from: component.text))](\(component.text)) ")
+                        .foregroundColor(isUser ? .white : .blue)
+                        .underline()
+                } else {
+                    return result + Text(component.text)
+                }
+            }
+            .environment(\.openURL, OpenURLAction { url in
+                onTap(url)
+                return .handled
+            })
+        }
+    }
+    
+    private func getLinkDisplayText(from urlString: String) -> String {
+        if urlString.starts(with: "trainer://calendar/") {
+            return "📋 View instructions"
+        }
+        return "Link"
+    }
+    
+    private func parseTextForLinks(_ text: String) -> [(text: String, isLink: Bool)] {
+        var components: [(text: String, isLink: Bool)] = []
+        
+        // Pattern to match trainer:// URLs
+        let pattern = #"trainer://[^\s]+"#
+        
+        do {
+            let regex = try NSRegularExpression(pattern: pattern, options: [])
+            let nsString = text as NSString
+            let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+            
+            var lastEndIndex = 0
+            
+            for match in matches {
+                // Add text before the link
+                if match.range.location > lastEndIndex {
+                    let beforeText = nsString.substring(with: NSRange(location: lastEndIndex, length: match.range.location - lastEndIndex))
+                    if !beforeText.isEmpty {
+                        components.append((text: beforeText, isLink: false))
+                    }
+                }
+                
+                // Add the link
+                let linkText = nsString.substring(with: match.range)
+                components.append((text: linkText, isLink: true))
+                
+                lastEndIndex = match.range.location + match.range.length
+            }
+            
+            // Add any remaining text after the last link
+            if lastEndIndex < nsString.length {
+                let remainingText = nsString.substring(from: lastEndIndex)
+                if !remainingText.isEmpty {
+                    components.append((text: remainingText, isLink: false))
+                }
+            }
+            
+        } catch {
+            // If regex fails, just return the whole text as non-link
+            components.append((text: text, isLink: false))
+        }
+        
+        return components
     }
 }
 
@@ -712,6 +832,7 @@ enum LLMClient {
         request.httpMethod = "POST"
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120.0 // 2 minutes timeout for GPT-5 responses
 
         var msgs: [APIMessage] = []
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -729,9 +850,20 @@ enum LLMClient {
         let body = try JSONEncoder().encode(RequestBody(model: model, messages: msgs))
         request.httpBody = body
 
-        // Use logging session if API logging is enabled
-        let session = UserDefaults.standard.bool(forKey: "APILoggingEnabled") ? URLSession.shared : URLSession.shared
-        let (data, resp) = try await session.loggedData(for: request)
+        // Log the request if enabled
+        let startTime = Date()
+        let (data, resp) = try await URLSession.shared.data(for: request)
+        
+        // Log the API call if logging is enabled
+        if UserDefaults.standard.bool(forKey: "APILoggingEnabled") {
+            APILogger.shared.log(
+                request: request,
+                response: resp,
+                data: data,
+                error: nil,
+                startTime: startTime
+            )
+        }
         if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw LLMError.httpError(http.statusCode)
         }

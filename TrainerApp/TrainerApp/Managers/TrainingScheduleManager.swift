@@ -345,6 +345,11 @@ class TrainingScheduleManager: ObservableObject {
     private func saveWorkoutCompletion(_ day: WorkoutDay) {
         let key = "workout_\(dateKey(for: day.date))"
         
+        print("💾 TrainingScheduleManager: Saving workout for key: \(key)")
+        if let instructions = day.detailedInstructions {
+            print("✅ TrainingScheduleManager: Saving with \(instructions.sections.count) instruction sections")
+        }
+        
         if let data = try? JSONEncoder().encode(day) {
             // Save to local storage
             userDefaults.set(data, forKey: key)
@@ -353,7 +358,12 @@ class TrainingScheduleManager: ObservableObject {
             if useICloud {
                 iCloudStore.set(data, forKey: key)
                 iCloudStore.synchronize()
+                print("☁️ TrainingScheduleManager: Saved to iCloud")
+            } else {
+                print("💾 TrainingScheduleManager: Saved to local storage only")
             }
+        } else {
+            print("❌ TrainingScheduleManager: Failed to encode workout day")
         }
     }
     
@@ -374,9 +384,15 @@ class TrainingScheduleManager: ObservableObject {
             
             if let data = data,
                let savedDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
+                print("📥 TrainingScheduleManager: Loading saved data for \(key)")
                 days[index].completed = savedDay.completed
                 days[index].notes = savedDay.notes
                 days[index].actualWorkout = savedDay.actualWorkout
+                days[index].detailedInstructions = savedDay.detailedInstructions
+                
+                if let instructions = savedDay.detailedInstructions {
+                    print("✅ TrainingScheduleManager: Loaded \(instructions.sections.count) instruction sections")
+                }
             }
         }
     }
@@ -573,6 +589,13 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Update a workout day with new information
     func updateWorkoutDay(_ day: WorkoutDay) {
+        print("📝 TrainingScheduleManager: Updating workout day for \(dateKey(for: day.date))")
+        if let instructions = day.detailedInstructions {
+            print("✅ TrainingScheduleManager: Has detailed instructions with \(instructions.sections.count) sections")
+        } else {
+            print("⚠️ TrainingScheduleManager: No detailed instructions")
+        }
+        
         saveWorkoutCompletion(day)
         
         // Update the current days array if needed

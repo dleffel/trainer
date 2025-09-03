@@ -5,6 +5,8 @@ struct CalendarView: View {
     @State private var viewMode: CalendarViewMode = .week
     @State private var showingProgramSetup = false
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var navigatedToWorkout = false
     
     var body: some View {
         NavigationStack {
@@ -75,6 +77,20 @@ struct CalendarView: View {
             // Check if we need to start a new program
             if scheduleManager.currentProgram == nil {
                 showingProgramSetup = true
+            }
+            
+            // Handle deep link navigation
+            if let targetDate = navigationState.targetWorkoutDate, !navigatedToWorkout {
+                navigatedToWorkout = true
+                // Find the workout day for the target date
+                if let workoutDay = scheduleManager.currentWeekDays.first(where: {
+                    Calendar.current.isDate($0.date, inSameDayAs: targetDate)
+                }) {
+                    // Switch to week view to show the target day
+                    viewMode = .week
+                    // Clear the navigation state
+                    navigationState.targetWorkoutDate = nil
+                }
             }
         }
     }

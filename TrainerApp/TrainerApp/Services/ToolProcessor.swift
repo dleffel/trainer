@@ -146,6 +146,12 @@ class ToolProcessor {
                 let result = try await executePlanWeek(week: weekParam)
                 return ToolCallResult(toolName: toolCall.name, result: result)
                 
+            case "generate_workout_instructions":
+                print("📝 ToolProcessor: Matched generate_workout_instructions tool")
+                let dateParam = toolCall.parameters["date"] as? String ?? "today"
+                let result = try await executeGenerateWorkoutInstructions(date: dateParam)
+                return ToolCallResult(toolName: toolCall.name, result: result)
+                
             default:
                 print("❌ ToolProcessor: Unknown tool '\(toolCall.name)'")
                 throw ToolError.unknownTool(toolCall.name)
@@ -513,6 +519,246 @@ class ToolProcessor {
             
             return plan.joined(separator: "\n")
         }
+    }
+    
+    /// Generate detailed workout instructions
+    private func executeGenerateWorkoutInstructions(date: String) async throws -> String {
+        print("📝 ToolProcessor: Generating detailed workout instructions for: \(date)")
+        
+        return await MainActor.run {
+            let manager = TrainingScheduleManager.shared
+            
+            guard manager.programStartDate != nil else {
+                return "[Instructions: No program started. Start your training program first.]"
+            }
+            
+            let targetDate = parseDate(date)
+            
+            // Find the workout day
+            guard let workoutDay = manager.currentWeekDays.first(where: {
+                Calendar.current.isDate($0.date, inSameDayAs: targetDate)
+            }) else {
+                return "[Instructions: No workout found for \(formatDate(targetDate))]"
+            }
+            
+            // Generate instructions based on workout type
+            let instructions = generateInstructionsForWorkout(workoutDay)
+            
+            // Update the workout day with instructions
+            var updatedDay = workoutDay
+            updatedDay.detailedInstructions = instructions
+            manager.updateWorkoutDay(updatedDay)
+            
+            // Return confirmation with deep link
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withFullDate]
+            let dateString = dateFormatter.string(from: targetDate)
+            
+            return """
+            [Detailed Instructions Generated ✅]
+            • Date: \(formatDate(targetDate))
+            • Day: \(workoutDay.dayOfWeek.name)
+            • Workout: \(workoutDay.plannedWorkout ?? "Custom")
+            
+            📋 View instructions: trainer://calendar/\(dateString)
+            """
+        }
+    }
+    
+    /// Generate appropriate instruction sections based on workout type
+    private func generateInstructionsForWorkout(_ workoutDay: WorkoutDay) -> WorkoutInstructions {
+        var sections: [InstructionSection] = []
+        
+        // Add sections based on the workout type
+        let workoutText = workoutDay.plannedWorkout ?? ""
+        
+        // Overview section (always included)
+        sections.append(InstructionSection(
+            type: .overview,
+            title: "Today's Session Plan",
+            content: [workoutText]
+        ))
+        
+        // For rowing workouts, add HR zones
+        if workoutText.contains("RowErg") || workoutText.contains("UT2") || workoutText.contains("AT") {
+            sections.append(InstructionSection(
+                type: .heartRateZones,
+                title: "Heart Rate Zones",
+                content: [
+                    "UT2/Z1: 106-123 bpm (conversational pace)",
+                    "Z2: 123-141 bpm (steady state)",
+                    "Race-pace/Z3: 150-162 bpm (threshold)",
+                    "Note: Zones based on age 46, HRmax ≈ 176 bpm"
+                ]
+            ))
+        }
+        
+        // Warm-up section
+        if !workoutText.contains("Rest") {
+            let warmUp = getWarmUpForWorkout(workoutText)
+            sections.append(InstructionSection(
+                type: .warmUp,
+                title: "Warm-up Protocol",
+                content: warmUp
+            ))
+        }
+        
+        // Main set details
+        if let mainSet = getMainSetDetails(workoutText) {
+            sections.append(InstructionSection(
+                type: .mainSet,
+                title: "Main Set",
+                content: mainSet
+            ))
+        }
+        
+        // Cool-down section
+        if !workoutText.contains("Rest") {
+            let coolDown = getCoolDownForWorkout(workoutText)
+            sections.append(InstructionSection(
+                type: .coolDown,
+                title: "Cool-down",
+                content: coolDown
+            ))
+        }
+        
+        // Hydration reminder
+        if workoutText.contains("60′") || workoutText.contains("70-80′") {
+            sections.append(InstructionSection(
+                type: .hydration,
+                title: "Hydration",
+                content: [
+                    "Sip water every 10 minutes",
+                    "Target ~117 fl oz (3.5 L) across the day",
+                    "Consider electrolytes for sessions over 60 minutes"
+                ]
+            ))
+        }
+        
+        // Technique focus for specific workouts
+        if let techniqueFocus = getTechniqueFocus(workoutText) {
+            sections.append(InstructionSection(
+                type: .technique,
+                title: "Technique Focus",
+                content: techniqueFocus
+            ))
+        }
+        
+        // Alternative options
+        if let alternatives = getAlternativeOptions(workoutText) {
+            sections.append(InstructionSection(
+                type: .alternatives,
+                title: "Alternative Options",
+                content: alternatives
+            ))
+        }
+        
+        return WorkoutInstructions(
+            generatedAt: Date(),
+            sections: sections
+        )
+    }
+    
+    private func getWarmUpForWorkout(_ workout: String) -> [String] {
+        if workout.contains("RowErg") {
+            return [
+                "10 minutes progressive rowing (start at 50% effort)",
+                "3×30s high-cadence strokes with 60s easy between",
+                "Dynamic stretching: hip flexors, hamstrings, shoulders"
+            ]
+        } else if workout.contains("squat") || workout.contains("Strength") {
+            return [
+                "5 minutes light cardio (bike or row)",
+                "Dynamic mobility: leg swings, hip circles, arm circles",
+                "Activation: bodyweight squats, glute bridges",
+                "Warm-up sets: 50%, 70%, 85% of working weight"
+            ]
+        } else if workout.contains("Spin") || workout.contains("bike") {
+            return [
+                "10 minutes easy spinning",
+                "3×30s cadence builds (80→100 rpm)",
+                "60s easy spinning between efforts"
+            ]
+        }
+        return ["10 minutes progressive warm-up", "Dynamic stretching as needed"]
+    }
+    
+    private func getMainSetDetails(_ workout: String) -> [String]? {
+        if workout.contains("4×10′") {
+            return [
+                "4 sets of 10 minutes at 85-88% max HR",
+                "Stroke rate: 24-26 spm",
+                "3 minutes easy recovery between sets",
+                "Focus on consistent split times"
+            ]
+        } else if workout.contains("UT2") {
+            return [
+                "Continuous rowing at conversational pace",
+                "Heart rate: 106-123 bpm (UT2 zone)",
+                "Stroke rate: 18-20 spm",
+                "Focus on technique and breathing"
+            ]
+        } else if workout.contains("5×5") || workout.contains("4×6") {
+            return [
+                "Working sets at 80-85% 1RM",
+                "Rest 3-4 minutes between sets",
+                "Focus on form over speed",
+                "Track weights for progressive overload"
+            ]
+        }
+        return nil
+    }
+    
+    private func getCoolDownForWorkout(_ workout: String) -> [String] {
+        if workout.contains("RowErg") || workout.contains("interval") {
+            return [
+                "5-10 minutes easy rowing",
+                "5-8 minutes foam rolling (quads, glutes, T-spine)",
+                "Static stretching: hip flexors, hamstrings, shoulders"
+            ]
+        } else if workout.contains("Strength") || workout.contains("squat") {
+            return [
+                "5 minutes light cardio",
+                "Foam rolling: focus on worked muscle groups",
+                "Static stretching: 30s holds for major muscle groups"
+            ]
+        }
+        return ["5-10 minutes easy movement", "Light stretching as needed"]
+    }
+    
+    private func getTechniqueFocus(_ workout: String) -> [String]? {
+        if workout.contains("RowErg") {
+            return [
+                "Smooth, relaxed shoulders",
+                "Consistent stroke rhythm",
+                "Full body engagement through the drive",
+                "Controlled recovery phase"
+            ]
+        } else if workout.contains("squat") {
+            return [
+                "Maintain neutral spine",
+                "Drive through heels",
+                "Knees tracking over toes",
+                "Full depth if mobility allows"
+            ]
+        }
+        return nil
+    }
+    
+    private func getAlternativeOptions(_ workout: String) -> [String]? {
+        if workout.contains("RowErg") && (workout.contains("60′") || workout.contains("70-80′")) {
+            return [
+                "Bike: Same duration at equivalent HR zones",
+                "Swimming: 40-50 minutes continuous",
+                "Cross-trainer: Match time and intensity"
+            ]
+        } else if workout.contains("RowErg") && workout.contains("interval") {
+            return [
+                "Bike intervals: Same work:rest ratio",
+                "Track running: Adjust distances for impact"
+            ]
+        }
+        return nil
     }
     
     /// Process a response that may contain tool calls
