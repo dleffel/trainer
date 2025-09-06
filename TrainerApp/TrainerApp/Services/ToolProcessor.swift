@@ -329,7 +329,24 @@ class ToolProcessor {
         return await MainActor.run {
             let manager = TrainingScheduleManager.shared
             
+            // DEBUG: Log calendar data availability
+            print("🔍 DEBUG executeGetTrainingStatus - Program exists: \(manager.programStartDate != nil)")
+            print("🔍 DEBUG executeGetTrainingStatus - Current block: \(manager.currentBlock?.type.rawValue ?? "nil")")
+            print("🔍 DEBUG executeGetTrainingStatus - Workout days count: \(manager.workoutDays.count)")
+            
+            // Check what's actually stored in the calendar
+            let currentWeekDays = manager.generateWeek(containing: Date())
+            print("🔍 DEBUG executeGetTrainingStatus - Current week has \(currentWeekDays.count) days")
+            for (index, day) in currentWeekDays.enumerated() {
+                let hasWorkout = day.plannedWorkout != nil
+                print("  Day \(index): \(day.dayOfWeek.name) - Has workout: \(hasWorkout)")
+                if hasWorkout {
+                    print("    Workout preview: \(String(day.plannedWorkout?.prefix(50) ?? ""))")
+                }
+            }
+            
             guard manager.programStartDate != nil else {
+                print("⚠️ DEBUG executeGetTrainingStatus - No program started")
                 return """
                 [Training Status: No program started]
                 Use [TOOL_CALL: start_training_program] to begin your 20-week training cycle.
@@ -337,12 +354,14 @@ class ToolProcessor {
             }
             
             guard let block = manager.currentBlock else {
+                print("⚠️ DEBUG executeGetTrainingStatus - No current block")
                 return "[Training Status: Program data not available]"
             }
             let week = manager.currentWeek
             let totalWeek = manager.totalWeekInProgram
             let day = manager.currentDay
             
+            print("✅ DEBUG executeGetTrainingStatus - Returning status text (not calendar data!)")
             return """
             [Training Status]
             • Current Block: \(block.type.rawValue.capitalized) (Week \(week) of \(block.type.duration))
@@ -513,7 +532,7 @@ class ToolProcessor {
             print("📝 Parsed date: \(date)")
             
             // Update workouts for the week
-            let success = manager.updateWeekWorkouts(weekStarting: date, workouts: workouts)
+            let success = manager.updateWeekWorkouts(weekStartDate: date, workouts: workouts)
             
             if success {
                 print("✅ Successfully updated workouts for week")
@@ -557,12 +576,18 @@ class ToolProcessor {
         var cleanedResponse = response
         var toolResults: [ToolCallResult] = []
         
-        // Process tool calls in reverse order to maintain string indices
-        for toolCall in toolCalls.reversed() {
+        // CRITICAL FIX: Execute tools in FORWARD order (preserve logical sequence)
+        print("🔧 ToolProcessor: Executing tools in forward order...")
+        for (index, toolCall) in toolCalls.enumerated() {
+            print("🔧 ToolProcessor: Executing tool \(index + 1)/\(toolCalls.count): \(toolCall.name)")
             // Execute the tool
             let result = try await executeTool(toolCall)
-            toolResults.insert(result, at: 0) // Insert at beginning to maintain order
-            
+            toolResults.append(result) // Add to end to maintain order
+        }
+        
+        // Remove tool calls from response in REVERSE order (to maintain string indices)
+        print("🧹 ToolProcessor: Removing tool calls from response in reverse order...")
+        for toolCall in toolCalls.reversed() {
             // Remove the tool call from the response
             if let range = Range(toolCall.range, in: cleanedResponse) {
                 cleanedResponse.replaceSubrange(range, with: "")

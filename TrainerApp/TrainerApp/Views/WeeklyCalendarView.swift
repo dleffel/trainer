@@ -158,6 +158,19 @@ struct WeeklyCalendarView: View {
         
         weekDays = scheduleManager.generateWeek(containing: selectedWeek)
         
+        // DEBUG: Check if any days have workout data
+        print("📅 WeeklyCalendarView loadWeek - Got \(weekDays.count) days")
+        var daysWithWorkouts = 0
+        for day in weekDays {
+            if day.plannedWorkout != nil {
+                daysWithWorkouts += 1
+                print("  ✅ \(day.dayOfWeek.name): Has workout - \(String(day.plannedWorkout?.prefix(30) ?? ""))")
+            } else {
+                print("  ❌ \(day.dayOfWeek.name): NO workout data")
+            }
+        }
+        print("📅 WeeklyCalendarView - Summary: \(daysWithWorkouts)/\(weekDays.count) days have workouts")
+        
         // Calculate block info for selected week
         if let program = scheduleManager.currentProgram {
             let calendar = Calendar.current

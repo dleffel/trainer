@@ -395,29 +395,50 @@ class TrainingScheduleManager: ObservableObject {
     }
     
     /// Update workouts for a specific week
-    func updateWeekWorkouts(weekStarting date: Date, workouts: [String: String]) -> Bool {
-        guard currentProgram != nil else {
+    func updateWeekWorkouts(weekStartDate: Date, workouts: [String: String]) -> Bool {
+        guard let program = currentProgram else {
             print("⚠️ No active program to update workouts")
             return false
         }
         
-        print("📝 updateWeekWorkouts - Starting date: \(date)")
+        print("📝 updateWeekWorkouts - Starting date: \(weekStartDate)")
         print("📝 updateWeekWorkouts - Workouts to save: \(workouts.count)")
         
+        // Check if date is before program start - use current week instead
+        var adjustedDate = weekStartDate
+        if weekStartDate < program.startDate {
+            print("⚠️ Date \(weekStartDate) is before program start \(program.startDate)")
+            print("📝 Using current week instead")
+            adjustedDate = Date()
+        }
+        
         // Get all days for this week
-        let weekDays = generateWeek(containing: date)
+        let weekDays = generateWeek(containing: adjustedDate)
         print("📝 updateWeekWorkouts - Generated \(weekDays.count) days for the week")
         
+        // If still no days generated, try the first week of the program
+        if weekDays.isEmpty {
+            print("📝 Falling back to first week of program")
+            let weekDays = generateWeek(containing: program.startDate)
+            if !weekDays.isEmpty {
+                return processWorkoutsForDays(weekDays, workouts: workouts)
+            }
+        }
+        
+        return processWorkoutsForDays(weekDays, workouts: workouts)
+    }
+    
+    private func processWorkoutsForDays(_ weekDays: [WorkoutDay], workouts: [String: String]) -> Bool {
         for day in weekDays {
             let dayName = day.dayOfWeek.name.lowercased()
-            print("📝 updateWeekWorkouts - Processing \(dayName), date: \(day.date)")
+            print("📝 Processing \(dayName), date: \(day.date)")
             
             if let workout = workouts[dayName] {
-                print("📝 updateWeekWorkouts - Found workout for \(dayName): \(workout.prefix(50))...")
+                print("📝 Found workout for \(dayName): \(workout.prefix(50))...")
                 // Update the workout for this day
                 updateWorkoutForDay(date: day.date, workout: workout)
             } else {
-                print("⚠️ updateWeekWorkouts - No workout provided for \(dayName)")
+                print("⚠️ No workout provided for \(dayName)")
             }
         }
         
@@ -465,7 +486,15 @@ class TrainingScheduleManager: ObservableObject {
                     print("☁️ Saved new day to iCloud with key: \(key)")
                 }
                 userDefaults.set(data, forKey: key)
+                userDefaults.synchronize() // Force sync
                 print("💾 Saved new day to UserDefaults with key: \(key)")
+                
+                // Verify the save
+                if let verifyData = userDefaults.data(forKey: key) {
+                    print("✅ Verified: Data exists in UserDefaults for key: \(key) (\(verifyData.count) bytes)")
+                } else {
+                    print("❌ ERROR: Data NOT found in UserDefaults immediately after save for key: \(key)")
+                }
             } else {
                 print("❌ Failed to encode new workout day")
             }
