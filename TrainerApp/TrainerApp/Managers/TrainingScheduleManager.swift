@@ -229,14 +229,28 @@ class TrainingScheduleManager: ObservableObject {
                 let key = "workout_\(dateKey(for: dayDate))"
                 var workoutDay: WorkoutDay
                 
+                // DEBUG: Enhanced logging for workout loading
+                print("🔍 DEBUG: Looking for workout with key: \(key)")
+                print("🔍 DEBUG: Date being checked: \(dayDate)")
+                print("🔍 DEBUG: Using iCloud: \(useICloud)")
+                
+                // Check both storage locations for debugging
+                let iCloudData = iCloudStore.data(forKey: key)
+                let localData = userDefaults.data(forKey: key)
+                
+                print("🔍 DEBUG: Data in iCloud: \(iCloudData != nil ? "YES (\(iCloudData!.count) bytes)" : "NO")")
+                print("🔍 DEBUG: Data in UserDefaults: \(localData != nil ? "YES (\(localData!.count) bytes)" : "NO")")
+                
                 // Try to load existing workout from storage
-                if let data = useICloud ? iCloudStore.data(forKey: key) : userDefaults.data(forKey: key),
+                if let data = useICloud ? iCloudData : localData,
                    let savedDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
                     workoutDay = savedDay
                     print("📥 Loaded saved workout for \(dateKey(for: dayDate))")
+                    print("📥 DEBUG: Planned workout content: \(savedDay.plannedWorkout ?? "nil")")
                 } else {
                     // Create new workout day (blank, to be filled by coach)
                     workoutDay = WorkoutDay(date: dayDate, blockType: targetBlock.type)
+                    print("📭 DEBUG: No saved workout found, creating blank day")
                 }
                 
                 days.append(workoutDay)
@@ -275,7 +289,15 @@ class TrainingScheduleManager: ObservableObject {
     private func dateKey(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        formatter.timeZone = TimeZone(identifier: "UTC")  // Force UTC to ensure consistency
+        let key = formatter.string(from: date)
+        
+        // DEBUG: Log timezone information
+        print("🔑 DEBUG dateKey - Input date: \(date)")
+        print("🔑 DEBUG dateKey - Generated key: \(key)")
+        print("🔑 DEBUG dateKey - System timezone: \(TimeZone.current.identifier)")
+        
+        return key
     }
     
     /// Get a formatted string describing the current position in the program

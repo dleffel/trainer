@@ -300,12 +300,28 @@ struct WorkoutDetailSheet: View {
                         Label("Planned Workout", systemImage: "calendar")
                             .font(.headline)
                         
-                        Text(day.plannedWorkout ?? "Rest Day")
-                            .font(.body)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.systemGray5))
-                            .cornerRadius(8)
+                        if let workout = day.plannedWorkout {
+                            Text(workout)
+                                .font(.body)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(8)
+                        } else {
+                            Text("No workout planned yet")
+                                .font(.body)
+                                .italic()
+                                .foregroundColor(.secondary)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                        .foregroundColor(.secondary.opacity(0.3))
+                                )
+                        }
                     }
                 }
                 .padding()
