@@ -153,11 +153,6 @@ final class APILogger {
         UserDefaults.standard.set(enabled, forKey: "APILoggingEnabled")
     }
     
-    /// Check if logging is enabled
-    func isLoggingEnabled() -> Bool {
-        return isLoggingEnabled
-    }
-    
     /// Get storage info
     func getStorageInfo() -> (logCount: Int, oldestLog: Date?, newestLog: Date?) {
         let logs = getAllLogs()
