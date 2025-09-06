@@ -674,7 +674,6 @@ private struct SettingsSheet: View {
     @State private var developerModeEnabled = UserDefaults.standard.bool(forKey: "DeveloperModeEnabled")
     @State private var apiLoggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
     @State private var showDebugMenu = false
-    @State private var showProactiveSettings = false
 
     var body: some View {
         NavigationStack {
@@ -684,24 +683,6 @@ private struct SettingsSheet: View {
                         .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
-                }
-                
-                Section("Smart Reminders") {
-                    Button {
-                        showProactiveSettings = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "bell.badge")
-                                .foregroundColor(.blue)
-                                .frame(width: 30)
-                            Text("Configure Smart Reminders")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .foregroundColor(.primary)
                 }
                 
                 Section("Developer Options") {
@@ -783,10 +764,6 @@ private struct SettingsSheet: View {
         .sheet(isPresented: $showDebugMenu) {
             DebugMenuView()
                 .presentationDetents([.large])
-        }
-        .sheet(isPresented: $showProactiveSettings) {
-            ProactiveMessagingSettingsView()
-                .presentationDetents([.medium, .large])
         }
     }
 }

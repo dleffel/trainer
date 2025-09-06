@@ -20,9 +20,7 @@
 		B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33402E59A6C7004C515B /* HealthKitManager.swift */; };
 		B75C33432E59A829004C515B /* SystemPrompt.md in Resources */ = {isa = PBXBuildFile; fileRef = B75C33422E59A829004C515B /* SystemPrompt.md */; };
 		B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */; };
-		B781C9212E639C0D00B866CE /* ProactiveCoachManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9202E639C0D00B866CE /* ProactiveCoachManager.swift */; };
 		B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9222E639C4800B866CE /* URLSession+Logging.swift */; };
-		B781C9262E639C6000B866CE /* ProactiveMessagingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9252E639C6000B866CE /* ProactiveMessagingSettingsView.swift */; };
 		B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C92A2E639CB300B866CE /* ExportOptionsView.swift */; };
 		B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9282E639CB300B866CE /* DebugMenuView.swift */; };
 		B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9272E639CB300B866CE /* APILogDetailView.swift */; };
@@ -52,10 +50,8 @@
 		B75C33422E59A829004C515B /* SystemPrompt.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = SystemPrompt.md; sourceTree = "<group>"; };
 		B75C33452E5B53D9004C515B /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptLoader.swift; sourceTree = "<group>"; };
-		B781C9202E639C0D00B866CE /* ProactiveCoachManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProactiveCoachManager.swift; sourceTree = "<group>"; };
 		B781C9222E639C4800B866CE /* URLSession+Logging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Logging.swift"; sourceTree = "<group>"; };
 		B781C9242E639C5600B866CE /* EnhancedAPILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedAPILogger.swift; sourceTree = "<group>"; };
-		B781C9252E639C6000B866CE /* ProactiveMessagingSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProactiveMessagingSettingsView.swift; sourceTree = "<group>"; };
 		B781C9272E639CB300B866CE /* APILogDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogDetailView.swift; sourceTree = "<group>"; };
 		B781C9282E639CB300B866CE /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
 		B781C92A2E639CB300B866CE /* ExportOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportOptionsView.swift; sourceTree = "<group>"; };
@@ -125,7 +121,6 @@
 		B75947362E0703BD00BE6537 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
-				B781C9202E639C0D00B866CE /* ProactiveCoachManager.swift */,
 				B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */,
 				B75C33402E59A6C7004C515B /* HealthKitManager.swift */,
 			);
@@ -151,7 +146,6 @@
 		B75A86682E5D884700CB5792 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B781C9252E639C6000B866CE /* ProactiveMessagingSettingsView.swift */,
 				B75A86662E5D884700CB5792 /* CalendarView.swift */,
 				B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */,
 			);
@@ -276,11 +270,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */,
-				B781C9212E639C0D00B866CE /* ProactiveCoachManager.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
 				B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */,
-				B781C9262E639C6000B866CE /* ProactiveMessagingSettingsView.swift in Sources */,
 				B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */,
 				B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */,
 				B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */,
