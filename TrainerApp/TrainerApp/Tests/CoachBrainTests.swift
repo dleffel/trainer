@@ -25,7 +25,7 @@ class CoachBrainTests: XCTestCase {
     
     func testEvaluateContext_NoAPIKey_ReturnsSetupMessage() async throws {
         // Given
-        UserDefaults.standard.removeObject(forKey: "OPENAI_API_KEY")
+        UserDefaults.standard.removeObject(forKey: "OPENROUTER_API_KEY")
         let context = createTestContext(programExists: false)
         
         // When
@@ -137,7 +137,7 @@ class CoachBrainTests: XCTestCase {
     }
     
     private func setMockAPIKey() {
-        UserDefaults.standard.set("mock-api-key", forKey: "OPENAI_API_KEY")
+        UserDefaults.standard.set("mock-api-key", forKey: "OPENROUTER_API_KEY")
     }
 }
 

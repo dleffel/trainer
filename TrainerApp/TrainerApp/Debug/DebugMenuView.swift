@@ -347,6 +347,7 @@ struct APILogRowView: View {
             .replacingOccurrences(of: "https://", with: "")
             .replacingOccurrences(of: "http://", with: "")
             .replacingOccurrences(of: "api.openai.com/", with: "")
+            .replacingOccurrences(of: "openrouter.ai/", with: "")
     }
 }
 

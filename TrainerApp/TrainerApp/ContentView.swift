@@ -12,17 +12,18 @@ struct ContentView: View {
     @State private var isSending: Bool = false
     @State private var showSettings: Bool = false
     @State private var showCalendar: Bool = false
-    @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENAI_API_KEY") ?? ""
+    @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY") ?? ""
     @State private var errorMessage: String?
     @State private var isLoadingHealthData: Bool = false
     @State private var isProcessingTools: Bool = false
     @State private var iCloudAvailable = false
+    @State private var showMigrationAlert: Bool = false
     
     // Navigation state for deep linking
     @EnvironmentObject var navigationState: NavigationState
 
     private let persistence = ConversationPersistence()
-    private let model = "gpt-5" // GPT-5 with 128k context window
+    private let model = "openai/gpt-5" // GPT-5 via OpenRouter with 128k context window
     private let healthKitManager = HealthKitManager.shared
     private let maxConversationTurns = 5 // Maximum turns for tool processing
     
@@ -177,7 +178,7 @@ struct ContentView: View {
                     try? persistence.clear()
                 },
                 onSave: {
-                    UserDefaults.standard.set(apiKey, forKey: "OPENAI_API_KEY")
+                    UserDefaults.standard.set(apiKey, forKey: "OPENROUTER_API_KEY")
                 }
             )
             .presentationDetents([.medium, .large])
@@ -197,6 +198,33 @@ struct ContentView: View {
         }, message: {
             Text(errorMessage ?? "")
         })
+        .alert("API Key Migration Required", isPresented: $showMigrationAlert, actions: {
+            Button("Open Settings") {
+                showSettings = true
+            }
+            Button("Later", role: .cancel) { }
+        }, message: {
+            Text("OpenRouter is now required for this app. Please update your API key in Settings. You can get an OpenRouter API key at openrouter.ai")
+        })
+        .onAppear {
+            checkForMigration()
+        }
+    }
+    
+    // MARK: - Migration Helper
+    
+    private func checkForMigration() {
+        // Check if user has old OpenAI key but no OpenRouter key
+        let oldKey = UserDefaults.standard.string(forKey: "OPENAI_API_KEY")
+        let newKey = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY")
+        
+        if let oldKey = oldKey, !oldKey.isEmpty, (newKey == nil || newKey!.isEmpty) {
+            // User has old key but no new key - show migration alert
+            showMigrationAlert = true
+            
+            // Clear the old key to avoid confusion
+            UserDefaults.standard.removeObject(forKey: "OPENAI_API_KEY")
+        }
     }
 
     // MARK: - Views
@@ -678,11 +706,14 @@ private struct SettingsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("OpenAI") {
-                    SecureField("API Key", text: $apiKey)
+                Section("OpenRouter") {
+                    SecureField("API Key (sk-or-...)", text: $apiKey)
                         .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+                    Text("Get your API key at [openrouter.ai](https://openrouter.ai)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 
                 Section("Developer Options") {
@@ -905,11 +936,13 @@ enum LLMClient {
             let choices: [Choice]
         }
 
-        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
+        let url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("com.yourcompany.TrainerApp", forHTTPHeaderField: "HTTP-Referer")
+        request.addValue("TrainerApp", forHTTPHeaderField: "X-Title")
         request.timeoutInterval = 120.0 // 2 minutes timeout for GPT-5 responses
 
         var msgs: [APIMessage] = []
@@ -968,12 +1001,14 @@ enum LLMClient {
         struct StreamChoice: Codable { let delta: StreamDelta? }
         struct StreamChunk: Codable { let choices: [StreamChoice] }
         
-        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
+        let url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.addValue("com.yourcompany.TrainerApp", forHTTPHeaderField: "HTTP-Referer")
+        request.addValue("TrainerApp", forHTTPHeaderField: "X-Title")
         request.timeoutInterval = 120.0 // Keep consistent with non-streaming
         
         var msgs: [APIMessage] = []
