@@ -52,10 +52,19 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Start a new training program
     func startNewProgram(startDate: Date = Date()) {
+        print("🔍 DEBUG startNewProgram - Starting new program on: \(startDate)")
         let program = TrainingProgram(startDate: startDate, currentMacroCycle: 1)
         self.currentProgram = program
         saveProgram()
         updateCurrentBlock()
+        
+        // Debug: Print current state after initialization
+        print("🔍 DEBUG startNewProgram - Current block: \(currentBlock?.type.rawValue ?? "nil")")
+        print("🔍 DEBUG startNewProgram - Current week in block: \(currentWeekInBlock)")
+        print("🔍 DEBUG startNewProgram - Current week overall: \(currentWeek)")
+        print("🔍 DEBUG startNewProgram - Program start date: \(program.startDate)")
+        
+        // Workouts will be populated by the coach via plan_week_workouts
     }
     
     /// Load existing program from storage
@@ -111,28 +120,36 @@ class TrainingScheduleManager: ObservableObject {
         guard let program = currentProgram else {
             currentBlock = nil
             currentWeekInBlock = 1
+            print("⚠️ DEBUG updateCurrentBlock - No current program")
             return
         }
         
         let blocks = generateAllBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
         let now = Date()
         
+        print("🔍 DEBUG updateCurrentBlock - Checking date: \(now)")
+        print("🔍 DEBUG updateCurrentBlock - Generated \(blocks.count) blocks")
+        
         // Find the current block
-        for block in blocks {
+        for (index, block) in blocks.enumerated() {
+            print("🔍 DEBUG updateCurrentBlock - Block \(index): \(block.type.rawValue) from \(block.startDate) to \(block.endDate)")
             if block.contains(date: now) {
                 self.currentBlock = block
                 
                 // Calculate week within block
                 let calendar = Calendar.current
-                let weeksSinceBlockStart = calendar.dateComponents([.weekOfYear], 
-                                                                   from: block.startDate, 
+                let weeksSinceBlockStart = calendar.dateComponents([.weekOfYear],
+                                                                   from: block.startDate,
                                                                    to: now).weekOfYear ?? 0
                 self.currentWeekInBlock = weeksSinceBlockStart + 1
+                
+                print("✅ DEBUG updateCurrentBlock - Found current block: \(block.type.rawValue)")
+                print("✅ DEBUG updateCurrentBlock - Week in block: \(currentWeekInBlock)")
                 break
             }
         }
         
-        // Generate current week's workout days
+        // Generate current week's workout days (blank, to be filled by coach)
         workoutDays = generateWeek(containing: Date())
     }
     
@@ -141,10 +158,11 @@ class TrainingScheduleManager: ObservableObject {
         print("🔍 DEBUG generateAllBlocks - Program start: \(startDate)")
         
         let calendar = Calendar.current
+        // Start with Hypertrophy-Strength as per System Prompt
         let blockDurations: [(BlockType, Int)] = [
-            (.aerobicCapacity, 8),
-            (.deload, 1),
             (.hypertrophyStrength, 10),
+            (.deload, 1),
+            (.aerobicCapacity, 8),
             (.deload, 1)
         ]
         
@@ -164,28 +182,6 @@ class TrainingScheduleManager: ObservableObject {
             print("🔍 DEBUG generateAllBlocks - Added \(blockType.rawValue) from \(currentStartDate) to \(endDate)")
             
             currentStartDate = endDate
-        }
-        
-        // Add race prep if race is scheduled
-        if let raceDate = currentProgram?.raceDate,
-           raceDate > currentStartDate {
-            // Add race prep block
-            let prepStart = calendar.date(byAdding: .weekOfYear, value: -3, to: raceDate)!
-            blocks.append(TrainingBlock(
-                type: .racePrep,
-                startDate: prepStart,
-                endDate: calendar.date(byAdding: .weekOfYear, value: -1, to: raceDate)!,
-                weekNumber: blocks.count + 1
-            ))
-            
-            // Add taper week
-            let taperStart = calendar.date(byAdding: .weekOfYear, value: -1, to: raceDate)!
-            blocks.append(TrainingBlock(
-                type: .taper,
-                startDate: taperStart,
-                endDate: raceDate,
-                weekNumber: 0 // Special case
-            ))
         }
         
         return blocks
@@ -229,7 +225,20 @@ class TrainingScheduleManager: ObservableObject {
         
         for dayOffset in 0..<7 {
             if let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) {
-                let workoutDay = WorkoutDay(date: dayDate, blockType: targetBlock.type)
+                // Check if we have a saved workout for this date first
+                let key = "workout_\(dateKey(for: dayDate))"
+                var workoutDay: WorkoutDay
+                
+                // Try to load existing workout from storage
+                if let data = useICloud ? iCloudStore.data(forKey: key) : userDefaults.data(forKey: key),
+                   let savedDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
+                    workoutDay = savedDay
+                    print("📥 Loaded saved workout for \(dateKey(for: dayDate))")
+                } else {
+                    // Create new workout day (blank, to be filled by coach)
+                    workoutDay = WorkoutDay(date: dayDate, blockType: targetBlock.type)
+                }
+                
                 days.append(workoutDay)
             }
         }
@@ -261,49 +270,6 @@ class TrainingScheduleManager: ObservableObject {
         return days
     }
     
-    // MARK: - Workout Tracking
-    
-    /// Calculate days until next deload week
-    func daysUntilNextDeload() -> Int? {
-        guard let currentBlock = currentBlock else { return nil }
-        
-        let calendar = Calendar.current
-        let today = Date()
-        
-        // Check if we're in a deload block
-        if currentBlock.type == .deload {
-            return 0
-        }
-        
-        // Calculate days until next deload based on block type
-        switch currentBlock.type {
-        case .aerobicCapacity:
-            // Deload after 8 weeks
-            let deloadStartDate = calendar.date(byAdding: .weekOfYear, value: 8, to: currentBlock.startDate) ?? today
-            let days = calendar.dateComponents([.day], from: today, to: deloadStartDate).day ?? 0
-            return max(0, days)
-            
-        case .hypertrophyStrength:
-            // Deload after 10 weeks
-            let deloadStartDate = calendar.date(byAdding: .weekOfYear, value: 10, to: currentBlock.startDate) ?? today
-            let days = calendar.dateComponents([.day], from: today, to: deloadStartDate).day ?? 0
-            return max(0, days)
-            
-        case .racePrep:
-            // Race prep is usually the final block before taper
-            let deloadStartDate = calendar.date(byAdding: .weekOfYear, value: 2, to: currentBlock.startDate) ?? today
-            let days = calendar.dateComponents([.day], from: today, to: deloadStartDate).day ?? 0
-            return max(0, days)
-            
-        case .taper:
-            // Taper is already a form of deload
-            return 0
-            
-        case .deload:
-            return 0
-        }
-    }
-    
     // MARK: - Helper Methods
     
     private func dateKey(for date: Date) -> String {
@@ -319,81 +285,6 @@ class TrainingScheduleManager: ObservableObject {
         }
         
         return "\(block.type.rawValue) - Week \(currentWeekInBlock) of \(block.type.duration)"
-    }
-    
-    /// Schedule a race and adjust the program
-    func scheduleRace(on date: Date) {
-        guard var program = currentProgram else { return }
-        
-        program.raceDate = date
-        self.currentProgram = program
-        saveProgram()
-        updateCurrentBlock()
-    }
-    
-    /// Remove scheduled race
-    func removeRace() {
-        guard var program = currentProgram else { return }
-        
-        program.raceDate = nil
-        self.currentProgram = program
-        saveProgram()
-        updateCurrentBlock()
-    }
-    
-    /// Get the next block type
-    func getNextBlockType() -> BlockType? {
-        guard let currentBlock = currentBlock else { return nil }
-        
-        switch currentBlock.type {
-        case .aerobicCapacity:
-            return .deload
-        case .deload:
-            // Check if previous was aerobic or hypertrophy
-            return .hypertrophyStrength // Simplified for now
-        case .hypertrophyStrength:
-            return .deload
-        case .racePrep:
-            return .taper
-        case .taper:
-            return nil
-        }
-    }
-    
-    /// Calculate days until next deload
-    func calculateDaysUntilNextDeload() -> Int? {
-        guard let currentBlock = currentBlock else { return nil }
-        
-        let calendar = Calendar.current
-        let now = Date()
-        
-        switch currentBlock.type {
-        case .aerobicCapacity, .hypertrophyStrength:
-            // Days until end of current block (next block is deload)
-            return calendar.dateComponents([.day], from: now, to: currentBlock.endDate).day
-        case .deload:
-            // In deload, so 0
-            return 0
-        default:
-            return nil
-        }
-    }
-    
-    /// Calculate program completion percentage
-    func calculateProgramCompletion() -> Double {
-        guard let program = currentProgram else { return 0 }
-        
-        let calendar = Calendar.current
-        // A full program is 20 weeks (140 days)
-        let programEndDate = calendar.date(byAdding: .weekOfYear, value: 20, to: program.startDate) ?? program.startDate
-        let totalDays = calendar.dateComponents([.day],
-                                               from: program.startDate,
-                                               to: programEndDate).day ?? 1
-        let elapsedDays = calendar.dateComponents([.day],
-                                                 from: program.startDate,
-                                                 to: Date()).day ?? 0
-        
-        return min(Double(elapsedDays) / Double(totalDays) * 100, 100.0)
     }
     
     // MARK: - Extended API for ToolProcessor
@@ -481,87 +372,107 @@ class TrainingScheduleManager: ObservableObject {
         startNewProgram(startDate: startDate)
     }
     
-    /// Update a workout day with new information
-    func updateWorkoutDay(_ day: WorkoutDay) {
-        print("📝 TrainingScheduleManager: Updating workout day for \(dateKey(for: day.date))")
+    /// Update workouts for a specific week
+    func updateWeekWorkouts(weekStarting date: Date, workouts: [String: String]) -> Bool {
+        guard currentProgram != nil else {
+            print("⚠️ No active program to update workouts")
+            return false
+        }
         
-        // Update the current days array if needed
-        if let index = workoutDays.firstIndex(where: { $0.date == day.date }) {
-            workoutDays[index] = day
-        }
-    }
-    
-    /// Add a new workout day
-    func addWorkoutDay(_ day: WorkoutDay) {
-        workoutDays.append(day)
-    }
-    
-    /// Get detailed workout plan for a specific day and block type
-    func getDetailedWorkoutPlan(for dayOfWeek: DayOfWeek, blockType: BlockType? = nil) -> String {
-        let block = blockType ?? currentBlock?.type ?? .aerobicCapacity
+        print("📝 updateWeekWorkouts - Starting date: \(date)")
+        print("📝 updateWeekWorkouts - Workouts to save: \(workouts.count)")
         
-        switch block {
-        case .aerobicCapacity:
-            return getAerobicWorkout(for: dayOfWeek)
-        case .hypertrophyStrength:
-            return getHypertrophyWorkout(for: dayOfWeek)
-        case .deload:
-            return getDeloadWorkout(for: dayOfWeek)
-        default:
-            return "Rest or light activity"
+        // Get all days for this week
+        let weekDays = generateWeek(containing: date)
+        print("📝 updateWeekWorkouts - Generated \(weekDays.count) days for the week")
+        
+        for day in weekDays {
+            let dayName = day.dayOfWeek.name.lowercased()
+            print("📝 updateWeekWorkouts - Processing \(dayName), date: \(day.date)")
+            
+            if let workout = workouts[dayName] {
+                print("📝 updateWeekWorkouts - Found workout for \(dayName): \(workout.prefix(50))...")
+                // Update the workout for this day
+                updateWorkoutForDay(date: day.date, workout: workout)
+            } else {
+                print("⚠️ updateWeekWorkouts - No workout provided for \(dayName)")
+            }
+        }
+        
+        return true
+    }
+    
+    /// Update workout for a specific day
+    func updateWorkoutForDay(date: Date, workout: String) {
+        print("💾 updateWorkoutForDay - Date: \(date), Workout: \(workout.prefix(30))...")
+        
+        // Find the workout day in our current days
+        if let index = workoutDays.firstIndex(where: {
+            Calendar.current.isDate($0.date, inSameDayAs: date)
+        }) {
+            print("💾 Found existing day at index \(index)")
+            workoutDays[index].plannedWorkout = workout
+            
+            // Save to persistent storage
+            let key = "workout_\(dateKey(for: date))"
+            let encoder = JSONEncoder()
+            if let data = try? encoder.encode(workoutDays[index]) {
+                if useICloud {
+                    iCloudStore.set(data, forKey: key)
+                    iCloudStore.synchronize()
+                    print("☁️ Saved to iCloud with key: \(key)")
+                }
+                userDefaults.set(data, forKey: key)
+                print("💾 Saved to UserDefaults with key: \(key)")
+            } else {
+                print("❌ Failed to encode workout day")
+            }
+        } else {
+            print("💾 Creating new workout day for date")
+            // Create a new workout day for this date
+            var newDay = generateDayForDate(date)
+            newDay.plannedWorkout = workout
+            
+            // Save to persistent storage
+            let key = "workout_\(dateKey(for: date))"
+            let encoder = JSONEncoder()
+            if let data = try? encoder.encode(newDay) {
+                if useICloud {
+                    iCloudStore.set(data, forKey: key)
+                    iCloudStore.synchronize()
+                    print("☁️ Saved new day to iCloud with key: \(key)")
+                }
+                userDefaults.set(data, forKey: key)
+                print("💾 Saved new day to UserDefaults with key: \(key)")
+            } else {
+                print("❌ Failed to encode new workout day")
+            }
         }
     }
     
-    private func getAerobicWorkout(for dayOfWeek: DayOfWeek) -> String {
-        switch dayOfWeek {
-        case .monday:
-            return "Steady State Row (60-70 min) @ 65-75% HR"
-        case .tuesday:
-            return "Recovery/Cross-Training (30-45 min)"
-        case .wednesday:
-            return "Tempo Work (3x8 min @ threshold, 2 min rest)"
-        case .thursday:
-            return "Recovery/Technique (30 min)"
-        case .friday:
-            return "Steady State Row (70-90 min) @ 65-75% HR"
-        case .saturday:
-            return "Long Steady Row (90+ min) @ 65-70% HR"
-        case .sunday:
-            return "Rest Day"
+    /// Generate a workout day for a specific date
+    private func generateDayForDate(_ date: Date) -> WorkoutDay {
+        // Find which block this date belongs to
+        let blocks = generateAllBlocks(from: currentProgram!.startDate, macroCycle: currentProgram!.currentMacroCycle)
+        var blockForDate: TrainingBlock? = nil
+        
+        for block in blocks {
+            if block.contains(date: date) {
+                blockForDate = block
+                break
+            }
         }
+        
+        let targetBlock = blockForDate ?? currentBlock ?? TrainingBlock(
+            type: .aerobicCapacity,
+            startDate: date,
+            endDate: date,
+            weekNumber: 1
+        )
+        
+        return WorkoutDay(date: date, blockType: targetBlock.type)
     }
     
-    private func getHypertrophyWorkout(for dayOfWeek: DayOfWeek) -> String {
-        switch dayOfWeek {
-        case .monday:
-            return "Power Intervals (8x250m @ max) + Weights"
-        case .tuesday:
-            return "Steady State (45 min) + Upper Body"
-        case .wednesday:
-            return "Threshold Intervals (4x2000m @ 85-90%)"
-        case .thursday:
-            return "Recovery/Technique (30 min)"
-        case .friday:
-            return "Sprint Work (10x1min) + Lower Body"
-        case .saturday:
-            return "Race Pace Practice (2x2000m)"
-        case .sunday:
-            return "Rest Day"
-        }
-    }
-    
-    private func getDeloadWorkout(for dayOfWeek: DayOfWeek) -> String {
-        switch dayOfWeek {
-        case .monday, .wednesday, .friday:
-            return "Easy Recovery Row (30-40 min) @ 60% HR"
-        case .tuesday, .thursday:
-            return "Active Recovery (walk/stretch)"
-        case .saturday:
-            return "Optional Light Activity"
-        case .sunday:
-            return "Rest Day"
-        }
-    }
     
     /// Get block info for a specific week number
     func getBlockForWeek(_ weekNumber: Int) -> (type: BlockType, weekInBlock: Int) {

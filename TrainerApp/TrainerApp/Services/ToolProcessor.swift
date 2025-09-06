@@ -45,35 +45,71 @@ class ToolProcessor {
         print("🔍 ToolProcessor: Detecting tool calls in response of length \(response.count)")
         print("🔍 ToolProcessor: Pattern: \(toolCallPattern)")
         
+        // Debug: Show first 500 chars to see tool call format
+        let preview = String(response.prefix(500))
+        print("🔍 ToolProcessor: Response preview:\n\(preview)")
+        
+        // Debug: Check for TOOL_CALL markers
+        let toolCallMarkers = response.components(separatedBy: "[TOOL_CALL:").count - 1
+        print("🔍 ToolProcessor: Found \(toolCallMarkers) [TOOL_CALL: markers in response")
+        
+        // Debug: Try to find plan_week_workouts specifically
+        if response.contains("plan_week_workouts") {
+            print("✅ ToolProcessor: Response contains 'plan_week_workouts'")
+            let range = response.range(of: "plan_week_workouts")!
+            let startIndex = response.index(range.lowerBound, offsetBy: -50, limitedBy: response.startIndex) ?? response.startIndex
+            let endIndex = response.index(range.upperBound, offsetBy: 200, limitedBy: response.endIndex) ?? response.endIndex
+            let context = String(response[startIndex..<endIndex])
+            print("🔍 ToolProcessor: Context around plan_week_workouts:\n\(context)")
+        }
+        
         var toolCalls: [ToolCall] = []
         
-        guard let regex = try? NSRegularExpression(pattern: toolCallPattern, options: []) else {
+        // Try with dotMatchesLineSeparators option for multiline matching
+        guard let regex = try? NSRegularExpression(pattern: toolCallPattern, options: [.dotMatchesLineSeparators]) else {
             print("❌ ToolProcessor: Failed to create regex")
             return []
         }
         
         let matches = regex.matches(in: response, options: [], range: NSRange(response.startIndex..., in: response))
-        print("🔍 ToolProcessor: Found \(matches.count) matches")
+        print("🔍 ToolProcessor: Regex found \(matches.count) matches (expected: \(toolCallMarkers))")
         
-        for match in matches {
+        for (index, match) in matches.enumerated() {
+            print("🔍 ToolProcessor: Processing match #\(index + 1)")
+            
             if let nameRange = Range(match.range(at: 1), in: response) {
                 let name = String(response[nameRange])
+                print("🔍 ToolProcessor: Tool name: \(name)")
                 
                 // Parse parameters if present
                 var parameters: [String: Any] = [:]
                 if match.numberOfRanges > 2,
                    let paramsRange = Range(match.range(at: 2), in: response) {
                     let paramsStr = String(response[paramsRange])
-                    // Simple parameter parsing (key:value,key:value format)
-                    let paramPairs = paramsStr.split(separator: ",")
-                    for pair in paramPairs {
-                        let parts = pair.split(separator: ":")
-                        if parts.count == 2 {
-                            let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
-                            let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
-                            parameters[key] = value
+                    print("🔍 ToolProcessor: Raw parameters for \(name): \(paramsStr.prefix(200))...")
+                    
+                    // Check if parameters contain JSON
+                    let trimmedParams = paramsStr.trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    if trimmedParams.contains("{") || trimmedParams.contains("[") {
+                        // Parse as JSON-like structure
+                        print("🔍 ToolProcessor: Detected JSON parameters, parsing as structured data")
+                        parameters = parseStructuredParameters(paramsStr)
+                    } else {
+                        // Simple parameter parsing (key:value,key:value format)
+                        print("🔍 ToolProcessor: Using simple parameter parsing")
+                        let paramPairs = paramsStr.split(separator: ",")
+                        for pair in paramPairs {
+                            let parts = pair.split(separator: ":")
+                            if parts.count == 2 {
+                                let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
+                                let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
+                                parameters[key] = value
+                            }
                         }
                     }
+                    
+                    print("🔍 ToolProcessor: Parsed parameters: \(parameters)")
                 }
                 
                 let toolCall = ToolCall(
@@ -87,6 +123,87 @@ class ToolProcessor {
         }
         
         return toolCalls
+    }
+    
+    /// Parse structured parameters (JSON-like format) from tool call
+    private func parseStructuredParameters(_ paramsStr: String) -> [String: Any] {
+        var parameters: [String: Any] = [:]
+        
+        // Handle the workouts parameter specially since it contains JSON
+        if paramsStr.contains("workouts:") {
+            // Extract week_start_date first
+            let datePattern = #"week_start_date:\s*"([^"]+)""#
+            if let dateRegex = try? NSRegularExpression(pattern: datePattern, options: []),
+               let dateMatch = dateRegex.firstMatch(in: paramsStr, options: [], range: NSRange(paramsStr.startIndex..., in: paramsStr)) {
+                if let dateRange = Range(dateMatch.range(at: 1), in: paramsStr) {
+                    parameters["week_start_date"] = String(paramsStr[dateRange])
+                }
+            }
+            
+            // Extract workouts JSON
+            if let workoutsRange = paramsStr.range(of: "workouts:") {
+                let startIndex = paramsStr.index(after: workoutsRange.upperBound)
+                // Skip whitespace
+                var currentIndex = startIndex
+                while currentIndex < paramsStr.endIndex && paramsStr[currentIndex].isWhitespace {
+                    currentIndex = paramsStr.index(after: currentIndex)
+                }
+                
+                // Find the matching closing brace
+                if currentIndex < paramsStr.endIndex && paramsStr[currentIndex] == "{" {
+                    var braceCount = 0
+                    var endIndex = currentIndex
+                    
+                    for i in paramsStr[currentIndex...] {
+                        if i == "{" {
+                            braceCount += 1
+                        } else if i == "}" {
+                            braceCount -= 1
+                            if braceCount == 0 {
+                                endIndex = paramsStr.index(after: paramsStr.firstIndex(of: i)!)
+                                break
+                            }
+                        }
+                    }
+                    
+                    let workoutsJSON = String(paramsStr[currentIndex..<endIndex])
+                    
+                    // Parse the JSON string into a dictionary
+                    var workouts: [String: String] = [:]
+                    let lines = workoutsJSON.components(separatedBy: .newlines)
+                    for line in lines {
+                        // Look for patterns like "monday": "workout description"
+                        let pattern = #"\"(\w+)\"\s*:\s*\"([^\"]*)\""#
+                        if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+                           let match = regex.firstMatch(in: line, options: [], range: NSRange(line.startIndex..., in: line)) {
+                            if let dayRange = Range(match.range(at: 1), in: line),
+                               let workoutRange = Range(match.range(at: 2), in: line) {
+                                let day = String(line[dayRange]).lowercased()
+                                let workout = String(line[workoutRange])
+                                workouts[day] = workout
+                            }
+                        }
+                    }
+                    
+                    parameters["workouts"] = workouts
+                    print("📝 Parsed \(workouts.count) workouts from JSON")
+                }
+            }
+        } else {
+            // Simple parameter parsing for other tools
+            let paramPairs = paramsStr.split(separator: ",")
+            for pair in paramPairs {
+                let parts = pair.split(separator: ":")
+                if parts.count == 2 {
+                    let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
+                    let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
+                        .replacingOccurrences(of: "\"", with: "")
+                    parameters[key] = value
+                }
+            }
+        }
+        
+        return parameters
     }
     
     /// Execute a tool call and return the result
@@ -119,6 +236,20 @@ class ToolProcessor {
                 let result = try await executeStartTrainingProgram()
                 return ToolCallResult(toolName: toolCall.name, result: result)
                 
+            case "plan_week_workouts":
+                print("📝 ToolProcessor: Matched plan_week_workouts tool")
+                let weekStartDate = toolCall.parameters["week_start_date"] as? String ?? ""
+                
+                // Workouts should already be parsed as a dictionary
+                let workouts = toolCall.parameters["workouts"] as? [String: String] ?? [:]
+                
+                print("📝 Executing with date: \(weekStartDate) and \(workouts.count) workouts")
+                
+                let result = try await executePlanWeekWorkouts(
+                    weekStartDate: weekStartDate,
+                    workouts: workouts
+                )
+                return ToolCallResult(toolName: toolCall.name, result: result)
                 
             default:
                 print("❌ ToolProcessor: Unknown tool '\(toolCall.name)'")
@@ -243,7 +374,7 @@ class ToolProcessor {
                 let dateStr = formatter.string(from: day.date)
                 let dayName = day.dayOfWeek.name
                 let status = "📅"
-                let workout = manager.getDetailedWorkoutPlan(for: day.dayOfWeek)
+                let workout = day.plannedWorkout ?? "Workout to be planned"
                 
                 schedule.append("\(status) \(dayName) (\(dateStr)): \(workout)")
             }
@@ -286,7 +417,11 @@ class ToolProcessor {
                 targetDay = targetDayEnum
             }
             
-            let workout = manager.getDetailedWorkoutPlan(for: targetDay)
+            // Find today's workout in the current week
+            let todayWorkout = manager.currentWeekDays.first {
+                $0.dayOfWeek == targetDay
+            }?.plannedWorkout ?? "Workout not yet planned. Use plan_week_workouts to add workouts."
+            
             let defaultStartDate = Date()
             let defaultEndDate = Calendar.current.date(byAdding: .weekOfYear, value: 8, to: defaultStartDate) ?? defaultStartDate
             let block = manager.currentBlock ?? TrainingBlock(
@@ -299,39 +434,101 @@ class ToolProcessor {
             return """
             [Workout Plan - \(targetDay.name)]
             Block: \(block.type.rawValue.capitalized)
-            Workout: \(workout)
+            Workout: \(todayWorkout)
             """
         }
     }
     
-    /// Start a new training program
+    /// Start a new training program (structure only, no workouts)
     private func executeStartTrainingProgram() async throws -> String {
-        print("🚀 ToolProcessor: Starting training program")
+        print("🚀 ToolProcessor: Starting training program structure")
         
         return await MainActor.run {
             let manager = TrainingScheduleManager.shared
             
             if manager.programStartDate != nil {
+                print("🔍 DEBUG executeStartTrainingProgram - Restarting existing program")
                 manager.restartProgram()
+                
+                // Debug: Check what block we're actually in after restart
+                print("🔍 DEBUG executeStartTrainingProgram - After restart:")
+                print("  - Current block: \(manager.currentBlock?.type.rawValue ?? "nil")")
+                print("  - Current week: \(manager.currentWeek)")
+                
                 return """
-                [Training Program Restarted]
-                • New 20-week cycle started
-                • Week 1: Aerobic Capacity Block
+                [Training Program Structure Created]
+                • New 20-week cycle initialized
+                • Week 1: Hypertrophy-Strength Block
                 • All previous data cleared
-                Your training schedule has been created!
+                • Ready for personalized workout planning
+                
+                Use plan_week_workouts to add workouts for each week.
                 """
             } else {
+                print("🔍 DEBUG executeStartTrainingProgram - Starting fresh program")
                 manager.startProgram()
+                
+                // Debug: Check what block we're actually in after start
+                print("🔍 DEBUG executeStartTrainingProgram - After start:")
+                print("  - Current block: \(manager.currentBlock?.type.rawValue ?? "nil")")
+                print("  - Current week: \(manager.currentWeek)")
+                
                 return """
-                [Training Program Started! 🎯]
-                20-Week Periodized Rowing Program:
-                • Weeks 1-8: Aerobic Capacity
-                • Week 9: Deload
-                • Weeks 10-19: Hypertrophy-Strength
+                [Training Program Structure Created! 🎯]
+                20-Week Periodized Program:
+                • Weeks 1-10: Hypertrophy-Strength
+                • Week 11: Deload
+                • Weeks 12-19: Aerobic Capacity
                 • Week 20: Deload/Taper
                 
-                Your first week's schedule is ready!
+                Program structure ready. Use plan_week_workouts to add personalized workouts.
                 """
+            }
+        }
+    }
+    
+    /// Plan workouts for a specific week
+    private func executePlanWeekWorkouts(weekStartDate: String, workouts: [String: String]) async throws -> String {
+        print("📝 ToolProcessor: Planning week workouts")
+        print("📝 Week start: \(weekStartDate)")
+        print("📝 Workouts provided: \(workouts.count)")
+        print("📝 Workout details:")
+        for (day, workout) in workouts {
+            print("   - \(day): \(workout.prefix(50))...")
+        }
+        
+        return await MainActor.run {
+            let manager = TrainingScheduleManager.shared
+            
+            // Parse the date
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone.current  // Use user's timezone
+            
+            guard let date = formatter.date(from: weekStartDate) else {
+                print("❌ Failed to parse date: \(weekStartDate)")
+                return "[Error: Invalid date format. Use YYYY-MM-DD]"
+            }
+            
+            print("📝 Parsed date: \(date)")
+            
+            // Update workouts for the week
+            let success = manager.updateWeekWorkouts(weekStarting: date, workouts: workouts)
+            
+            if success {
+                print("✅ Successfully updated workouts for week")
+                return """
+                [Week Workouts Planned]
+                • Week starting: \(weekStartDate)
+                • \(workouts.count) workouts scheduled
+                • Saved to training calendar
+                
+                Workouts planned:
+                \(workouts.map { "• \($0.key.capitalized): \($0.value)" }.joined(separator: "\n"))
+                """
+            } else {
+                print("❌ Failed to update workouts")
+                return "[Error: Could not update workouts for this week. Ensure training program is started first.]"
             }
         }
     }
