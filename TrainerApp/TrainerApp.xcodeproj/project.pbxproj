@@ -26,6 +26,10 @@
 		B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C92A2E639CB300B866CE /* ExportOptionsView.swift */; };
 		B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9282E639CB300B866CE /* DebugMenuView.swift */; };
 		B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9272E639CB300B866CE /* APILogDetailView.swift */; };
+		B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9242E639C5600B866CE /* EnhancedAPILogger.swift */; };
+		B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33342E5993D8004C515B /* APILogEntry.swift */; };
+		B75C333B2E5993D8004C515B /* APILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33352E5993D8004C515B /* APILogger.swift */; };
+		B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E5993D8004C515B /* LoggingPersistence.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -287,6 +291,10 @@
 				B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */,
 				B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */,
 				B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */,
+				B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */,
+				B75C333B2E5993D8004C515B /* APILogger.swift in Sources */,
+				B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */,
+				B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

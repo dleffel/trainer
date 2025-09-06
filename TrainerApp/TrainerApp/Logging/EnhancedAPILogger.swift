@@ -59,7 +59,7 @@ final class EnhancedAPILogger {
         let entry = createRequestEntry(
             id: requestId,
             request: request,
-            phase: .sent,
+            phase: APILogEntry.APILogPhase.sent,
             startTime: activeRequest.startTime
         )
         
@@ -83,7 +83,7 @@ final class EnhancedAPILogger {
             // Log streaming status
             let entry = createStreamingStatusEntry(
                 id: requestId,
-                status: .streamingStarted,
+                status: APILogEntry.StreamingStatus.streamingStarted,
                 timestamp: Date()
             )
             
@@ -133,7 +133,7 @@ final class EnhancedAPILogger {
             data: data,
             error: error,
             duration: duration,
-            phase: error != nil ? .failed : .completed,
+            phase: error != nil ? APILogEntry.APILogPhase.failed : APILogEntry.APILogPhase.completed,
             bytesReceived: activeRequest.bytesReceived
         )
         
@@ -185,7 +185,7 @@ final class EnhancedAPILogger {
     private func createRequestEntry(
         id: UUID,
         request: URLRequest,
-        phase: APILogPhase,
+        phase: APILogEntry.APILogPhase,
         startTime: Date
     ) -> APILogEntry {
         let requestURL = request.url?.absoluteString ?? "Unknown"
@@ -201,8 +201,8 @@ final class EnhancedAPILogger {
             requestMethod: requestMethod,
             requestHeaders: requestHeaders,
             requestBody: requestBody,
-            phase: phase,
-            apiKeyPreview: apiKeyPreview
+            apiKeyPreview: apiKeyPreview,
+            phase: phase
         )
     }
     
@@ -213,7 +213,7 @@ final class EnhancedAPILogger {
         data: Data?,
         error: Error?,
         duration: TimeInterval,
-        phase: APILogPhase,
+        phase: APILogEntry.APILogPhase,
         bytesReceived: Int64
     ) -> APILogEntry {
         let requestURL = request.url?.absoluteString ?? "Unknown"
@@ -242,15 +242,15 @@ final class EnhancedAPILogger {
             responseBody: data,
             duration: duration,
             error: error?.localizedDescription,
+            apiKeyPreview: apiKeyPreview,
             phase: phase,
-            bytesReceived: bytesReceived,
-            apiKeyPreview: apiKeyPreview
+            bytesReceived: bytesReceived
         )
     }
     
     private func createStreamingStatusEntry(
         id: UUID,
-        status: StreamingStatus,
+        status: APILogEntry.StreamingStatus,
         timestamp: Date
     ) -> APILogEntry {
         return APILogEntry(
@@ -260,7 +260,8 @@ final class EnhancedAPILogger {
             requestMethod: "",
             requestHeaders: [:],
             requestBody: nil,
-            phase: .streaming,
+            apiKeyPreview: "",
+            phase: APILogEntry.APILogPhase.streaming,
             streamingStatus: status
         )
     }
@@ -285,8 +286,8 @@ final class EnhancedAPILogger {
             requestBody: requestBody,
             duration: duration,
             error: "Request timed out after \(Int(duration)) seconds",
-            phase: .timedOut,
-            apiKeyPreview: apiKeyPreview
+            apiKeyPreview: apiKeyPreview,
+            phase: APILogEntry.APILogPhase.timedOut
         )
     }
     
@@ -317,7 +318,7 @@ final class EnhancedAPILogger {
             createRequestEntry(
                 id: activeRequest.id,
                 request: activeRequest.request,
-                phase: activeRequest.hasReceivedData ? .streaming : .sent,
+                phase: activeRequest.hasReceivedData ? APILogEntry.APILogPhase.streaming : APILogEntry.APILogPhase.sent,
                 startTime: activeRequest.startTime
             )
         }
@@ -326,65 +327,6 @@ final class EnhancedAPILogger {
     }
 }
 
-// MARK: - Enhanced API Log Entry
-
-extension APILogEntry {
-    enum APILogPhase: String, Codable {
-        case sent = "Sent"
-        case streaming = "Streaming"
-        case completed = "Completed"
-        case failed = "Failed"
-        case timedOut = "Timed Out"
-    }
-    
-    enum StreamingStatus: String, Codable {
-        case streamingStarted = "Streaming Started"
-        case streamingProgress = "Streaming Progress"
-        case streamingCompleted = "Streaming Completed"
-    }
-    
-    var phase: APILogPhase?
-    var streamingStatus: StreamingStatus?
-    var bytesReceived: Int64?
-    
-    /// Check if this is an active/pending request
-    var isActive: Bool {
-        guard let phase = phase else { return false }
-        return phase == .sent || phase == .streaming
-    }
-    
-    /// Format bytes received for display
-    var formattedBytesReceived: String? {
-        guard let bytes = bytesReceived else { return nil }
-        
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useBytes, .useKB, .useMB]
-        formatter.countStyle = .binary
-        return formatter.string(fromByteCount: bytes)
-    }
-    
-    /// Status description for UI
-    var statusDescription: String {
-        if let phase = phase {
-            switch phase {
-            case .sent:
-                return "⏳ Waiting for response..."
-            case .streaming:
-                if let bytes = formattedBytesReceived {
-                    return "📥 Streaming... (\(bytes) received)"
-                }
-                return "📥 Streaming response..."
-            case .completed:
-                return "✅ Completed"
-            case .failed:
-                return "❌ Failed"
-            case .timedOut:
-                return "⏱️ Timed out"
-            }
-        }
-        return "Unknown"
-    }
-}
 
 // MARK: - Enhanced URLSession Extension
 
