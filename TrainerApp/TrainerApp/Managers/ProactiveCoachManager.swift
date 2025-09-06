@@ -156,8 +156,7 @@ class ProactiveCoachManager: NSObject {
             dayOfWeek: dayName,
             lastMessageTime: lastMessageTime,
             todaysWorkout: todaysWorkout?.plannedWorkout,
-            workoutCompleted: todaysWorkout?.completed ?? false,
-            lastWorkoutTime: findLastWorkoutTime(),
+            lastWorkoutTime: nil, // Workout completion tracking removed
             currentBlock: programExists ? (scheduleManager.currentBlock?.type.rawValue ?? "Unknown") : "No program",
             weekNumber: scheduleManager.totalWeekInProgram,
             recentMetrics: healthData != nil ? HealthMetrics(
@@ -170,15 +169,6 @@ class ProactiveCoachManager: NSObject {
             messagesSentToday: todaysMessageCount,
             daysSinceLastMessage: daysSinceLastMessage
         )
-    }
-    
-    private func findLastWorkoutTime() -> Date? {
-        // Find the most recent completed workout from current week
-        return scheduleManager.currentWeekDays
-            .filter { $0.completed }
-            .sorted { $0.date > $1.date }
-            .first?
-            .date
     }
     
     // MARK: - LLM Decision Making
@@ -761,7 +751,6 @@ struct CoachContext {
     let dayOfWeek: String
     let lastMessageTime: Date?
     let todaysWorkout: String?
-    let workoutCompleted: Bool
     let lastWorkoutTime: Date?
     let currentBlock: String
     let weekNumber: Int
@@ -788,7 +777,6 @@ struct CoachContext {
             
             - Training: Week \(weekNumber) of \(currentBlock) block
             - Today's workout: \(todaysWorkout ?? "Rest day")
-            - Workout completed: \(workoutCompleted ? "Yes" : "No")
             """
         } else {
             prompt += """

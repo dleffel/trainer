@@ -223,17 +223,7 @@ struct DayCard: View {
             
             // Status indicators row
             HStack(spacing: 4) {
-                if day.detailedInstructions != nil {
-                    Image(systemName: "doc.text.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.blue)
-                }
-                
-                if day.completed {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.green)
-                } else if day.dayOfWeek == .monday {
+                if day.dayOfWeek == .monday {
                     Image(systemName: "moon.zzz.fill")
                         .font(.system(size: 16))
                         .foregroundColor(.indigo)
@@ -265,9 +255,7 @@ struct DayCard: View {
     }
     
     private var workoutIconColor: Color {
-        if day.completed {
-            return .green
-        } else if day.dayOfWeek == .monday {
+        if day.dayOfWeek == .monday {
             return .indigo
         } else {
             return .primary
@@ -276,13 +264,9 @@ struct DayCard: View {
 }
 
 struct WorkoutDetailSheet: View {
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.presentationMode) var presentationMode
     let day: WorkoutDay
     @ObservedObject var scheduleManager: TrainingScheduleManager
-    @State private var notes: String = ""
-    @State private var actualWorkout: String = ""
-    @State private var showingInstructions = false
-    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -305,25 +289,11 @@ struct WorkoutDetailSheet: View {
                             }
                             
                             Spacer()
-                            
-                            if day.completed {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.title)
-                                    .foregroundColor(.green)
-                            }
                         }
                     }
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
-                    
-                    // Detailed Instructions (if available)
-                    if let instructions = day.detailedInstructions {
-                        DetailedInstructionsCard(
-                            instructions: instructions,
-                            isExpanded: $showingInstructions
-                        )
-                    }
                     
                     // Planned workout
                     VStack(alignment: .leading, spacing: 12) {
@@ -337,66 +307,6 @@ struct WorkoutDetailSheet: View {
                             .background(Color(.systemGray5))
                             .cornerRadius(8)
                     }
-                    
-                    // Actual workout (if completed)
-                    if day.completed, let actualWorkout = day.actualWorkout, !actualWorkout.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("Actual Workout", systemImage: "figure.strengthtraining.traditional")
-                                .font(.headline)
-                            
-                            Text(actualWorkout)
-                                .font(.body)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGray5))
-                                .cornerRadius(8)
-                        }
-                    }
-                    
-                    // Notes
-                    if day.completed, let notes = day.notes, !notes.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("Notes", systemImage: "note.text")
-                                .font(.headline)
-                            
-                            Text(notes)
-                                .font(.body)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGray5))
-                                .cornerRadius(8)
-                        }
-                    }
-                    
-                    // Completion toggle
-                    if !Calendar.current.isDate(day.date, inSameDayAs: Date()) && day.date < Date() {
-                        VStack(spacing: 16) {
-                            Toggle("Mark as Completed", isOn: .constant(day.completed))
-                                .disabled(true)
-                                .toggleStyle(SwitchToggleStyle(tint: .green))
-                            
-                            if !day.completed {
-                                Button {
-                                    scheduleManager.markWorkoutCompleted(for: day)
-                                    dismiss()
-                                } label: {
-                                    Label("Mark as Completed", systemImage: "checkmark.circle")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.borderedProminent)
-                            } else {
-                                Button {
-                                    scheduleManager.markWorkoutIncomplete(for: day)
-                                    dismiss()
-                                } label: {
-                                    Label("Mark as Incomplete", systemImage: "xmark.circle")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                        }
-                        .padding(.top)
-                    }
                 }
                 .padding()
             }
@@ -405,17 +315,9 @@ struct WorkoutDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
-                        dismiss()
+                        presentationMode.wrappedValue.dismiss()
                     }
                 }
-            }
-        }
-        .onAppear {
-            notes = day.notes ?? ""
-            actualWorkout = day.actualWorkout ?? ""
-            // Auto-expand instructions if navigated from deep link
-            if day.detailedInstructions != nil {
-                showingInstructions = true
             }
         }
     }
@@ -425,95 +327,5 @@ struct WorkoutDetailSheet: View {
         formatter.dateStyle = .long
         formatter.timeStyle = .none
         return formatter
-    }
-}
-
-// MARK: - Detailed Instructions Components
-
-struct DetailedInstructionsCard: View {
-    let instructions: WorkoutInstructions
-    @Binding var isExpanded: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("Detailed Instructions", systemImage: "doc.text.fill")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Button {
-                    withAnimation(.easeInOut) {
-                        isExpanded.toggle()
-                    }
-                } label: {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(instructions.sections.indices, id: \.self) { index in
-                        InstructionSectionView(section: instructions.sections[index])
-                        
-                        if index < instructions.sections.count - 1 {
-                            Divider()
-                        }
-                    }
-                }
-                .padding(.top, 8)
-            } else {
-                HStack {
-                    Text("Tap to view detailed workout instructions")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("Generated \(relativeTimeString(from: instructions.generatedAt))")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-        )
-    }
-    
-    private func relativeTimeString(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-}
-
-struct InstructionSectionView: View {
-    let section: InstructionSection
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(section.title)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.blue)
-            
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(section.content.indices, id: \.self) { index in
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("•")
-                            .foregroundColor(.secondary)
-                            .font(.body)
-                        Text(section.content[index])
-                            .font(.body)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                    }
-                }
-            }
-        }
     }
 }

@@ -8,7 +8,6 @@ struct CoachContext {
     let dayOfWeek: String
     let lastMessageTime: Date?
     let todaysWorkout: String?
-    let workoutCompleted: Bool
     let lastWorkoutTime: Date?
     let currentBlock: String
     let weekNumber: Int
@@ -36,7 +35,6 @@ struct CoachContext {
             
             - Training: Week \(weekNumber) of \(currentBlock) block
             - Today's workout: \(todaysWorkout ?? "Rest day")
-            - Workout completed: \(workoutCompleted ? "Yes" : "No")
             """
         } else {
             prompt += """

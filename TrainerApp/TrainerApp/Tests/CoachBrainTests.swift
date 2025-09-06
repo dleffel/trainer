@@ -61,8 +61,7 @@ class CoachBrainTests: XCTestCase {
         setMockAPIKey()
         let context = createTestContext(
             programExists: true,
-            todaysWorkout: "60min Steady State",
-            workoutCompleted: false
+            todaysWorkout: "60min Steady State"
         )
         
         // When
@@ -119,15 +118,13 @@ class CoachBrainTests: XCTestCase {
     
     private func createTestContext(
         programExists: Bool = true,
-        todaysWorkout: String? = nil,
-        workoutCompleted: Bool = false
+        todaysWorkout: String? = nil
     ) -> CoachContext {
         return CoachContext(
             currentTime: Date(),
             dayOfWeek: "Monday",
             lastMessageTime: nil,
             todaysWorkout: todaysWorkout,
-            workoutCompleted: workoutCompleted,
             lastWorkoutTime: nil,
             currentBlock: programExists ? "Aerobic Capacity" : "No program",
             weekNumber: programExists ? 3 : 0,

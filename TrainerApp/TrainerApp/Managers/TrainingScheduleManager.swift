@@ -234,9 +234,6 @@ class TrainingScheduleManager: ObservableObject {
             }
         }
         
-        // Load any saved completion data
-        loadWorkoutCompletions(for: &days)
-        
         return days
     }
     
@@ -261,43 +258,10 @@ class TrainingScheduleManager: ObservableObject {
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
         
-        // Load any saved completion data
-        loadWorkoutCompletions(for: &days)
-        
         return days
     }
     
     // MARK: - Workout Tracking
-    
-    /// Mark a workout as completed
-    func markWorkoutCompleted(for day: WorkoutDay, notes: String? = nil, actualWorkout: String? = nil) {
-        var updatedDay = day
-        updatedDay.completed = true
-        updatedDay.notes = notes
-        updatedDay.actualWorkout = actualWorkout
-        
-        saveWorkoutCompletion(updatedDay)
-        
-        // Update the current days if needed
-        if let index = workoutDays.firstIndex(where: { $0.date == day.date }) {
-            workoutDays[index] = updatedDay
-        }
-    }
-    
-    /// Mark a workout as not completed
-    func markWorkoutIncomplete(for day: WorkoutDay) {
-        var updatedDay = day
-        updatedDay.completed = false
-        updatedDay.notes = nil
-        updatedDay.actualWorkout = nil
-        
-        saveWorkoutCompletion(updatedDay)
-        
-        // Update the current days if needed
-        if let index = workoutDays.firstIndex(where: { $0.date == day.date }) {
-            workoutDays[index] = updatedDay
-        }
-    }
     
     /// Calculate days until next deload week
     func daysUntilNextDeload() -> Int? {
@@ -340,70 +304,13 @@ class TrainingScheduleManager: ObservableObject {
         }
     }
     
-    // MARK: - Persistence
-    
-    private func saveWorkoutCompletion(_ day: WorkoutDay) {
-        let key = "workout_\(dateKey(for: day.date))"
-        
-        print("💾 TrainingScheduleManager: Saving workout for key: \(key)")
-        if let instructions = day.detailedInstructions {
-            print("✅ TrainingScheduleManager: Saving with \(instructions.sections.count) instruction sections")
-        }
-        
-        if let data = try? JSONEncoder().encode(day) {
-            // Save to local storage
-            userDefaults.set(data, forKey: key)
-            
-            // Save to iCloud if available
-            if useICloud {
-                iCloudStore.set(data, forKey: key)
-                iCloudStore.synchronize()
-                print("☁️ TrainingScheduleManager: Saved to iCloud")
-            } else {
-                print("💾 TrainingScheduleManager: Saved to local storage only")
-            }
-        } else {
-            print("❌ TrainingScheduleManager: Failed to encode workout day")
-        }
-    }
-    
-    private func loadWorkoutCompletions(for days: inout [WorkoutDay]) {
-        for (index, day) in days.enumerated() {
-            let key = "workout_\(dateKey(for: day.date))"
-            var data: Data?
-            
-            // Try iCloud first
-            if useICloud {
-                data = iCloudStore.data(forKey: key)
-            }
-            
-            // Fall back to local storage
-            if data == nil {
-                data = userDefaults.data(forKey: key)
-            }
-            
-            if let data = data,
-               let savedDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
-                print("📥 TrainingScheduleManager: Loading saved data for \(key)")
-                days[index].completed = savedDay.completed
-                days[index].notes = savedDay.notes
-                days[index].actualWorkout = savedDay.actualWorkout
-                days[index].detailedInstructions = savedDay.detailedInstructions
-                
-                if let instructions = savedDay.detailedInstructions {
-                    print("✅ TrainingScheduleManager: Loaded \(instructions.sections.count) instruction sections")
-                }
-            }
-        }
-    }
+    // MARK: - Helper Methods
     
     private func dateKey(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
     }
-    
-    // MARK: - Helper Methods
     
     /// Get a formatted string describing the current position in the program
     func getCurrentPositionDescription() -> String {
@@ -574,29 +481,9 @@ class TrainingScheduleManager: ObservableObject {
         startNewProgram(startDate: startDate)
     }
     
-    /// Toggle completion status for a specific date
-    func toggleDayCompletion(for date: Date) {
-        guard let workoutDay = currentWeekDays.first(where: {
-            Calendar.current.isDate($0.date, inSameDayAs: date)
-        }) else { return }
-        
-        if workoutDay.completed {
-            markWorkoutIncomplete(for: workoutDay)
-        } else {
-            markWorkoutCompleted(for: workoutDay)
-        }
-    }
-    
     /// Update a workout day with new information
     func updateWorkoutDay(_ day: WorkoutDay) {
         print("📝 TrainingScheduleManager: Updating workout day for \(dateKey(for: day.date))")
-        if let instructions = day.detailedInstructions {
-            print("✅ TrainingScheduleManager: Has detailed instructions with \(instructions.sections.count) sections")
-        } else {
-            print("⚠️ TrainingScheduleManager: No detailed instructions")
-        }
-        
-        saveWorkoutCompletion(day)
         
         // Update the current days array if needed
         if let index = workoutDays.firstIndex(where: { $0.date == day.date }) {
@@ -607,7 +494,6 @@ class TrainingScheduleManager: ObservableObject {
     /// Add a new workout day
     func addWorkoutDay(_ day: WorkoutDay) {
         workoutDays.append(day)
-        saveWorkoutCompletion(day)
     }
     
     /// Get detailed workout plan for a specific day and block type

@@ -188,8 +188,7 @@ class ProactiveScheduler: ProactiveSchedulerProtocol {
             dayOfWeek: dayName,
             lastMessageTime: lastMessageTime,
             todaysWorkout: todaysWorkout?.plannedWorkout,
-            workoutCompleted: todaysWorkout?.completed ?? false,
-            lastWorkoutTime: findLastWorkoutTime(),
+            lastWorkoutTime: nil, // Workout completion tracking removed
             currentBlock: programExists ? (scheduleManager.currentBlock?.type.rawValue ?? "Unknown") : "No program",
             weekNumber: scheduleManager.totalWeekInProgram,
             recentMetrics: healthData != nil ? HealthMetrics(
@@ -202,15 +201,6 @@ class ProactiveScheduler: ProactiveSchedulerProtocol {
             messagesSentToday: todaysMessageCount,
             daysSinceLastMessage: daysSinceLastMessage
         )
-    }
-    
-    private func findLastWorkoutTime() -> Date? {
-        // Find the most recent completed workout from current week
-        return scheduleManager.currentWeekDays
-            .filter { $0.completed }
-            .sorted { $0.date > $1.date }
-            .first?
-            .date
     }
     
     // MARK: - Suppression Logic

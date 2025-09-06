@@ -47,16 +47,7 @@ class CoachBrain: CoachBrainProtocol {
         // Initial LLM call
         let initialPrompt = """
         \(contextPrompt)
-        
-        IMPORTANT: You must check the actual training status before making any claims.
-        
-        If the context shows "No active training program":
-        1. First use [TOOL_CALL: get_training_status] to verify
-        2. If confirmed no program, use [TOOL_CALL: start_training_program]
-        3. Then use [TOOL_CALL: plan_week] to create the schedule
-        4. Only after these succeed, craft your message
-        
-        Start by checking the current state with tools, then decide on your message.
+
         """
         
         do {
@@ -150,13 +141,11 @@ class CoachBrain: CoachBrainProtocol {
         2. IF no program exists (status shows "No program started"):
             - Use [TOOL_CALL: start_training_program] to initialize
             - Then use [TOOL_CALL: plan_week] to create the first week
-            - Then use [TOOL_CALL: generate_workout_instructions(date: "today")] for today's details
-            - ONLY AFTER these succeed, send a brief message with the link
+            - ONLY AFTER these succeed, send a brief message about the program
         
         3. IF program exists AND it's time for a workout reminder:
             - Use [TOOL_CALL: get_weekly_schedule] to check today's plan
-            - Use [TOOL_CALL: generate_workout_instructions(date: "today")] to create instructions
-            - Send a brief message with ONLY the link, NOT the full workout details
+            - Send a brief reminder message about today's workout
         
         ### AVAILABLE TOOLS:
         - [TOOL_CALL: get_training_status] - Check if program exists
@@ -164,7 +153,6 @@ class CoachBrain: CoachBrainProtocol {
         - [TOOL_CALL: start_training_program] - Initialize training program
         - [TOOL_CALL: plan_week] - Plan the current/next week
         - [TOOL_CALL: get_weekly_schedule] - View current week's plan
-        - [TOOL_CALL: generate_workout_instructions(date: "today")] - Generate detailed workout instructions
         
         ### RESPONSE FORMAT:
         
@@ -176,29 +164,18 @@ class CoachBrain: CoachBrainProtocol {
         I'll set up your training program now.
         [TOOL_CALL: start_training_program]
         [TOOL_CALL: plan_week]
-        [TOOL_CALL: generate_workout_instructions(date: "today")]
         
         After tools are executed, provide:
         SEND: [Yes/No]
         REASONING: [One sentence explaining why]
         MESSAGE: [If Yes, the exact message based on what actually happened]
         
-        ### CRITICAL: WORKOUT DETAILS IN PROACTIVE MESSAGES
+        ### CRITICAL: KEEP PROACTIVE MESSAGES BRIEF
         
-        NEVER include full workout details (HR zones, sets/reps, warm-up, etc.) in proactive messages.
-        Instead:
-        1. Use [TOOL_CALL: generate_workout_instructions(date: "today")] to create detailed instructions
-        2. The tool will save instructions and return a link
-        3. Include ONLY the link in your message, like: "I've prepared your workout details. 📋 View instructions: trainer://calendar/2024-01-15"
+        Keep proactive messages concise and focused. When mentioning workouts, provide only the essential information (duration, type, intensity).
         
-        Example BAD message (too long):
-        "Today's workout: Spin Bike 60 min easy UT2
-        - Warm-up: 10 min progressive...
-        - Main: 40 min at 106-123 BPM...
-        [etc...]"
-        
-        Example GOOD message (brief with link):
-        "I've initialized your 20-week program starting with Aerobic Capacity. Today is a 60-minute easy spin bike session. 📋 View detailed instructions: trainer://calendar/2024-08-31"
+        Example GOOD message:
+        "I've initialized your 20-week program starting with Aerobic Capacity. Today is a 60-minute easy spin bike session at UT2 pace."
         """
     }
     

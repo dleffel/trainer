@@ -242,11 +242,6 @@ struct MonthDayCard: View {
                 .fill(blockColor)
                 .frame(width: 6, height: 6)
             
-            if day.completed {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(.green)
-            }
         }
         .frame(height: 60)
         .frame(maxWidth: .infinity)
