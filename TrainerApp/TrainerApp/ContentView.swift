@@ -346,12 +346,12 @@ struct ContentView: View {
             errorMessage = "Set your OpenAI API key in Settings."
             return
         }
-
+        
         input = ""
         let userMsg = ChatMessage(role: .user, content: text)
         messages.append(userMsg)
         persist()
-
+        
         isSending = true
         isProcessingTools = false
         
@@ -361,49 +361,130 @@ struct ContentView: View {
             var finalResponse = ""
             var turns = 0
             
+            // Prepare a placeholder assistant message for streaming
+            var assistantIndex: Int? = nil
+            
             repeat {
                 turns += 1
                 
-                // Get AI response
-                let assistantText = try await LLMClient.complete(
-                    apiKey: apiKey,
-                    model: model,
-                    systemPrompt: systemPrompt,
-                    history: conversationHistory
-                )
-                
-                // Process any tool calls in the response
-                let toolProcessor = ToolProcessor.shared
-                let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
-                
-                if processedResponse.requiresFollowUp && !processedResponse.toolResults.isEmpty {
-                    isProcessingTools = true
-                    
-                    // Add the cleaned assistant response if it has content
-                    if !processedResponse.cleanedResponse.isEmpty {
-                        conversationHistory.append(
-                            ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
-                        )
+                if turns == 1 {
+                    // STREAMING: First turn streams tokens into a visible assistant bubble
+                    await MainActor.run {
+                        let placeholder = ChatMessage(role: .assistant, content: "")
+                        messages.append(placeholder)
+                        assistantIndex = messages.count - 1
                     }
                     
-                    // Format and add tool results as a system message
-                    let toolResultsMessage = toolProcessor.formatToolResults(processedResponse.toolResults)
-                    conversationHistory.append(
-                        ChatMessage(role: .system, content: toolResultsMessage)
+                    let requestStart = Date()
+                    print("⏱️ request_start: \(requestStart.timeIntervalSince1970)")
+                    
+                    var streamedFullText = ""
+                    let assistantText: String
+                    do {
+                        assistantText = try await LLMClient.streamComplete(
+                            apiKey: apiKey,
+                            model: model,
+                            systemPrompt: systemPrompt,
+                            history: conversationHistory,
+                            onToken: { token in
+                                streamedFullText.append(token)
+                                Task { @MainActor in
+                                    if let idx = assistantIndex {
+                                        messages[idx] = ChatMessage(role: .assistant, content: streamedFullText)
+                                    }
+                                }
+                            }
+                        )
+                    } catch {
+                        // Fallback to non-streaming on invalid request/model/other 4xx
+                        print("⚠️ Streaming failed: \(error). Falling back to non-streaming.")
+                        let fallbackText = try await LLMClient.complete(
+                            apiKey: apiKey,
+                            model: model,
+                            systemPrompt: systemPrompt,
+                            history: conversationHistory
+                        )
+                        // Ensure user sees a response even without streaming
+                        await MainActor.run {
+                            if let idx = assistantIndex {
+                                messages[idx] = ChatMessage(role: .assistant, content: fallbackText)
+                            } else {
+                                messages.append(ChatMessage(role: .assistant, content: fallbackText))
+                                assistantIndex = messages.count - 1
+                            }
+                        }
+                        streamedFullText = fallbackText
+                        assistantText = fallbackText
+                    }
+                    
+                    print("⏱️ response_complete (streamed): \(Date().timeIntervalSince1970)")
+                    
+                    // Process any tool calls in the streamed response
+                    let toolProcessor = ToolProcessor.shared
+                    let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
+                    
+                    if processedResponse.requiresFollowUp && !processedResponse.toolResults.isEmpty {
+                        isProcessingTools = true
+                        print("⏱️ tools_start: \(Date().timeIntervalSince1970)")
+                        
+                        // Add the cleaned assistant response if it has content
+                        if !processedResponse.cleanedResponse.isEmpty {
+                            conversationHistory.append(
+                                ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
+                            )
+                            // Update visible bubble to cleaned response (remove any tool tags)
+                            await MainActor.run {
+                                if let idx = assistantIndex {
+                                    messages[idx] = ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
+                                }
+                            }
+                        }
+                        
+                        // Format and add tool results as a system message
+                        let toolResultsMessage = toolProcessor.formatToolResults(processedResponse.toolResults)
+                        conversationHistory.append(
+                            ChatMessage(role: .system, content: toolResultsMessage)
+                        )
+                        
+                        print("⏱️ tools_complete: \(Date().timeIntervalSince1970)")
+                        // Continue the loop to get AI's response to the tool results (non-streaming for now)
+                    } else {
+                        // No tool calls, this is the final response
+                        finalResponse = processedResponse.cleanedResponse
+                        // Ensure the visible bubble matches final response
+                        await MainActor.run {
+                            if let idx = assistantIndex {
+                                messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
+                            }
+                        }
+                        break
+                    }
+                } else {
+                    // FOLLOW-UP: Use non-streaming completion but logged via EnhancedAPILogger
+                    let assistantText = try await LLMClient.complete(
+                        apiKey: apiKey,
+                        model: model,
+                        systemPrompt: systemPrompt,
+                        history: conversationHistory
                     )
                     
-                    // Continue the loop to get AI's response to the tool results
-                } else {
-                    // No tool calls, this is the final response
+                    let toolProcessor = ToolProcessor.shared
+                    let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
+                    
                     finalResponse = processedResponse.cleanedResponse
+                    await MainActor.run {
+                        if let idx = assistantIndex {
+                            messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
+                        } else {
+                            // Fallback: append if no streaming bubble present
+                            messages.append(ChatMessage(role: .assistant, content: finalResponse))
+                        }
+                    }
                     break
                 }
                 
             } while turns < maxConversationTurns
             
-            // Add the final assistant message to the visible conversation
-            let assistantMsg = ChatMessage(role: .assistant, content: finalResponse)
-            messages.append(assistantMsg)
             persist()
             
         } catch {
@@ -872,7 +953,8 @@ enum LLMClient {
 
         // Log the request if enabled
         let startTime = Date()
-        let (data, resp) = try await URLSession.shared.data(for: request)
+        // Use EnhancedAPILogger with delegate-based streaming awareness
+        let (data, resp) = try await URLSession.shared.enhancedLoggingDataTask(with: request)
         
         // Log the API call if logging is enabled
         if UserDefaults.standard.bool(forKey: "APILoggingEnabled") {
@@ -894,390 +976,87 @@ enum LLMClient {
         }
         return content
     }
-}
-
-// MARK: - API Logging Components
-
-/// Token usage information from API response
-struct TokenUsage: Codable {
-    let totalTokens: Int
-    let promptTokens: Int
-    let completionTokens: Int
-    let model: String?
     
-    var contextPercentage: Double {
-        // Get context window size based on model
-        let contextWindow = getContextWindowSize()
-        return Double(totalTokens) / Double(contextWindow) * 100.0
-    }
-    
-    private func getContextWindowSize() -> Int {
-        // Context windows for different models
-        // GPT-5 is assumed to have 128k+ tokens like GPT-4 Turbo
-        guard let model = model else { return 128000 }
+    /// Streaming chat completion using SSE; streams tokens via onToken and returns the full text.
+    static func streamComplete(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        history: [ChatMessage],
+        onToken: @escaping (String) -> Void
+    ) async throws -> String {
+        struct APIMessage: Codable { let role: String; let content: String }
+        struct StreamRequestBody: Codable { let model: String; let messages: [APIMessage]; let stream: Bool }
+        struct StreamDelta: Codable { let content: String? }
+        struct StreamChoice: Codable { let delta: StreamDelta? }
+        struct StreamChunk: Codable { let choices: [StreamChoice] }
         
-        switch model.lowercased() {
-        case let m where m.contains("gpt-5"):
-            return 128000  // 128k tokens for GPT-5
-        case let m where m.contains("gpt-4-turbo"), let m where m.contains("gpt-4-1106"):
-            return 128000  // 128k tokens
-        case let m where m.contains("gpt-4-32k"):
-            return 32768   // 32k tokens
-        case let m where m.contains("gpt-4"):
-            return 8192    // 8k tokens
-        case let m where m.contains("gpt-3.5-turbo-16k"):
-            return 16384   // 16k tokens
-        case let m where m.contains("gpt-3.5"):
-            return 4096    // 4k tokens
-        default:
-            return 128000  // Default to 128k for unknown/future models
-        }
-    }
-}
-
-/// Represents a single API request/response log entry
-struct APILogEntry: Codable, Identifiable {
-    let id: UUID
-    let timestamp: Date
-    let requestURL: String
-    let requestMethod: String
-    let requestHeaders: [String: String]
-    let requestBody: Data?
-    let responseStatusCode: Int?
-    let responseHeaders: [String: String]?
-    let responseBody: Data?
-    let duration: TimeInterval
-    let error: String?
-    let apiKeyPreview: String // Last 4 chars only for security
-    let tokenUsage: TokenUsage?
-    
-    var requestBodyString: String? {
-        guard let data = requestBody else { return nil }
-        if let json = try? JSONSerialization.jsonObject(with: data),
-           let prettyData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
-           let string = String(data: prettyData, encoding: .utf8) {
-            return string
-        }
-        return String(data: data, encoding: .utf8)
-    }
-    
-    var responseBodyString: String? {
-        guard let data = responseBody else { return nil }
-        if let json = try? JSONSerialization.jsonObject(with: data),
-           let prettyData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
-           let string = String(data: prettyData, encoding: .utf8) {
-            return string
-        }
-        return String(data: data, encoding: .utf8)
-    }
-    
-    init(
-        id: UUID = UUID(),
-        timestamp: Date = Date(),
-        requestURL: String,
-        requestMethod: String,
-        requestHeaders: [String: String],
-        requestBody: Data?,
-        responseStatusCode: Int? = nil,
-        responseHeaders: [String: String]? = nil,
-        responseBody: Data? = nil,
-        duration: TimeInterval = 0,
-        error: String? = nil,
-        apiKeyPreview: String = "",
-        tokenUsage: TokenUsage? = nil
-    ) {
-        self.id = id
-        self.timestamp = timestamp
-        self.requestURL = requestURL
-        self.requestMethod = requestMethod
-        self.requestHeaders = requestHeaders
-        self.requestBody = requestBody
-        self.responseStatusCode = responseStatusCode
-        self.responseHeaders = responseHeaders
-        self.responseBody = responseBody
-        self.duration = duration
-        self.error = error
-        self.apiKeyPreview = apiKeyPreview
-        self.tokenUsage = tokenUsage
-    }
-    
-    var isSuccess: Bool {
-        guard let statusCode = responseStatusCode else { return false }
-        return (200...299).contains(statusCode)
-    }
-    
-    var formattedTimestamp: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .medium
-        return formatter.string(from: timestamp)
-    }
-    
-    var formattedDuration: String {
-        return String(format: "%.3fs", duration)
-    }
-    
-    var curlCommand: String {
-        var components = ["curl"]
-        components.append("-X \(requestMethod)")
+        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.addValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 120.0 // Keep consistent with non-streaming
         
-        for (key, value) in requestHeaders {
-            if key.lowercased() == "authorization" {
-                let maskedValue = maskAuthorizationValue(value)
-                components.append("-H '\(key): \(maskedValue)'")
+        var msgs: [APIMessage] = []
+        if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            msgs.append(APIMessage(role: "system", content: systemPrompt))
+        }
+        for m in history {
+            let role = switch m.role {
+                case .user: "user"
+                case .assistant: "assistant"
+                case .system: "system"
+            }
+            msgs.append(APIMessage(role: role, content: m.content))
+        }
+        
+        let reqBody = StreamRequestBody(model: model, messages: msgs, stream: true)
+        request.httpBody = try JSONEncoder().encode(reqBody)
+        
+        // Stream response lines
+        let (bytes, resp) = try await URLSession.shared.bytes(for: request)
+        
+        // If server returns an error status, consume the body to surface details, then throw
+        if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            var errorData = Data()
+            // Accumulate any error payload (likely JSON) to help diagnose
+            for try await chunk in bytes {
+                errorData.append(contentsOf: [chunk])
+            }
+            if let json = try? JSONSerialization.jsonObject(with: errorData) as? [String: Any],
+               let err = (json["error"] as? [String: Any])?["message"] as? String {
+                print("❌ Streaming error \(http.statusCode): \(err)")
+            } else if let s = String(data: errorData, encoding: .utf8) {
+                print("❌ Streaming error \(http.statusCode): \(s)")
             } else {
-                components.append("-H '\(key): \(value)'")
+                print("❌ Streaming error \(http.statusCode): <no body>")
             }
+            throw LLMError.httpError(http.statusCode)
         }
         
-        if let bodyString = requestBodyString {
-            let escapedBody = bodyString.replacingOccurrences(of: "'", with: "'\"'\"'")
-            components.append("-d '\(escapedBody)'")
+        var fullText = ""
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data: ") else { continue }
+            let payload = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+            if payload == "[DONE]" { break }
+            
+            guard let data = payload.data(using: .utf8),
+                  let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data),
+                  let delta = chunk.choices.first?.delta?.content,
+                  !delta.isEmpty else { continue }
+            
+            fullText += delta
+            onToken(delta)
         }
         
-        components.append("'\(requestURL)'")
-        return components.joined(separator: " \\\n  ")
-    }
-    
-    private func maskAuthorizationValue(_ value: String) -> String {
-        if value.hasPrefix("Bearer ") {
-            let token = String(value.dropFirst(7))
-            if token.count > 4 {
-                let lastFour = String(token.suffix(4))
-                return "Bearer ***\(lastFour)"
-            }
-        }
-        return "***"
+        guard !fullText.isEmpty else { throw LLMError.missingContent }
+        return fullText
     }
 }
 
-/// Singleton class responsible for logging API requests and responses
-final class APILogger {
-    static let shared = APILogger()
-    
-    private let persistence = LoggingPersistence()
-    private let queue = DispatchQueue(label: "com.trainerapp.apilogger", qos: .background)
-    private var isLoggingEnabled: Bool {
-        UserDefaults.standard.bool(forKey: "APILoggingEnabled")
-    }
-    
-    private init() {}
-    
-    func log(request: URLRequest, response: URLResponse?, data: Data?, error: Error?, startTime: Date) {
-        guard isLoggingEnabled else { return }
-        
-        let duration = Date().timeIntervalSince(startTime)
-        
-        queue.async { [weak self] in
-            let logEntry = self?.createLogEntry(
-                request: request,
-                response: response,
-                data: data,
-                error: error,
-                duration: duration
-            )
-            
-            if let entry = logEntry {
-                self?.persistence.append(entry)
-            }
-        }
-    }
-    
-    private func createLogEntry(
-        request: URLRequest,
-        response: URLResponse?,
-        data: Data?,
-        error: Error?,
-        duration: TimeInterval
-    ) -> APILogEntry {
-        let requestURL = request.url?.absoluteString ?? "Unknown"
-        let requestMethod = request.httpMethod ?? "GET"
-        let requestHeaders = request.allHTTPHeaderFields ?? [:]
-        let requestBody = request.httpBody
-        
-        let apiKeyPreview = extractAPIKeyPreview(from: requestHeaders)
-        
-        var responseStatusCode: Int?
-        var responseHeaders: [String: String]?
-        
-        if let httpResponse = response as? HTTPURLResponse {
-            responseStatusCode = httpResponse.statusCode
-            responseHeaders = httpResponse.allHeaderFields as? [String: String]
-        }
-        
-        let errorMessage = error?.localizedDescription
-        
-        // Extract token usage from response if available
-        var tokenUsage: TokenUsage?
-        if let data = data,
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let usage = json["usage"] as? [String: Any],
-           let totalTokens = usage["total_tokens"] as? Int,
-           let promptTokens = usage["prompt_tokens"] as? Int,
-           let completionTokens = usage["completion_tokens"] as? Int {
-            
-            // Extract model name from response if available
-            let modelName = json["model"] as? String
-            
-            tokenUsage = TokenUsage(
-                totalTokens: totalTokens,
-                promptTokens: promptTokens,
-                completionTokens: completionTokens,
-                model: modelName
-            )
-        }
-        
-        return APILogEntry(
-            requestURL: requestURL,
-            requestMethod: requestMethod,
-            requestHeaders: requestHeaders,
-            requestBody: requestBody,
-            responseStatusCode: responseStatusCode,
-            responseHeaders: responseHeaders,
-            responseBody: data,
-            duration: duration,
-            error: errorMessage,
-            apiKeyPreview: apiKeyPreview,
-            tokenUsage: tokenUsage
-        )
-    }
-    
-    private func extractAPIKeyPreview(from headers: [String: String]) -> String {
-        guard let authHeader = headers["Authorization"] else { return "" }
-        
-        if authHeader.hasPrefix("Bearer ") {
-            let token = String(authHeader.dropFirst(7))
-            if token.count >= 4 {
-                return String(token.suffix(4))
-            }
-        }
-        
-        return ""
-    }
-    
-    func getAllLogs() -> [APILogEntry] {
-        return persistence.loadAll()
-    }
-    
-    func clearAllLogs() {
-        queue.async { [weak self] in
-            self?.persistence.clearAll()
-        }
-    }
-    
-    func setLoggingEnabled(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: "APILoggingEnabled")
-    }
-    
-    func getStorageInfo() -> (logCount: Int, oldestLog: Date?, newestLog: Date?) {
-        let logs = getAllLogs()
-        let sorted = logs.sorted { $0.timestamp < $1.timestamp }
-        
-        return (
-            logCount: logs.count,
-            oldestLog: sorted.first?.timestamp,
-            newestLog: sorted.last?.timestamp
-        )
-    }
-}
-
-/// Handles persistence of API logs to JSON files
-final class LoggingPersistence {
-    private let maxLogsPerFile = 1000
-    private let fileManager = FileManager.default
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
-    private let queue = DispatchQueue(label: "com.trainerapp.logging.persistence", qos: .background)
-    
-    private var logsDirectory: URL {
-        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let logsDir = documentsDirectory.appendingPathComponent("APILogs")
-        
-        if !fileManager.fileExists(atPath: logsDir.path) {
-            try? fileManager.createDirectory(at: logsDir, withIntermediateDirectories: true)
-        }
-        
-        return logsDir
-    }
-    
-    private var activeLogFileURL: URL {
-        logsDirectory.appendingPathComponent("api_logs.json")
-    }
-    
-    init() {
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        decoder.dateDecodingStrategy = .iso8601
-    }
-    
-    func append(_ logEntry: APILogEntry) {
-        queue.sync {
-            var logs = loadLogsFromFile(activeLogFileURL)
-            logs.append(logEntry)
-            
-            if logs.count >= maxLogsPerFile {
-                archiveCurrentLogs(logs)
-                logs = [logEntry]
-            }
-            
-            saveLogsToFile(logs, url: activeLogFileURL)
-        }
-    }
-    
-    func loadAll() -> [APILogEntry] {
-        var allLogs: [APILogEntry] = []
-        allLogs.append(contentsOf: loadLogsFromFile(activeLogFileURL))
-        
-        if let archivedFiles = try? fileManager.contentsOfDirectory(
-            at: logsDirectory,
-            includingPropertiesForKeys: nil
-        ) {
-            let archiveFiles = archivedFiles.filter { url in
-                url.lastPathComponent.hasPrefix("api_logs_") &&
-                url.lastPathComponent.hasSuffix(".json") &&
-                url.lastPathComponent != "api_logs.json"
-            }
-            
-            for archiveFile in archiveFiles.sorted(by: { $0.lastPathComponent > $1.lastPathComponent }) {
-                allLogs.append(contentsOf: loadLogsFromFile(archiveFile))
-            }
-        }
-        
-        return allLogs
-    }
-    
-    func clearAll() {
-        queue.sync {
-            if let files = try? fileManager.contentsOfDirectory(at: logsDirectory, includingPropertiesForKeys: nil) {
-                for file in files {
-                    try? fileManager.removeItem(at: file)
-                }
-            }
-        }
-    }
-    
-    private func loadLogsFromFile(_ url: URL) -> [APILogEntry] {
-        guard let data = try? Data(contentsOf: url),
-              let logs = try? decoder.decode([APILogEntry].self, from: data) else {
-            return []
-        }
-        return logs
-    }
-    
-    private func saveLogsToFile(_ logs: [APILogEntry], url: URL) {
-        guard let data = try? encoder.encode(logs) else { return }
-        try? data.write(to: url, options: .atomic)
-    }
-    
-    private func archiveCurrentLogs(_ logs: [APILogEntry]) {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy_MM_dd_HHmmss"
-        let dateString = dateFormatter.string(from: Date())
-        
-        let archiveURL = logsDirectory.appendingPathComponent("api_logs_\(dateString).json")
-        saveLogsToFile(logs, url: archiveURL)
-    }
-}
+// MARK: - API Logging Components removed (use centralized Logging/ implementations)
 
 
 // MARK: - Preview
