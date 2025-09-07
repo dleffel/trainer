@@ -13,6 +13,7 @@
 		B759471B2E07006C00BE6537 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B759471A2E07006C00BE6537 /* Preview Assets.xcassets */; };
 		B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A86662E5D884700CB5792 /* CalendarView.swift */; };
 		B75A866A2E5D884700CB5792 /* WeeklyCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */; };
+		B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */; };
 		B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */; };
 		B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866D2E5D886800CB5792 /* TrainingBlock.swift */; };
 		B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */; };
@@ -39,6 +40,7 @@
 		B759474B2E07048400BE6537 /* TrainerApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerApp.entitlements; sourceTree = "<group>"; };
 		B75A86662E5D884700CB5792 /* CalendarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WeeklyCalendarView.swift; sourceTree = "<group>"; };
+		B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatStateComponents.swift; sourceTree = "<group>"; };
 		B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingScheduleManager.swift; sourceTree = "<group>"; };
 		B75A866D2E5D886800CB5792 /* TrainingBlock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingBlock.swift; sourceTree = "<group>"; };
 		B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingCalendar.swift; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 			children = (
 				B75A86662E5D884700CB5792 /* CalendarView.swift */,
 				B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */,
+				B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -270,6 +273,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */,
+				B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
 				B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */,

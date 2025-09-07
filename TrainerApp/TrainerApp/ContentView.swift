@@ -9,13 +9,12 @@ import CloudKit
 struct ContentView: View {
     @State private var messages: [ChatMessage] = []
     @State private var input: String = ""
-    @State private var isSending: Bool = false
+    @State private var chatState: ChatState = .idle  // New single state variable
     @State private var showSettings: Bool = false
     @State private var showCalendar: Bool = false
     @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY") ?? ""
     @State private var errorMessage: String?
     @State private var isLoadingHealthData: Bool = false
-    @State private var isProcessingTools: Bool = false
     @State private var iCloudAvailable = false
     @State private var showMigrationAlert: Bool = false
     
@@ -237,14 +236,11 @@ struct ContentView: View {
                         bubble(for: msg)
                             .id(msg.id)
                     }
-                    if isSending {
-                        if isProcessingTools {
-                            processingToolsIndicator
-                                .id("processing")
-                        } else {
-                            typingIndicator
-                                .id("typing")
-                        }
+                    
+                    // Use the new unified status view
+                    if chatState != .idle {
+                        ChatStatusView(state: chatState)
+                            .padding(.horizontal, 4)
                     }
                     
                     // Add invisible spacer at bottom to ensure last message isn't cut off
@@ -258,16 +254,20 @@ struct ContentView: View {
             }
             .onChange(of: messages.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.25)) {
-                    if isSending {
-                        // When sending, scroll to show indicators properly
-                        if isProcessingTools {
-                            proxy.scrollTo("processing", anchor: .bottom)
-                        } else {
-                            proxy.scrollTo("typing", anchor: .bottom)
-                        }
+                    if chatState != .idle {
+                        // When processing, scroll to show status indicator
+                        proxy.scrollTo("status-indicator", anchor: .bottom)
                     } else {
-                        // When not sending, scroll to bottom spacer to ensure last message is fully visible
+                        // When idle, scroll to bottom spacer to ensure last message is fully visible
                         proxy.scrollTo("bottom-spacer", anchor: .bottom)
+                    }
+                }
+            }
+            .onChange(of: chatState) { _, _ in
+                // Smooth scroll when state changes
+                withAnimation(.easeOut(duration: 0.25)) {
+                    if chatState != .idle {
+                        proxy.scrollTo("status-indicator", anchor: .bottom)
                     }
                 }
             }
@@ -308,45 +308,12 @@ struct ContentView: View {
         )
     }
 
-    private var typingIndicator: some View {
-        HStack {
-            ShimmerDot()
-            ShimmerDot(delay: 0.2)
-            ShimmerDot(delay: 0.4)
-            Spacer()
-        }
-        .padding(10)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .frame(maxWidth: 220, alignment: .leading)
-    }
-    
-    private var processingToolsIndicator: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "gearshape.2.fill")
-                .font(.system(size: 14))
-                .foregroundColor(.secondary)
-                .rotationEffect(.degrees(isProcessingTools ? 360 : 0))
-                .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: isProcessingTools)
-            
-            Text("Checking health data...")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-            
-            Spacer()
-        }
-        .padding(10)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .frame(maxWidth: 220, alignment: .leading)
-    }
-
     private var inputBar: some View {
         HStack(spacing: 10) {
             TextField("Message…", text: $input, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...5)
-                .disabled(isSending)
+                .disabled(chatState != .idle)
 
             Button {
                 Task { await send() }
@@ -362,7 +329,7 @@ struct ContentView: View {
     }
 
     private var canSend: Bool {
-        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && chatState == .idle
     }
 
     // MARK: - Actions
@@ -380,8 +347,10 @@ struct ContentView: View {
         messages.append(userMsg)
         persist()
         
-        isSending = true
-        isProcessingTools = false
+        // Update state with animation
+        withAnimation(.easeInOut(duration: 0.3)) {
+            chatState = .preparingResponse
+        }
         
         do {
             // Create a working copy of messages for the conversation
@@ -396,17 +365,21 @@ struct ContentView: View {
                 turns += 1
                 
                 if turns == 1 {
-                    // STREAMING: First turn streams tokens into a visible assistant bubble
+                    // STREAMING: Start in streaming state, but don't create message yet
                     await MainActor.run {
-                        let placeholder = ChatMessage(role: .assistant, content: "")
-                        messages.append(placeholder)
-                        assistantIndex = messages.count - 1
+                        // Just transition to streaming state - no message creation yet
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            chatState = .streaming(progress: nil)
+                        }
                     }
                     
                     let requestStart = Date()
                     print("⏱️ request_start: \(requestStart.timeIntervalSince1970)")
                     
                     var streamedFullText = ""
+                    var tokenBuffer = ""
+                    var isBufferingTool = false
+                    var messageCreated = false
                     let assistantText: String
                     do {
                         assistantText = try await LLMClient.streamComplete(
@@ -415,11 +388,47 @@ struct ContentView: View {
                             systemPrompt: systemPrompt,
                             history: conversationHistory,
                             onToken: { token in
-                                streamedFullText.append(token)
-                                Task { @MainActor in
-                                    if let idx = assistantIndex {
-                                        messages[idx] = ChatMessage(role: .assistant, content: streamedFullText)
+                                // Buffer tokens to detect tool patterns early
+                                tokenBuffer.append(token)
+                                
+                                // Check for tool pattern in buffer
+                                if tokenBuffer.contains("[TOOL_CALL:") && !isBufferingTool {
+                                    isBufferingTool = true
+                                    // Extract tool name for specific feedback
+                                    if tokenBuffer.range(of: #"\[TOOL_CALL:\s*(\w+)"#, options: .regularExpression) != nil {
+                                        // Extract tool name for specific feedback
+                                        if let colonRange = tokenBuffer.range(of: ":"),
+                                           let toolNameStart = tokenBuffer.index(colonRange.upperBound, offsetBy: 1, limitedBy: tokenBuffer.endIndex) {
+                                            let toolNameEnd = tokenBuffer.firstIndex(of: "(") ?? tokenBuffer.firstIndex(of: "]") ?? tokenBuffer.endIndex
+                                            let toolName = String(tokenBuffer[toolNameStart..<toolNameEnd]).trimmingCharacters(in: .whitespaces)
+                                        
+                                            Task { @MainActor in
+                                                withAnimation(.easeInOut(duration: 0.3)) {
+                                                    chatState = .toolState(for: toolName)
+                                                }
+                                            }
+                                        }
                                     }
+                                } else if !isBufferingTool {
+                                    // Only append non-tool content to visible message
+                                    streamedFullText.append(token)
+                                    Task { @MainActor in
+                                        // Create message on first content token
+                                        if !messageCreated && !streamedFullText.isEmpty {
+                                            let newMessage = ChatMessage(role: .assistant, content: streamedFullText)
+                                            messages.append(newMessage)
+                                            assistantIndex = messages.count - 1
+                                            messageCreated = true
+                                        } else if let idx = assistantIndex {
+                                            // Update existing message
+                                            messages[idx] = ChatMessage(role: .assistant, content: streamedFullText)
+                                        }
+                                    }
+                                }
+                                
+                                // Keep full text for processing
+                                if isBufferingTool {
+                                    streamedFullText = tokenBuffer
                                 }
                             }
                         )
@@ -452,8 +461,18 @@ struct ContentView: View {
                     let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
                     
                     if processedResponse.requiresFollowUp && !processedResponse.toolResults.isEmpty {
-                        isProcessingTools = true
                         print("⏱️ tools_start: \(Date().timeIntervalSince1970)")
+                        
+                        // Update state to show tool processing with specific feedback
+                        for result in processedResponse.toolResults {
+                            await MainActor.run {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    chatState = .toolState(for: result.toolName)
+                                }
+                            }
+                            // Brief pause to show each tool
+                            try? await Task.sleep(for: .milliseconds(500))
+                        }
                         
                         // Add the cleaned assistant response if it has content
                         if !processedResponse.cleanedResponse.isEmpty {
@@ -484,11 +503,22 @@ struct ContentView: View {
                             if let idx = assistantIndex {
                                 messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
                             }
+                            
+                            // Transition to finalizing
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                chatState = .finalizing
+                            }
                         }
                         break
                     }
                 } else {
-                    // FOLLOW-UP: Use non-streaming completion but logged via EnhancedAPILogger
+                    // FOLLOW-UP: Use non-streaming completion
+                    await MainActor.run {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            chatState = .preparingResponse
+                        }
+                    }
+                    
                     let assistantText = try await LLMClient.complete(
                         apiKey: apiKey,
                         model: model,
@@ -507,6 +537,11 @@ struct ContentView: View {
                             // Fallback: append if no streaming bubble present
                             messages.append(ChatMessage(role: .assistant, content: finalResponse))
                         }
+                        
+                        // Transition to finalizing
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            chatState = .finalizing
+                        }
                     }
                     break
                 }
@@ -515,12 +550,22 @@ struct ContentView: View {
             
             persist()
             
+            // Brief pause before returning to idle
+            try? await Task.sleep(for: .milliseconds(200))
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    chatState = .idle
+                }
+            }
+            
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    chatState = .idle
+                }
+            }
         }
-        
-        isSending = false
-        isProcessingTools = false
     }
 
     private func persist() {
@@ -677,20 +722,6 @@ private struct LinkDetectingText: View {
         }
         
         return components
-    }
-}
-
-private struct ShimmerDot: View {
-    @State private var on = false
-    var delay: Double = 0.0
-
-    var body: some View {
-        Circle()
-            .fill(Color.secondary)
-            .frame(width: 8, height: 8)
-            .opacity(on ? 1.0 : 0.3)
-            .animation(.easeInOut(duration: 0.8).repeatForever().delay(delay), value: on)
-            .onAppear { on = true }
     }
 }
 
