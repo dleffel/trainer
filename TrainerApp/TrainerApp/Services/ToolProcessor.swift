@@ -96,17 +96,9 @@ class ToolProcessor {
                         print("🔍 ToolProcessor: Detected JSON parameters, parsing as structured data")
                         parameters = parseStructuredParameters(paramsStr)
                     } else {
-                        // Simple parameter parsing (key:value,key:value format)
-                        print("🔍 ToolProcessor: Using simple parameter parsing")
-                        let paramPairs = paramsStr.split(separator: ",")
-                        for pair in paramPairs {
-                            let parts = pair.split(separator: ":")
-                            if parts.count == 2 {
-                                let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
-                                let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
-                                parameters[key] = value
-                            }
-                        }
+                        // Smart parameter parsing that handles quoted strings
+                        print("🔍 ToolProcessor: Using smart parameter parsing")
+                        parameters = parseSmartParameters(paramsStr)
                     }
                     
                     print("🔍 ToolProcessor: Parsed parameters: \(parameters)")
@@ -123,6 +115,65 @@ class ToolProcessor {
         }
         
         return toolCalls
+    }
+    
+    /// Parse smart parameters that handle quoted strings
+    private func parseSmartParameters(_ paramsStr: String) -> [String: Any] {
+        var parameters: [String: Any] = [:]
+        var currentKey = ""
+        var currentValue = ""
+        var inQuotes = false
+        var expectingValue = false
+        var escapeNext = false
+        
+        var i = paramsStr.startIndex
+        while i < paramsStr.endIndex {
+            let char = paramsStr[i]
+            
+            if escapeNext {
+                currentValue.append(char)
+                escapeNext = false
+            } else if char == "\\" {
+                escapeNext = true
+            } else if char == "\"" {
+                inQuotes.toggle()
+            } else if !inQuotes && char == ":" {
+                // Found key-value separator
+                currentKey = currentValue.trimmingCharacters(in: .whitespaces)
+                currentValue = ""
+                expectingValue = true
+            } else if !inQuotes && char == "," {
+                // Found parameter separator
+                if expectingValue && !currentKey.isEmpty {
+                    // Remove quotes from value if present
+                    var finalValue = currentValue.trimmingCharacters(in: .whitespaces)
+                    if finalValue.hasPrefix("\"") && finalValue.hasSuffix("\"") {
+                        finalValue = String(finalValue.dropFirst().dropLast())
+                    }
+                    parameters[currentKey] = finalValue
+                    print("🔍 Parsed parameter: \(currentKey) = \(finalValue.prefix(50))...")
+                }
+                currentKey = ""
+                currentValue = ""
+                expectingValue = false
+            } else {
+                currentValue.append(char)
+            }
+            
+            i = paramsStr.index(after: i)
+        }
+        
+        // Handle last parameter
+        if expectingValue && !currentKey.isEmpty {
+            var finalValue = currentValue.trimmingCharacters(in: .whitespaces)
+            if finalValue.hasPrefix("\"") && finalValue.hasSuffix("\"") {
+                finalValue = String(finalValue.dropFirst().dropLast())
+            }
+            parameters[currentKey] = finalValue
+            print("🔍 Parsed parameter: \(currentKey) = \(finalValue.prefix(50))...")
+        }
+        
+        return parameters
     }
     
     /// Parse structured parameters (JSON-like format) from tool call
@@ -236,19 +287,34 @@ class ToolProcessor {
                 let result = try await executeStartTrainingProgram()
                 return ToolCallResult(toolName: toolCall.name, result: result)
                 
-            case "plan_week_workouts":
-                print("📝 ToolProcessor: Matched plan_week_workouts tool")
-                let weekStartDate = toolCall.parameters["week_start_date"] as? String ?? ""
+            // Adaptive Planning Tools
+            case "plan_workout":
+                print("📝 ToolProcessor: Matched plan_workout tool")
+                let dateParam = toolCall.parameters["date"] as? String ?? "today"
+                let workoutParam = toolCall.parameters["workout"] as? String ?? ""
+                let notesParam = toolCall.parameters["notes"] as? String
+                let result = try await executePlanWorkout(date: dateParam, workout: workoutParam, notes: notesParam)
+                return ToolCallResult(toolName: toolCall.name, result: result)
                 
-                // Workouts should already be parsed as a dictionary
-                let workouts = toolCall.parameters["workouts"] as? [String: String] ?? [:]
+            case "update_workout":
+                print("✏️ ToolProcessor: Matched update_workout tool")
+                let dateParam = toolCall.parameters["date"] as? String ?? "today"
+                let workoutParam = toolCall.parameters["workout"] as? String ?? ""
+                let reasonParam = toolCall.parameters["reason"] as? String
+                let result = try await executeUpdateWorkout(date: dateParam, workout: workoutParam, reason: reasonParam)
+                return ToolCallResult(toolName: toolCall.name, result: result)
                 
-                print("📝 Executing with date: \(weekStartDate) and \(workouts.count) workouts")
+            case "delete_workout":
+                print("🗑️ ToolProcessor: Matched delete_workout tool")
+                let dateParam = toolCall.parameters["date"] as? String ?? "today"
+                let reasonParam = toolCall.parameters["reason"] as? String
+                let result = try await executeDeleteWorkout(date: dateParam, reason: reasonParam)
+                return ToolCallResult(toolName: toolCall.name, result: result)
                 
-                let result = try await executePlanWeekWorkouts(
-                    weekStartDate: weekStartDate,
-                    workouts: workouts
-                )
+            case "get_workout":
+                print("🔍 ToolProcessor: Matched get_workout tool")
+                let dateParam = toolCall.parameters["date"] as? String ?? "today"
+                let result = try await executeGetWorkout(date: dateParam)
                 return ToolCallResult(toolName: toolCall.name, result: result)
                 
             default:
@@ -481,7 +547,7 @@ class ToolProcessor {
                 • All previous data cleared
                 • Ready for personalized workout planning
                 
-                Use plan_week_workouts to add workouts for each week.
+                Use plan_workout to add workouts day by day.
                 """
             } else {
                 print("🔍 DEBUG executeStartTrainingProgram - Starting fresh program")
@@ -500,59 +566,133 @@ class ToolProcessor {
                 • Weeks 12-19: Aerobic Capacity
                 • Week 20: Deload/Taper
                 
-                Program structure ready. Use plan_week_workouts to add personalized workouts.
+                Program structure ready. Use plan_workout to add today's workout.
                 """
             }
         }
     }
+    // MARK: - New Adaptive Planning Tool Implementations
     
-    /// Plan workouts for a specific week
-    private func executePlanWeekWorkouts(weekStartDate: String, workouts: [String: String]) async throws -> String {
-        print("📝 ToolProcessor: Planning week workouts")
-        print("📝 Week start: \(weekStartDate)")
-        print("📝 Workouts provided: \(workouts.count)")
-        print("📝 Workout details:")
-        for (day, workout) in workouts {
-            print("   - \(day): \(workout.prefix(50))...")
-        }
+    /// Plan a single day's workout
+    private func executePlanWorkout(date: String, workout: String, notes: String?) async throws -> String {
+        print("📝 ToolProcessor: Planning single workout for \(date)")
         
         return await MainActor.run {
             let manager = TrainingScheduleManager.shared
+            let targetDate = parseDate(date)
             
-            // Parse the date
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            formatter.timeZone = TimeZone.current  // Use user's timezone
-            
-            guard let date = formatter.date(from: weekStartDate) else {
-                print("❌ Failed to parse date: \(weekStartDate)")
-                return "[Error: Invalid date format. Use YYYY-MM-DD]"
+            // Check if program exists
+            guard manager.programStartDate != nil else {
+                return "[Error: No training program started. Use start_training_program first]"
             }
             
-            print("📝 Parsed date: \(date)")
-            
-            // Update workouts for the week
-            let success = manager.updateWeekWorkouts(weekStartDate: date, workouts: workouts)
-            
-            if success {
-                print("✅ Successfully updated workouts for week")
-                return """
-                [Week Workouts Planned]
-                • Week starting: \(weekStartDate)
-                • \(workouts.count) workouts scheduled
-                • Saved to training calendar
+            // Call the new single-day planning method
+            if manager.planSingleWorkout(for: targetDate, workout: workout, notes: notes) {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "EEEE, MMM d"
+                let dateStr = dateFormatter.string(from: targetDate)
                 
-                Workouts planned:
-                \(workouts.map { "• \($0.key.capitalized): \($0.value)" }.joined(separator: "\n"))
+                return """
+                [Workout Planned]
+                • Date: \(dateStr)
+                • Workout: \(workout)
+                \(notes != nil ? "• Notes: \(notes!)" : "")
+                • Status: Saved to calendar
                 """
             } else {
-                print("❌ Failed to update workouts")
-                return "[Error: Could not update workouts for this week. Ensure training program is started first.]"
+                return "[Error: Could not plan workout for \(date)]"
             }
         }
     }
     
+    /// Update an existing workout
+    private func executeUpdateWorkout(date: String, workout: String, reason: String?) async throws -> String {
+        print("✏️ ToolProcessor: Updating workout for \(date)")
+        
+        return await MainActor.run {
+            let manager = TrainingScheduleManager.shared
+            let targetDate = parseDate(date)
+            
+            // Get existing workout first
+            if let existingDay = manager.getWorkoutDay(for: targetDate) {
+                let previousWorkout = existingDay.plannedWorkout ?? "None"
+                
+                if manager.updateSingleWorkout(for: targetDate, workout: workout, reason: reason) {
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "EEEE, MMM d"
+                    let dateStr = dateFormatter.string(from: targetDate)
+                    
+                    return """
+                    [Workout Updated]
+                    • Date: \(dateStr)
+                    • Previous: \(previousWorkout)
+                    • Updated to: \(workout)
+                    \(reason != nil ? "• Reason: \(reason!)" : "")
+                    """
+                }
+            }
+            
+            return "[Error: Could not update workout for \(date). No existing workout found]"
+        }
+    }
     
+    /// Delete a planned workout
+    private func executeDeleteWorkout(date: String, reason: String?) async throws -> String {
+        print("🗑️ ToolProcessor: Deleting workout for \(date)")
+        
+        return await MainActor.run {
+            let manager = TrainingScheduleManager.shared
+            let targetDate = parseDate(date)
+            
+            if manager.deleteSingleWorkout(for: targetDate, reason: reason) {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "EEEE, MMM d"
+                let dateStr = dateFormatter.string(from: targetDate)
+                
+                return """
+                [Workout Deleted]
+                • Date: \(dateStr)
+                \(reason != nil ? "• Reason: \(reason!)" : "")
+                • Status: Removed from calendar
+                """
+            } else {
+                return "[Error: Could not delete workout for \(date)]"
+            }
+        }
+    }
+    
+    /// Get a specific day's workout
+    private func executeGetWorkout(date: String) async throws -> String {
+        print("🔍 ToolProcessor: Getting workout for \(date)")
+        
+        return await MainActor.run {
+            let manager = TrainingScheduleManager.shared
+            let targetDate = parseDate(date)
+            
+            if let workoutDay = manager.getWorkoutDay(for: targetDate) {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "EEEE, MMM d"
+                let dateStr = dateFormatter.string(from: targetDate)
+                
+                if let plannedWorkout = workoutDay.plannedWorkout {
+                    return """
+                    [Workout for \(dateStr)]
+                    • Block: \(workoutDay.blockType.rawValue.capitalized)
+                    • Planned: \(plannedWorkout)
+                    """
+                } else {
+                    return """
+                    [No Workout Planned]
+                    • Date: \(dateStr)
+                    • Block: \(workoutDay.blockType.rawValue.capitalized)
+                    • Status: No workout scheduled for this day
+                    """
+                }
+            } else {
+                return "[Error: Could not find workout for \(date)]"
+            }
+        }
+    }
     
     /// Process a response that may contain tool calls
     /// Returns cleaned response, whether follow-up is needed, and tool results

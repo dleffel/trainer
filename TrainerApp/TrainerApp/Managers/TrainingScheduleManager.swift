@@ -525,6 +525,145 @@ class TrainingScheduleManager: ObservableObject {
     }
     
     
+    // MARK: - New Single-Day CRUD Operations for Adaptive Planning
+    
+    /// Plan a single workout for a specific date
+    func planSingleWorkout(for date: Date, workout: String, notes: String?) -> Bool {
+        print("📝 Planning single workout for \(date)")
+        
+        // Find or create workout day
+        if let existingDay = getWorkoutDay(for: date) {
+            // Update existing
+            var updatedDay = existingDay
+            // Store notes as part of workout text if provided
+            if let notes = notes {
+                updatedDay.plannedWorkout = "\(workout)\n\n📝 Notes: \(notes)"
+            } else {
+                updatedDay.plannedWorkout = workout
+            }
+            updatedDay.isCoachPlanned = true
+            
+            // Save to storage
+            return saveWorkoutDay(updatedDay)
+        } else {
+            // Create new workout day
+            var newDay = generateDayForDate(date)
+            // Store notes as part of workout text if provided
+            if let notes = notes {
+                newDay.plannedWorkout = "\(workout)\n\n📝 Notes: \(notes)"
+            } else {
+                newDay.plannedWorkout = workout
+            }
+            newDay.isCoachPlanned = true
+            
+            // Add to workoutDays array
+            workoutDays.append(newDay)
+            
+            // Save to storage
+            return saveWorkoutDay(newDay)
+        }
+    }
+    
+    /// Update an existing workout with modification tracking
+    func updateSingleWorkout(for date: Date, workout: String, reason: String?) -> Bool {
+        print("✏️ Updating workout for \(date)")
+        
+        guard var workoutDay = getWorkoutDay(for: date) else {
+            print("❌ No workout found to update")
+            return false
+        }
+        
+        // Update the workout with modification reason embedded
+        if let reason = reason {
+            workoutDay.plannedWorkout = "\(workout)\n\n✏️ Modified: \(reason)"
+        } else {
+            workoutDay.plannedWorkout = workout
+        }
+        workoutDay.isCoachPlanned = true
+        
+        return saveWorkoutDay(workoutDay)
+    }
+    
+    /// Delete a workout (set to rest day)
+    func deleteSingleWorkout(for date: Date, reason: String?) -> Bool {
+        print("🗑️ Deleting workout for \(date)")
+        
+        guard var workoutDay = getWorkoutDay(for: date) else {
+            print("❌ No workout found to delete")
+            return false
+        }
+        
+        // Clear the workout and add reason if provided
+        if let reason = reason {
+            workoutDay.plannedWorkout = "Rest day - \(reason)"
+        } else {
+            workoutDay.plannedWorkout = nil
+        }
+        
+        return saveWorkoutDay(workoutDay)
+    }
+    
+    /// Get a specific day's workout
+    func getWorkoutDay(for date: Date) -> WorkoutDay? {
+        // First check in-memory workoutDays
+        if let day = workoutDays.first(where: {
+            Calendar.current.isDate($0.date, inSameDayAs: date)
+        }) {
+            return day
+        }
+        
+        // Then check persistent storage
+        let key = "workout_\(dateKey(for: date))"
+        var data: Data?
+        
+        if useICloud {
+            data = iCloudStore.data(forKey: key)
+        }
+        
+        if data == nil {
+            data = userDefaults.data(forKey: key)
+        }
+        
+        if let data = data,
+           let workoutDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
+            return workoutDay
+        }
+        
+        return nil
+    }
+    
+    /// Save a workout day to persistent storage
+    private func saveWorkoutDay(_ workoutDay: WorkoutDay) -> Bool {
+        let key = "workout_\(dateKey(for: workoutDay.date))"
+        let encoder = JSONEncoder()
+        
+        guard let data = try? encoder.encode(workoutDay) else {
+            print("❌ Failed to encode workout day")
+            return false
+        }
+        
+        // Update in-memory array
+        if let index = workoutDays.firstIndex(where: {
+            Calendar.current.isDate($0.date, inSameDayAs: workoutDay.date)
+        }) {
+            workoutDays[index] = workoutDay
+        } else {
+            workoutDays.append(workoutDay)
+        }
+        
+        // Save to persistent storage
+        if useICloud {
+            iCloudStore.set(data, forKey: key)
+            iCloudStore.synchronize()
+            print("☁️ Saved workout to iCloud: \(key)")
+        }
+        
+        userDefaults.set(data, forKey: key)
+        print("💾 Saved workout to UserDefaults: \(key)")
+        
+        return true
+    }
+    
     /// Get block info for a specific week number
     func getBlockForWeek(_ weekNumber: Int) -> (type: BlockType, weekInBlock: Int) {
         let week = ((weekNumber - 1) % 20) + 1
