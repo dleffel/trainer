@@ -2,7 +2,7 @@ import SwiftUI
 
 struct WeeklyCalendarView: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
-    @State private var selectedWeek = Date()
+    @State private var selectedWeek = Date.current
     @State private var weekDays: [WorkoutDay] = []
     @State private var selectedDay: WorkoutDay?
     @State private var selectedWeekBlock: TrainingBlock?
@@ -146,7 +146,7 @@ struct WeeklyCalendarView: View {
     
     private var isCurrentWeek: Bool {
         guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: selectedWeek),
-              let currentWeekInterval = calendar.dateInterval(of: .weekOfYear, for: Date()) else {
+              let currentWeekInterval = calendar.dateInterval(of: .weekOfYear, for: Date.current) else {
             return false
         }
         

@@ -109,7 +109,7 @@ struct CalendarView: View {
 
 struct MonthlyCalendarView: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
-    @State private var selectedMonth = Date()
+    @State private var selectedMonth = Date.current
     @State private var monthDays: [WorkoutDay] = []
     @State private var selectedDay: WorkoutDay?
     
@@ -286,7 +286,7 @@ struct MonthDayCard: View {
 struct ProgramSetupSheet: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
     @Environment(\.dismiss) var dismiss
-    @State private var startDate = Date()
+    @State private var startDate = Date.current
     @State private var showingDatePicker = false
     
     var body: some View {

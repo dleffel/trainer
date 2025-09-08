@@ -66,7 +66,7 @@ struct TrainingBlock: Codable, Identifiable {
     let weekNumber: Int // Week number within the macro-cycle
     
     /// Calculate which week we're currently in within this block
-    func currentWeek(from date: Date = Date()) -> Int? {
+    func currentWeek(from date: Date = Date.current) -> Int? {
         guard date >= startDate && date <= endDate else { return nil }
         
         let calendar = Calendar.current
@@ -87,15 +87,15 @@ struct TrainingProgram: Codable {
     var raceDate: Date?
     var lastModified: Date
     
-    init(startDate: Date = Date(), currentMacroCycle: Int = 1) {
+    init(startDate: Date = Date.current, currentMacroCycle: Int = 1) {
         self.startDate = startDate
         self.currentMacroCycle = currentMacroCycle
         self.raceDate = nil
-        self.lastModified = Date()
+        self.lastModified = Date.current
     }
     
     /// Calculate total weeks since program start
-    func totalWeeks(from date: Date = Date()) -> Int {
+    func totalWeeks(from date: Date = Date.current) -> Int {
         let calendar = Calendar.current
         return calendar.dateComponents([.weekOfYear], from: startDate, to: date).weekOfYear ?? 0
     }

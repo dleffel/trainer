@@ -401,7 +401,7 @@ class ToolProcessor {
             print("🔍 DEBUG executeGetTrainingStatus - Workout days count: \(manager.workoutDays.count)")
             
             // Check what's actually stored in the calendar
-            let currentWeekDays = manager.generateWeek(containing: Date())
+            let currentWeekDays = manager.generateWeek(containing: Date.current)
             print("🔍 DEBUG executeGetTrainingStatus - Current week has \(currentWeekDays.count) days")
             for (index, day) in currentWeekDays.enumerated() {
                 let hasWorkout = day.plannedWorkout != nil
@@ -507,7 +507,7 @@ class ToolProcessor {
                 $0.dayOfWeek == targetDay
             }?.plannedWorkout ?? "Workout not yet planned. Use plan_week_workouts to add workouts."
             
-            let defaultStartDate = Date()
+            let defaultStartDate = Date.current
             let defaultEndDate = Calendar.current.date(byAdding: .weekOfYear, value: 8, to: defaultStartDate) ?? defaultStartDate
             let block = manager.currentBlock ?? TrainingBlock(
                 type: .aerobicCapacity,
@@ -778,13 +778,13 @@ class ToolProcessor {
     
     private func parseDate(_ dateString: String) -> Date {
         if dateString.lowercased() == "today" {
-            return Date()
+            return Date.current
         } else if dateString.lowercased() == "tomorrow" {
-            return Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+            return Calendar.current.date(byAdding: .day, value: 1, to: Date.current)!
         } else {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
-            return formatter.date(from: dateString) ?? Date()
+            return formatter.date(from: dateString) ?? Date.current
         }
     }
     

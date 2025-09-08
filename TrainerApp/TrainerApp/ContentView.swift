@@ -733,6 +733,7 @@ private struct SettingsSheet: View {
     @State private var developerModeEnabled = UserDefaults.standard.bool(forKey: "DeveloperModeEnabled")
     @State private var apiLoggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
     @State private var showDebugMenu = false
+    @State private var showTimeControl = false
 
     var body: some View {
         NavigationStack {
@@ -748,7 +749,8 @@ private struct SettingsSheet: View {
                 }
                 
                 Section("Developer Options") {
-                    Toggle("Developer Mode", isOn: $developerModeEnabled)
+                    Group {
+                        Toggle("Developer Mode", isOn: $developerModeEnabled)
                         .onChange(of: developerModeEnabled) { _, newValue in
                             UserDefaults.standard.set(newValue, forKey: "DeveloperModeEnabled")
                             if !newValue {
@@ -771,7 +773,14 @@ private struct SettingsSheet: View {
                             Label("View API Logs", systemImage: "doc.text.magnifyingglass")
                         }
                         .disabled(!apiLoggingEnabled)
+                        
+                        Button {
+                            showTimeControl = true
+                        } label: {
+                            Label("Time Control", systemImage: "clock.arrow.circlepath")
+                        }
                     }
+                }
                 }
                 
                 Section {
@@ -826,6 +835,12 @@ private struct SettingsSheet: View {
         .sheet(isPresented: $showDebugMenu) {
             DebugMenuView()
                 .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showTimeControl) {
+            NavigationView {
+                SimpleDeveloperTimeControl()
+            }
+            .presentationDetents([.large])
         }
     }
 }

@@ -51,7 +51,7 @@ class TrainingScheduleManager: ObservableObject {
     // MARK: - Program Management
     
     /// Start a new training program
-    func startNewProgram(startDate: Date = Date()) {
+    func startNewProgram(startDate: Date = Date.current) {
         print("🔍 DEBUG startNewProgram - Starting new program on: \(startDate)")
         let program = TrainingProgram(startDate: startDate, currentMacroCycle: 1)
         self.currentProgram = program
@@ -125,7 +125,7 @@ class TrainingScheduleManager: ObservableObject {
         }
         
         let blocks = generateAllBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
-        let now = Date()
+        let now = Date.current
         
         print("🔍 DEBUG updateCurrentBlock - Checking date: \(now)")
         print("🔍 DEBUG updateCurrentBlock - Generated \(blocks.count) blocks")
@@ -150,7 +150,7 @@ class TrainingScheduleManager: ObservableObject {
         }
         
         // Generate current week's workout days (blank, to be filled by coach)
-        workoutDays = generateWeek(containing: Date())
+        workoutDays = generateWeek(containing: Date.current)
     }
     
     /// Generate all training blocks for a macro-cycle
@@ -343,27 +343,27 @@ class TrainingScheduleManager: ObservableObject {
         
         let weeksSinceStart = Calendar.current.dateComponents([.weekOfYear],
                                                               from: program.startDate,
-                                                              to: Date()).weekOfYear ?? 0
+                                                              to: Date.current).weekOfYear ?? 0
         return (weeksSinceStart % 20) + 1
     }
     
     /// Get current day of week
     var currentDay: DayOfWeek {
-        return DayOfWeek.from(date: Date())
+        return DayOfWeek.from(date: Date.current)
     }
     
     /// Get workout days for the current week
     var currentWeekDays: [WorkoutDay] {
-        return generateWeek(containing: Date())
+        return generateWeek(containing: Date.current)
     }
     
     /// Start a new training program
-    func startProgram(startDate: Date = Date()) {
+    func startProgram(startDate: Date = Date.current) {
         startNewProgram(startDate: startDate)
     }
     
     /// Restart training program
-    func restartProgram(startDate: Date = Date()) {
+    func restartProgram(startDate: Date = Date.current) {
         // Clear old program data
         currentProgram = nil
         workoutDays = []
@@ -373,7 +373,7 @@ class TrainingScheduleManager: ObservableObject {
             iCloudStore.removeObject(forKey: programKey)
             // Clear workout completion keys
             for i in -30...30 {
-                if let date = Calendar.current.date(byAdding: .day, value: i, to: Date()) {
+                if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
                     let key = "workout_\(dateKey(for: date))"
                     iCloudStore.removeObject(forKey: key)
                 }
@@ -384,7 +384,7 @@ class TrainingScheduleManager: ObservableObject {
         // Clear local storage
         userDefaults.removeObject(forKey: programKey)
         for i in -30...30 {
-            if let date = Calendar.current.date(byAdding: .day, value: i, to: Date()) {
+            if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
                 let key = "workout_\(dateKey(for: date))"
                 userDefaults.removeObject(forKey: key)
             }
@@ -409,7 +409,7 @@ class TrainingScheduleManager: ObservableObject {
         if weekStartDate < program.startDate {
             print("⚠️ Date \(weekStartDate) is before program start \(program.startDate)")
             print("📝 Using current week instead")
-            adjustedDate = Date()
+            adjustedDate = Date.current
         }
         
         // Get all days for this week

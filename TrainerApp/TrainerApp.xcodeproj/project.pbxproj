@@ -29,6 +29,8 @@
 		B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33342E5993D8004C515B /* APILogEntry.swift */; };
 		B75C333B2E5993D8004C515B /* APILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33352E5993D8004C515B /* APILogger.swift */; };
 		B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E5993D8004C515B /* LoggingPersistence.swift */; };
+		B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2352E6900F100CB5792 /* DateProvider.swift */; };
+		B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +60,8 @@
 		B781C9282E639CB300B866CE /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
 		B781C92A2E639CB300B866CE /* ExportOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportOptionsView.swift; sourceTree = "<group>"; };
 		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
+		B7A1B2352E6900F100CB5792 /* DateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateProvider.swift; sourceTree = "<group>"; };
+		B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleDeveloperTimeControl.swift; sourceTree = "<group>"; };
 		B7D1A55A2E073CCB00D19700 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TrainerApp/Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -187,6 +191,7 @@
 			isa = PBXGroup;
 			children = (
 				B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */,
+				B7A1B2352E6900F100CB5792 /* DateProvider.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -197,6 +202,7 @@
 				B781C9272E639CB300B866CE /* APILogDetailView.swift */,
 				B781C9282E639CB300B866CE /* DebugMenuView.swift */,
 				B781C92A2E639CB300B866CE /* ExportOptionsView.swift */,
+				B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */,
 			);
 			path = Debug;
 			sourceTree = "<group>";
@@ -291,6 +297,8 @@
 				B75C333B2E5993D8004C515B /* APILogger.swift in Sources */,
 				B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */,
 				B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */,
+				B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */,
+				B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
