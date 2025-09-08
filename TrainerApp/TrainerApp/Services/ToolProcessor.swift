@@ -433,7 +433,8 @@ class ToolProcessor {
             • Current Block: \(block.type.rawValue.capitalized) (Week \(week) of \(block.type.duration))
             • Overall Progress: Week \(totalWeek) of 20
             • Today: \(day.name)
-            • Focus: \(getBlockFocus(block.type))
+            
+            Plan a workout appropriate for \(block.type.rawValue) Week \(week).
             """
         }
     }
@@ -762,19 +763,6 @@ class ToolProcessor {
     }
     
     // MARK: - Helper Methods
-    
-    private func getBlockFocus(_ blockType: BlockType) -> String {
-        switch blockType {
-        case .aerobicCapacity:
-            return "Building aerobic base with steady-state and tempo work"
-        case .hypertrophyStrength:
-            return "Building muscle and strength with intervals and weights"
-        case .deload:
-            return "Active recovery and adaptation"
-        default:
-            return "Training progression"
-        }
-    }
     
     private func parseDate(_ dateString: String) -> Date {
         if dateString.lowercased() == "today" {
