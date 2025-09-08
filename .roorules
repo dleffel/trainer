@@ -14,7 +14,14 @@
 - Xcode project file is at TrainerApp/TrainerApp.xcodeproj/project.pbxproj
 - Source files are in TrainerApp/TrainerApp/
 
+## Date Handling
+- NEVER use Date() directly in views or managers when dealing with training schedules
+- The TrainingScheduleManager may use simulated dates (e.g., program starts in the future)
+- Always check if the current date is before/after the program start date
+- Use the program's effective date when initializing calendar views
+
 ## Reminders
 - Test builds without changing directories
 - Maintain proper file path references
 - Keep all operations relative to the workspace root
+- Be aware of date simulation in training schedule contexts
