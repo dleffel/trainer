@@ -188,7 +188,7 @@ struct MonthlyCalendarView: View {
                 if let day = day {
                     MonthDayCard(
                         day: day,
-                        isToday: calendar.isDateInToday(day.date),
+                        isToday: calendar.isDate(day.date, inSameDayAs: Date.current),
                         isInCurrentMonth: calendar.isDate(day.date, equalTo: selectedMonth, toGranularity: .month)
                     )
                     .onTapGesture {

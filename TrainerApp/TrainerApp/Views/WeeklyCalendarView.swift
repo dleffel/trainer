@@ -124,7 +124,7 @@ struct WeeklyCalendarView: View {
     private var weekGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
             ForEach(weekDays) { day in
-                DayCard(day: day, isToday: calendar.isDateInToday(day.date))
+                DayCard(day: day, isToday: calendar.isDate(day.date, inSameDayAs: Date.current))
                     .onTapGesture {
                         selectedDay = day
                     }
