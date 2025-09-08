@@ -283,6 +283,91 @@ struct MonthDayCard: View {
     }
 }
 
+// Simple sheet for monthly view - weekly view uses inline details instead
+struct WorkoutDetailSheet: View {
+    @Environment(\.presentationMode) var presentationMode
+    let day: WorkoutDay
+    @ObservedObject var scheduleManager: TrainingScheduleManager
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: day.dayOfWeek.workoutIcon(for: day.blockType))
+                                .font(.title)
+                                .foregroundColor(.blue)
+                            
+                            VStack(alignment: .leading) {
+                                Text(day.dayOfWeek.name)
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                
+                                Text(dateFormatter.string(from: day.date))
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    // Planned workout
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Planned Workout", systemImage: "calendar")
+                            .font(.headline)
+                        
+                        if let workout = day.plannedWorkout {
+                            Text(workout)
+                                .font(.body)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(8)
+                        } else {
+                            Text("No workout planned yet")
+                                .font(.body)
+                                .italic()
+                                .foregroundColor(.secondary)
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                        .foregroundColor(.secondary.opacity(0.3))
+                                )
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Workout Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        return formatter
+    }
+}
+
 struct ProgramSetupSheet: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
     @Environment(\.dismiss) var dismiss
@@ -306,41 +391,29 @@ struct ProgramSetupSheet: View {
                 }
                 
                 if scheduleManager.currentProgram != nil {
-                    Section("Current Program") {
-                        HStack {
-                            Text("Started")
-                            Spacer()
-                            Text(programStartDateText)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        HStack {
-                            Text("Current Position")
-                            Spacer()
-                            Text(scheduleManager.getCurrentPositionDescription())
-                                .foregroundColor(.secondary)
+                    HStack {
+                        Text("Started")
+                        Spacer()
+                        Text(programStartDateText)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("Current Position")
+                        Spacer()
+                        VStack(alignment: .trailing) {
+                            if let block = scheduleManager.currentBlock {
+                                Text("\(block.type.rawValue)")
+                                    .font(.caption)
+                                Text("Week \(scheduleManager.currentWeekInBlock) of \(block.type.duration)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
-                }
-                
-                Section {
-                    Button {
-                        // Adjust to Monday of selected week
-                        let calendar = Calendar.current
-                        let weekday = calendar.component(.weekday, from: startDate)
-                        let daysToMonday = (2 - weekday + 7) % 7
-                        let monday = calendar.date(byAdding: .day, value: daysToMonday == 0 ? -7 : -daysToMonday, to: startDate)!
-                        
-                        scheduleManager.startNewProgram(startDate: monday)
-                        dismiss()
-                    } label: {
-                        Text(scheduleManager.currentProgram == nil ? "Start Program" : "Restart Program")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
                 }
             }
-            .navigationTitle(scheduleManager.currentProgram == nil ? "New Program" : "Program Settings")
+            .navigationTitle(scheduleManager.currentProgram == nil ? "Start New Program" : "Program Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -348,15 +421,22 @@ struct ProgramSetupSheet: View {
                         dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(scheduleManager.currentProgram == nil ? "Start" : "Update") {
+                        scheduleManager.startProgram(startDate: startDate)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
             }
         }
     }
     
     private var programStartDateText: String {
-        guard let program = scheduleManager.currentProgram else { return "" }
+        guard let program = scheduleManager.currentProgram else { return "Not started" }
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: program.startDate)
     }
 }
-        

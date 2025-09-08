@@ -2,7 +2,7 @@ import SwiftUI
 
 struct WeeklyCalendarView: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
-    @State private var selectedWeek = Date.current
+    @State private var selectedWeek: Date
     @State private var weekDays: [WorkoutDay] = []
     @State private var selectedDay: WorkoutDay?
     @State private var selectedWeekBlock: TrainingBlock?
@@ -12,32 +12,79 @@ struct WeeklyCalendarView: View {
     
     private let calendar = Calendar.current
     
-    var body: some View {
-        VStack(spacing: 16) {
-            // Week selector
-            weekSelector
-            
-            // Selected week block info
-            if let block = selectedWeekBlock {
-                blockInfoCard(block: block, weekNumber: selectedWeekNumber)
-            }
-            
-            // Days of the week
-            weekGrid
+    init(scheduleManager: TrainingScheduleManager) {
+        self.scheduleManager = scheduleManager
+        // Use the program's start date if current date is before it
+        let currentDate = Date()
+        let effectiveDate: Date
+        if let programStartDate = scheduleManager.currentProgram?.startDate,
+           currentDate < programStartDate {
+            effectiveDate = programStartDate
+            print("🔍 WeeklyCalendarView.init - Using program start date: \(programStartDate)")
+        } else {
+            effectiveDate = currentDate
+            print("🔍 WeeklyCalendarView.init - Using current date: \(currentDate)")
         }
-        .padding()
+        _selectedWeek = State(initialValue: effectiveDate)
+    }
+    
+    var body: some View {
+        let _ = print("🔍 WeeklyCalendarView.body - Rendering with selectedWeek: \(selectedWeek)")
+        let _ = print("🔍 WeeklyCalendarView.body - weekDays count: \(weekDays.count)")
+        
+        ScrollView {
+            VStack(spacing: 16) {
+                // Week selector
+                weekSelector
+                
+                // Selected week block info
+                if let block = selectedWeekBlock {
+                    blockInfoCard(block: block, weekNumber: selectedWeekNumber)
+                }
+                
+                // Days of the week
+                weekGrid
+                
+                // Inline workout details
+                if let day = selectedDay {
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    WorkoutDetailsCard(day: day, scheduleManager: scheduleManager)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                        .id(day.id) // Force recreation when day changes
+                }
+            }
+            .padding()
+        }
         .onAppear {
+            print("🔍 WeeklyCalendarView.onAppear - Starting")
+            print("🔍 WeeklyCalendarView.onAppear - weekDays count before load: \(weekDays.count)")
             loadWeek()
+            print("🔍 WeeklyCalendarView.onAppear - weekDays count after load: \(weekDays.count)")
+            
+            // Auto-select today if on current week
+            if isCurrentWeek, selectedDay == nil {
+                print("🔍 WeeklyCalendarView.onAppear - Attempting auto-select for current week")
+                if let todayWorkout = weekDays.first(where: { calendar.isDateInToday($0.date) }) {
+                    print("🔍 WeeklyCalendarView.onAppear - Found today's workout, selecting")
+                    selectedDay = todayWorkout
+                } else {
+                    print("🔍 WeeklyCalendarView.onAppear - No workout found for today")
+                }
+            }
             handleDeepLinkNavigation()
         }
         .onChange(of: selectedWeek) { oldValue, newValue in
             loadWeek()
+            // Clear selection when changing weeks
+            selectedDay = nil
         }
         .onChange(of: navigationState.targetWorkoutDate) { _, _ in
             handleDeepLinkNavigation()
-        }
-        .sheet(item: $selectedDay) { day in
-            WorkoutDetailSheet(day: day, scheduleManager: scheduleManager)
         }
     }
     
@@ -124,10 +171,21 @@ struct WeeklyCalendarView: View {
     private var weekGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
             ForEach(weekDays) { day in
-                DayCard(day: day, isToday: calendar.isDate(day.date, inSameDayAs: Date.current))
-                    .onTapGesture {
-                        selectedDay = day
+                DayCard(
+                    day: day,
+                    isToday: calendar.isDateInToday(day.date),
+                    isSelected: selectedDay?.id == day.id
+                )
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3)) {
+                        // Toggle selection - tap same day to deselect
+                        if selectedDay?.id == day.id {
+                            selectedDay = nil
+                        } else {
+                            selectedDay = day
+                        }
                     }
+                }
             }
         }
     }
@@ -155,8 +213,13 @@ struct WeeklyCalendarView: View {
     
     private func loadWeek() {
         print("🔍 DEBUG - Loading week for date: \(selectedWeek)")
+        print("🔍 DEBUG - Is current week: \(isCurrentWeek)")
+        print("🔍 DEBUG - scheduleManager.currentWeekDays count: \(scheduleManager.currentWeekDays.count)")
         
-        weekDays = scheduleManager.generateWeek(containing: selectedWeek)
+        let generatedDays = scheduleManager.generateWeek(containing: selectedWeek)
+        print("🔍 DEBUG - Generated \(generatedDays.count) days from generateWeek")
+        
+        weekDays = generatedDays
         
         // DEBUG: Check if any days have workout data
         print("📅 WeeklyCalendarView loadWeek - Got \(weekDays.count) days")
@@ -218,6 +281,7 @@ struct WeeklyCalendarView: View {
 struct DayCard: View {
     let day: WorkoutDay
     let isToday: Bool
+    let isSelected: Bool
     
     var body: some View {
         VStack(spacing: 6) {
@@ -228,7 +292,7 @@ struct DayCard: View {
             
             Text("\(Calendar.current.component(.day, from: day.date))")
                 .font(.title3)
-                .fontWeight(isToday ? .bold : .medium)
+                .fontWeight(isToday || isSelected ? .bold : .medium)
             
             Image(systemName: day.dayOfWeek.workoutIcon(for: day.blockType))
                 .font(.system(size: 20))
@@ -249,12 +313,14 @@ struct DayCard: View {
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(borderColor, lineWidth: isToday ? 2 : 0)
+                .stroke(borderColor, lineWidth: borderLineWidth)
         )
     }
     
     private var backgroundColor: Color {
-        if isToday {
+        if isSelected {
+            return Color(.systemBlue).opacity(0.2)
+        } else if isToday {
             return Color(.systemBlue).opacity(0.1)
         } else if day.dayOfWeek == .monday {
             return Color(.systemGray6)
@@ -264,7 +330,23 @@ struct DayCard: View {
     }
     
     private var borderColor: Color {
-        isToday ? .blue : .clear
+        if isSelected {
+            return .blue
+        } else if isToday {
+            return .blue.opacity(0.5)
+        } else {
+            return .clear
+        }
+    }
+    
+    private var borderLineWidth: CGFloat {
+        if isSelected {
+            return 2
+        } else if isToday {
+            return 1
+        } else {
+            return 0
+        }
     }
     
     private var workoutIconColor: Color {
@@ -276,79 +358,90 @@ struct DayCard: View {
     }
 }
 
-struct WorkoutDetailSheet: View {
-    @Environment(\.presentationMode) var presentationMode
+struct WorkoutDetailsCard: View {
     let day: WorkoutDay
     @ObservedObject var scheduleManager: TrainingScheduleManager
+    @State private var isExpanded = true
+    
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: day.dayOfWeek.workoutIcon(for: day.blockType))
-                                .font(.title)
-                                .foregroundColor(.blue)
-                            
-                            VStack(alignment: .leading) {
-                                Text(day.dayOfWeek.name)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                
-                                Text(dateFormatter.string(from: day.date))
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                        }
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with day info and collapse button
+            HStack {
+                Image(systemName: day.dayOfWeek.workoutIcon(for: day.blockType))
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(day.dayOfWeek.name)")
+                        .font(.headline)
+                    Text(dateFormatter.string(from: day.date))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Button {
+                    withAnimation(.spring(response: 0.3)) {
+                        isExpanded.toggle()
                     }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(12)
-                    
-                    // Planned workout
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Planned Workout", systemImage: "calendar")
-                            .font(.headline)
-                        
-                        if let workout = day.plannedWorkout {
+                } label: {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(8)
+                        .background(Circle().fill(Color(.systemGray5)))
+                }
+            }
+            
+            // Collapsible content
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let workout = day.plannedWorkout {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Planned Workout", systemImage: "calendar")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                            
                             Text(workout)
                                 .font(.body)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .padding()
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(Color(.systemGray5))
                                 .cornerRadius(8)
-                        } else {
+                        }
+                    } else {
+                        HStack {
+                            Image(systemName: "calendar.badge.exclamationmark")
+                                .foregroundColor(.orange)
                             Text("No workout planned yet")
                                 .font(.body)
                                 .italic()
                                 .foregroundColor(.secondary)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
-                                        .foregroundColor(.secondary.opacity(0.3))
-                                )
                         }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                                .foregroundColor(.secondary.opacity(0.3))
+                        )
                     }
                 }
-                .padding()
-            }
-            .navigationTitle("Workout Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        )
     }
     
     private var dateFormatter: DateFormatter {
