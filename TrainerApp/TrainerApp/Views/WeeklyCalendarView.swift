@@ -15,7 +15,7 @@ struct WeeklyCalendarView: View {
     init(scheduleManager: TrainingScheduleManager) {
         self.scheduleManager = scheduleManager
         // Use the program's start date if current date is before it
-        let currentDate = Date()
+        let currentDate = Date.current
         let effectiveDate: Date
         if let programStartDate = scheduleManager.currentProgram?.startDate,
            currentDate < programStartDate {
@@ -69,7 +69,7 @@ struct WeeklyCalendarView: View {
             // Auto-select today if on current week
             if isCurrentWeek, selectedDay == nil {
                 print("🔍 WeeklyCalendarView.onAppear - Attempting auto-select for current week")
-                if let todayWorkout = weekDays.first(where: { calendar.isDateInToday($0.date) }) {
+                if let todayWorkout = weekDays.first(where: { calendar.isDate($0.date, inSameDayAs: Date.current) }) {
                     print("🔍 WeeklyCalendarView.onAppear - Found today's workout, selecting")
                     selectedDay = todayWorkout
                 } else {
@@ -171,21 +171,12 @@ struct WeeklyCalendarView: View {
     private var weekGrid: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
             ForEach(weekDays) { day in
-                DayCard(
-                    day: day,
-                    isToday: calendar.isDateInToday(day.date),
-                    isSelected: selectedDay?.id == day.id
-                )
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.3)) {
-                        // Toggle selection - tap same day to deselect
-                        if selectedDay?.id == day.id {
-                            selectedDay = nil
-                        } else {
-                            selectedDay = day
-                        }
+                DayCard(day: day, 
+       isToday: calendar.isDate(day.date, inSameDayAs: Date.current),
+       isSelected: selectedDay?.id == day.id)
+                    .onTapGesture {
+                        selectedDay = day
                     }
-                }
             }
         }
     }
