@@ -296,7 +296,7 @@ struct WorkoutDetailSheet: View {
                     // Header
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Image(systemName: day.dayOfWeek.workoutIcon(for: day.blockType))
+                            Image(systemName: day.workoutIcon ?? (day.plannedWorkout != nil ? "figure.mixed.cardio" : "calendar.badge.exclamationmark"))
                                 .font(.title)
                                 .foregroundColor(.blue)
                             

@@ -293,7 +293,8 @@ class ToolProcessor {
                 let dateParam = toolCall.parameters["date"] as? String ?? "today"
                 let workoutParam = toolCall.parameters["workout"] as? String ?? ""
                 let notesParam = toolCall.parameters["notes"] as? String
-                let result = try await executePlanWorkout(date: dateParam, workout: workoutParam, notes: notesParam)
+                let iconParam = toolCall.parameters["icon"] as? String  // NEW: coach-selected icon
+                let result = try await executePlanWorkout(date: dateParam, workout: workoutParam, notes: notesParam, icon: iconParam)
                 return ToolCallResult(toolName: toolCall.name, result: result)
                 
             case "update_workout":
@@ -575,8 +576,11 @@ class ToolProcessor {
     // MARK: - New Adaptive Planning Tool Implementations
     
     /// Plan a single day's workout
-    private func executePlanWorkout(date: String, workout: String, notes: String?) async throws -> String {
+    private func executePlanWorkout(date: String, workout: String, notes: String?, icon: String?) async throws -> String {
         print("📝 ToolProcessor: Planning single workout for \(date)")
+        if let icon = icon {
+            print("   with icon: \(icon)")
+        }
         
         return await MainActor.run {
             let manager = TrainingScheduleManager.shared
@@ -587,8 +591,8 @@ class ToolProcessor {
                 return "[Error: No training program started. Use start_training_program first]"
             }
             
-            // Call the new single-day planning method
-            if manager.planSingleWorkout(for: targetDate, workout: workout, notes: notes) {
+            // Call the new single-day planning method with icon
+            if manager.planSingleWorkout(for: targetDate, workout: workout, notes: notes, icon: icon) {
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "EEEE, MMM d"
                 let dateStr = dateFormatter.string(from: targetDate)
@@ -598,6 +602,7 @@ class ToolProcessor {
                 • Date: \(dateStr)
                 • Workout: \(workout)
                 \(notes != nil ? "• Notes: \(notes!)" : "")
+                \(icon != nil ? "• Icon: \(icon!)" : "")
                 • Status: Saved to calendar
                 """
             } else {

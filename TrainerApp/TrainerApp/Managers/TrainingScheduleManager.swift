@@ -262,6 +262,9 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Generate workout days for a specific month
     func generateMonth(containing date: Date) -> [WorkoutDay] {
+        print("⚠️ DEBUG generateMonth - Called for date: \(date)")
+        print("⚠️ DEBUG generateMonth - This function creates NEW WorkoutDay objects without preserving saved data!")
+        
         guard currentProgram != nil else { return [] }
         
         let calendar = Calendar.current
@@ -274,13 +277,27 @@ class TrainingScheduleManager: ObservableObject {
         while currentDate < monthInterval.end {
             // Find which block this date belongs to
             if let block = blocks.first(where: { $0.contains(date: currentDate) }) {
-                let workoutDay = WorkoutDay(date: currentDate, blockType: block.type)
-                days.append(workoutDay)
+                // BUG: This creates a NEW WorkoutDay without checking for saved data
+                let key = "workout_\(dateKey(for: currentDate))"
+                
+                // Check if we have saved workout data
+                if let data = useICloud ? iCloudStore.data(forKey: key) : userDefaults.data(forKey: key),
+                   let savedDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
+                    // Use the saved workout (preserves icon and other custom data)
+                    days.append(savedDay)
+                    print("✅ generateMonth - Preserved saved workout with icon: \(savedDay.workoutIcon ?? "none")")
+                } else {
+                    // Create new workout day only if no saved data exists
+                    let workoutDay = WorkoutDay(date: currentDate, blockType: block.type)
+                    days.append(workoutDay)
+                    print("📭 generateMonth - Created new blank workout day")
+                }
             }
             
             currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate)!
         }
         
+        print("⚠️ DEBUG generateMonth - Returning \(days.count) days")
         return days
     }
     
@@ -528,8 +545,11 @@ class TrainingScheduleManager: ObservableObject {
     // MARK: - New Single-Day CRUD Operations for Adaptive Planning
     
     /// Plan a single workout for a specific date
-    func planSingleWorkout(for date: Date, workout: String, notes: String?) -> Bool {
+    func planSingleWorkout(for date: Date, workout: String, notes: String?, icon: String? = nil) -> Bool {
         print("📝 Planning single workout for \(date)")
+        if let icon = icon {
+            print("   with icon: \(icon)")
+        }
         
         // Find or create workout day
         if let existingDay = getWorkoutDay(for: date) {
@@ -542,6 +562,7 @@ class TrainingScheduleManager: ObservableObject {
                 updatedDay.plannedWorkout = workout
             }
             updatedDay.isCoachPlanned = true
+            updatedDay.workoutIcon = icon  // Store the coach-selected icon
             
             // Save to storage
             return saveWorkoutDay(updatedDay)
@@ -555,6 +576,7 @@ class TrainingScheduleManager: ObservableObject {
                 newDay.plannedWorkout = workout
             }
             newDay.isCoachPlanned = true
+            newDay.workoutIcon = icon  // Store the coach-selected icon
             
             // Add to workoutDays array
             workoutDays.append(newDay)

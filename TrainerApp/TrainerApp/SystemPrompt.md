@@ -162,13 +162,31 @@ Coach: [TOOL_CALL: update_workout(date: "today", workout: "60-min steady row @ Z
 
 ### 14.8 │ plan_workout
 • Plans a single day's workout with details
-• Parameters: date (default "today"), workout (required), notes (optional)
-• Usage: [TOOL_CALL: plan_workout(date: "today", workout: "70-min row @ UT2", notes: "Focus on technique")]
+• Parameters: date (default "today"), workout (required), notes (optional), icon (optional)
+• Usage: [TOOL_CALL: plan_workout(date: "today", workout: "70-min row @ UT2", notes: "Focus on technique", icon: "figure.rower")]
 • Returns: Confirmation with date and workout saved
 
+#### Workout Icon Selection:
+When planning workouts, you should specify an appropriate icon using the `icon` parameter:
+• "bed.double.fill" - Rest/recovery days
+• "figure.rower" - Rowing workouts (erg or water)
+• "bicycle" - Cycling/bike workouts
+• "figure.run" - Running workouts
+• "figure.strengthtraining.traditional" - Strength/weight training
+• "figure.yoga" - Yoga/mobility/stretching sessions
+• "figure.pool.swim" - Swimming workouts
+• "figure.mixed.cardio" - Cross-training/mixed workouts
+• "heart.fill" - Active recovery sessions
+• "chart.line.uptrend.xyaxis" - Testing/assessment days
+
+Example with icon:
+[TOOL_CALL: plan_workout(date: "today", workout: "60-min steady state row", icon: "figure.rower")]
+[TOOL_CALL: plan_workout(date: "tomorrow", workout: "Full body strength", icon: "figure.strengthtraining.traditional")]
+
+### 14.9 │ update_workout
 • Modifies an existing planned workout
-• Parameters: date, workout, reason (why the change)
-• Usage: [TOOL_CALL: update_workout(date: "today", workout: "45-min recovery", reason: "fatigue from yesterday")]
+• Parameters: date, workout, reason (why the change), icon (optional)
+• Usage: [TOOL_CALL: update_workout(date: "today", workout: "45-min recovery", reason: "fatigue from yesterday", icon: "heart.fill")]
 • Returns: Previous and updated workout details
 
 ### 14.10 │ delete_workout

@@ -35,24 +35,24 @@ enum DayOfWeek: Int, CaseIterable, Codable {
     }
     
     
-    /// Get workout type icon
-    func workoutIcon(for blockType: BlockType) -> String {
-        switch self {
-        case .monday:
-            return "bed.double.fill"
-        case .tuesday:
-            return blockType == .aerobicCapacity ? "figure.rower" : "figure.strengthtraining.traditional"
-        case .wednesday:
-            return blockType == .deload ? "figure.yoga" : "figure.rower"
-        case .thursday:
-            return blockType == .hypertrophyStrength ? "figure.strengthtraining.traditional" : "figure.rower"
-        case .friday:
-            return blockType == .taper ? "bed.double.fill" : "figure.mixed.cardio"
-        case .saturday:
-            return blockType == .hypertrophyStrength ? "figure.strengthtraining.traditional" : "figure.rower"
-        case .sunday:
-            return blockType == .hypertrophyStrength ? "figure.strengthtraining.traditional" : "bicycle"
-        }
+}
+
+/// Workout type icons for coach selection
+enum WorkoutType: String, CaseIterable {
+    case rest = "bed.double.fill"
+    case rowing = "figure.rower"
+    case cycling = "bicycle"
+    case running = "figure.run"
+    case strength = "figure.strengthtraining.traditional"
+    case yoga = "figure.yoga"
+    case swimming = "figure.pool.swim"
+    case crossTraining = "figure.mixed.cardio"
+    case recovery = "heart.fill"
+    case testing = "chart.line.uptrend.xyaxis"
+    case noWorkout = "calendar.badge.exclamationmark"
+    
+    var icon: String {
+        return self.rawValue
     }
 }
 
@@ -64,6 +64,7 @@ struct WorkoutDay: Codable, Identifiable {
     let blockType: BlockType
     var plannedWorkout: String?  // Changed to var to allow updates
     var isCoachPlanned: Bool = false  // Track if coach-generated vs template
+    var workoutIcon: String?  // Coach-selected icon (SF Symbol name)
     
     init(date: Date, blockType: BlockType, plannedWorkout: String? = nil) {
         self.date = date

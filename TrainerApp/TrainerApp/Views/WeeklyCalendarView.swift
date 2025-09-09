@@ -285,18 +285,10 @@ struct DayCard: View {
                 .font(.title3)
                 .fontWeight(isToday || isSelected ? .bold : .medium)
             
-            Image(systemName: day.dayOfWeek.workoutIcon(for: day.blockType))
+            // Use coach-selected icon or show "no workout" indicator
+            Image(systemName: workoutIcon)
                 .font(.system(size: 20))
                 .foregroundColor(workoutIconColor)
-            
-            // Status indicators row
-            HStack(spacing: 4) {
-                if day.dayOfWeek == .monday {
-                    Image(systemName: "moon.zzz.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.indigo)
-                }
-            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -340,11 +332,24 @@ struct DayCard: View {
         }
     }
     
-    private var workoutIconColor: Color {
-        if day.dayOfWeek == .monday {
-            return .indigo
+    private var workoutIcon: String {
+        if let coachIcon = day.workoutIcon {
+            // Coach explicitly selected an icon
+            return coachIcon
+        } else if day.plannedWorkout != nil {
+            // Has workout but no icon specified - use generic
+            return "figure.mixed.cardio"
         } else {
-            return .primary
+            // No workout planned
+            return "calendar.badge.exclamationmark"
+        }
+    }
+    
+    private var workoutIconColor: Color {
+        if day.plannedWorkout == nil {
+            return .orange  // No workout planned
+        } else {
+            return .primary  // Has workout
         }
     }
 }
@@ -358,7 +363,7 @@ struct WorkoutDetailsCard: View {
         VStack(alignment: .leading, spacing: 16) {
             // Header with day info and collapse button
             HStack {
-                Image(systemName: day.dayOfWeek.workoutIcon(for: day.blockType))
+                Image(systemName: day.workoutIcon ?? (day.plannedWorkout != nil ? "figure.mixed.cardio" : "calendar.badge.exclamationmark"))
                     .font(.title2)
                     .foregroundColor(.blue)
                 
