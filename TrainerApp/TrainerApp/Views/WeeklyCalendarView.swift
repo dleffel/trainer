@@ -333,23 +333,14 @@ struct DayCard: View {
     }
     
     private var workoutIcon: String {
-        if let coachIcon = day.workoutIcon {
-            // Coach explicitly selected an icon
-            return coachIcon
-        } else if day.plannedWorkout != nil {
-            // Has workout but no icon specified - use generic
-            return "figure.mixed.cardio"
-        } else {
-            // No workout planned
-            return "calendar.badge.exclamationmark"
-        }
+        return day.displayIcon
     }
     
     private var workoutIconColor: Color {
-        if day.plannedWorkout == nil {
-            return .orange  // No workout planned
-        } else {
+        if day.hasWorkout {
             return .primary  // Has workout
+        } else {
+            return .orange  // No workout planned
         }
     }
 }
@@ -363,7 +354,7 @@ struct WorkoutDetailsCard: View {
         VStack(alignment: .leading, spacing: 16) {
             // Header with day info and collapse button
             HStack {
-                Image(systemName: day.workoutIcon ?? (day.plannedWorkout != nil ? "figure.mixed.cardio" : "calendar.badge.exclamationmark"))
+                Image(systemName: day.displayIcon)
                     .font(.title2)
                     .foregroundColor(.blue)
                 
@@ -373,6 +364,12 @@ struct WorkoutDetailsCard: View {
                     Text(dateFormatter.string(from: day.date))
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    
+                    if let summary = day.displaySummary {
+                        Text(summary)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
@@ -393,39 +390,10 @@ struct WorkoutDetailsCard: View {
             // Collapsible content
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
-                    if let workout = day.plannedWorkout {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Planned Workout", systemImage: "calendar")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                            
-                            Text(workout)
-                                .font(.body)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGray5))
-                                .cornerRadius(8)
-                        }
-                    } else {
-                        HStack {
-                            Image(systemName: "calendar.badge.exclamationmark")
-                                .foregroundColor(.orange)
-                            Text("No workout planned yet")
-                                .font(.body)
-                                .italic()
-                                .foregroundColor(.secondary)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
-                                .foregroundColor(.secondary.opacity(0.3))
-                        )
+                    if let structuredWorkout = day.structuredWorkout {
+                        StructuredWorkoutView(workout: structuredWorkout)
+                    } else if !day.hasWorkout {
+                        NoWorkoutView()
                     }
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -446,4 +414,493 @@ struct WorkoutDetailsCard: View {
         formatter.timeStyle = .none
         return formatter
     }
+}
+
+// MARK: - Structured Workout Views
+
+struct StructuredWorkoutView: View {
+    let workout: StructuredWorkout
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Workout header
+            if let title = workout.title {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    if let duration = workout.totalDuration {
+                        Text("\(duration) minutes")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if let notes = workout.notes {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .italic()
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemBlue).opacity(0.1))
+                .cornerRadius(8)
+            }
+            
+            // Exercises list
+            ForEach(workout.exercises) { exercise in
+                ExerciseCard(exercise: exercise)
+            }
+        }
+    }
+}
+
+struct ExerciseCard: View {
+    let exercise: Exercise
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Exercise header
+            HStack {
+                if let name = exercise.name {
+                    Text(name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                } else {
+                    Text(exercise.kind.capitalized)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                
+                Spacer()
+                
+                if let focus = exercise.focus {
+                    Text(focus)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray4))
+                        .cornerRadius(12)
+                }
+            }
+            
+            // Exercise detail based on type
+            switch exercise.detail {
+            case .cardio(let detail):
+                CardioExerciseView(detail: detail)
+            case .strength(let detail):
+                StrengthExerciseView(detail: detail)
+            case .mobility(let detail):
+                MobilityExerciseView(detail: detail)
+            case .yoga(let detail):
+                YogaExerciseView(detail: detail)
+            case .generic(let detail):
+                GenericExerciseView(detail: detail)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray5))
+        .cornerRadius(8)
+    }
+}
+
+struct CardioExerciseView: View {
+    let detail: CardioDetail
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Summary chips
+            HStack {
+                if let modality = detail.modality {
+                    Chip(text: modality.capitalized, color: .blue)
+                }
+                
+                if let total = detail.effectiveTotal {
+                    if let duration = total.durationMinutes {
+                        Chip(text: "\(duration) min", color: .green)
+                    }
+                    if let distance = total.distanceMeters {
+                        let km = Double(distance) / 1000.0
+                        Chip(text: String(format: "%.1f km", km), color: .green)
+                    }
+                }
+            }
+            
+            // Segments/intervals
+            if let segments = detail.segments, !segments.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Intervals")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                    
+                    ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
+                        IntervalRow(segment: segment)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct IntervalRow: View {
+    let segment: CardioSegment
+    
+    var body: some View {
+        HStack {
+            if let repeatCount = segment.repeat, repeatCount > 1 {
+                Text("\(repeatCount)×")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .frame(width: 30, alignment: .leading)
+            }
+            
+            if let work = segment.work {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let duration = work.durationMinutes {
+                        Text("\(duration) min work")
+                            .font(.caption)
+                    } else if let distance = work.distanceMeters {
+                        Text("\(distance)m work")
+                            .font(.caption)
+                    }
+                    
+                    if let target = work.target {
+                        HStack {
+                            if let hrZone = target.hrZone {
+                                Text(hrZone)
+                                    .font(.caption2)
+                                    .foregroundColor(.red)
+                            }
+                            if let pace = target.pace {
+                                Text(pace)
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                            }
+                            if let cadence = target.cadence {
+                                Text("\(cadence) rpm")
+                                    .font(.caption2)
+                                    .foregroundColor(.purple)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if let rest = segment.rest {
+                Text("•")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    if let duration = rest.durationMinutes {
+                        Text("\(duration) min rest")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else if let distance = rest.distanceMeters {
+                        Text("\(distance)m rest")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+struct StrengthExerciseView: View {
+    let detail: StrengthDetail
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let movement = detail.movement {
+                Text(movement.replacingOccurrences(of: "_", with: " ").capitalized)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            if let sets = detail.sets, !sets.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sets")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                    
+                    ForEach(Array(sets.enumerated()), id: \.offset) { index, set in
+                        StrengthSetRow(set: set)
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct StrengthSetRow: View {
+    let set: StrengthSet
+    
+    var body: some View {
+        HStack {
+            Text("Set \(set.set)")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .frame(width: 40, alignment: .leading)
+            
+            if let reps = set.reps {
+                Text("\(reps) reps")
+                    .font(.caption)
+                    .frame(width: 50, alignment: .leading)
+            }
+            
+            if let weight = set.weight {
+                Text(weight)
+                    .font(.caption)
+                    .frame(width: 50, alignment: .leading)
+            }
+            
+            if let rir = set.rir {
+                Text("RIR \(rir)")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+            }
+            
+            if let tempo = set.tempo {
+                Text(tempo)
+                    .font(.caption2)
+                    .foregroundColor(.purple)
+            }
+            
+            Spacer()
+            
+            if let rest = set.restSeconds {
+                Text("\(rest)s rest")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+struct MobilityExerciseView: View {
+    let detail: MobilityDetail
+    
+    var body: some View {
+        if let blocks = detail.blocks, !blocks.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Movements")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                
+                ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                    MobilityBlockRow(block: block)
+                }
+            }
+        }
+    }
+}
+
+struct MobilityBlockRow: View {
+    let block: MobilityBlock
+    
+    var body: some View {
+        HStack {
+            Text(block.name)
+                .font(.caption)
+            
+            Spacer()
+            
+            HStack(spacing: 8) {
+                if let hold = block.holdSeconds {
+                    Text("\(hold)s")
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                }
+                
+                if let sides = block.sides, sides > 1 {
+                    Text("each side")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                if let reps = block.reps {
+                    Text("\(reps) reps")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+struct YogaExerciseView: View {
+    let detail: YogaDetail
+    
+    var body: some View {
+        if let blocks = detail.blocks, !blocks.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Sequence")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                
+                ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                    YogaBlockRow(block: block)
+                }
+            }
+        }
+    }
+}
+
+struct YogaBlockRow: View {
+    let block: YogaBlock
+    
+    var body: some View {
+        HStack {
+            Text(block.name)
+                .font(.caption)
+            
+            Spacer()
+            
+            if let duration = block.durationMinutes {
+                Text("\(duration) min")
+                    .font(.caption2)
+                    .foregroundColor(.purple)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+struct GenericExerciseView: View {
+    let detail: GenericDetail
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let items = detail.items, !items.isEmpty {
+                ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                    HStack {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(item)
+                            .font(.caption)
+                    }
+                }
+            }
+            
+            if let notes = detail.notes {
+                Text(notes)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .italic()
+            }
+        }
+    }
+}
+
+struct NoWorkoutView: View {
+    var body: some View {
+        HStack {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .foregroundColor(.orange)
+            Text("No workout planned yet")
+                .font(.body)
+                .italic()
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
+                .foregroundColor(.secondary.opacity(0.3))
+        )
+    }
+}
+
+struct Chip: View {
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        Text(text)
+            .font(.caption2)
+            .fontWeight(.medium)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.2))
+            .foregroundColor(color)
+            .cornerRadius(12)
+    }
+}
+
+// MARK: - Preview Support
+
+#Preview {
+    let sampleWorkout = StructuredWorkout(
+        title: "Sample Workout",
+        summary: "Cardio + Strength",
+        durationMinutes: 60,
+        notes: "Stay hydrated",
+        exercises: [
+            Exercise(
+                kind: "cardioBike",
+                name: "Bike intervals",
+                focus: "Zone 4",
+                equipment: nil,
+                tags: nil,
+                detail: .cardio(CardioDetail(
+                    modality: "bike",
+                    total: CardioTotal(durationMinutes: 30, distanceMeters: nil),
+                    segments: [
+                        CardioSegment(
+                            repeat: 4,
+                            work: CardioInterval(
+                                durationMinutes: 3,
+                                distanceMeters: nil,
+                                target: CardioTarget(hrZone: "Z4", pace: nil, power: nil, rpe: nil, cadence: "90-95")
+                            ),
+                            rest: CardioInterval(
+                                durationMinutes: 2,
+                                distanceMeters: nil,
+                                target: CardioTarget(hrZone: "Z2", pace: nil, power: nil, rpe: nil, cadence: "85")
+                            )
+                        )
+                    ]
+                ))
+            ),
+            Exercise(
+                kind: "strength",
+                name: "Squats",
+                focus: nil,
+                equipment: "barbell",
+                tags: nil,
+                detail: .strength(StrengthDetail(
+                    movement: "back_squat",
+                    sets: [
+                        StrengthSet(set: 1, reps: 8, weight: "60kg", rir: 2, tempo: "2-0-2", restSeconds: 120),
+                        StrengthSet(set: 2, reps: 8, weight: "60kg", rir: 2, tempo: "2-0-2", restSeconds: 120)
+                    ],
+                    superset: nil
+                ))
+            )
+        ]
+    )
+    
+    let sampleDay = WorkoutDay(date: Date(), blockType: .aerobicCapacity)
+    
+    return VStack {
+        StructuredWorkoutView(workout: sampleWorkout)
+        Spacer()
+    }
+    .padding()
 }

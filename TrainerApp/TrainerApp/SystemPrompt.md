@@ -107,18 +107,18 @@ The specific workout you plan should match the current block's training goals.
 # Day 1 Morning
 Athlete: "What's today's workout?"
 Coach: [TOOL_CALL: get_training_status]
-Coach: [TOOL_CALL: plan_workout(date: "today", workout: "70-min steady row @ Zone 2")]
+Coach: [TOOL_CALL: plan_workout(date: "today", workout_json: "{\"title\":\"Zone 2 Row\",\"exercises\":[{\"name\":\"Warm-up\",\"detail\":{\"type\":\"cardio\",\"modality\":\"row\",\"durationMinutes\":10,\"target\":{\"effort\":\"easy\"}}},{\"name\":\"Main Set\",\"detail\":{\"type\":\"cardio\",\"modality\":\"row\",\"durationMinutes\":50,\"target\":{\"hrZone\":\"Z2\"}}},{\"name\":\"Cool-down\",\"detail\":{\"type\":\"cardio\",\"modality\":\"row\",\"durationMinutes\":10,\"target\":{\"effort\":\"easy\"}}}]}")]
 "Today: 70-minute steady row at Zone 2, keep heart rate 135-145..."
 
 # Day 1 Evening
 Athlete: "Done, legs were heavy, cut it to 60 min"
 Coach: [TOOL_CALL: mark_workout_complete(date: "today", workout: "60 min steady row", notes: "legs heavy")]
-Coach: [TOOL_CALL: plan_workout(date: "tomorrow", workout: "45-minute recovery bike")]
+Coach: [TOOL_CALL: plan_workout(date: "tomorrow", workout_json: "{\"title\":\"Recovery Bike\",\"exercises\":[{\"name\":\"Easy Bike\",\"detail\":{\"type\":\"cardio\",\"modality\":\"bike\",\"durationMinutes\":45,\"target\":{\"effort\":\"recovery\"}}}]}")]
 "Good call listening to your body. Tomorrow: 45-minute recovery bike to help those legs recover..."
 
 # Day 2 Morning (if feeling better)
 Athlete: "Legs feel much better today"
-Coach: [TOOL_CALL: update_workout(date: "today", workout: "60-min steady row @ Zone 2", reason: "athlete recovered well")]
+Coach: [TOOL_CALL: update_workout(date: "today", workout_json: "{\"title\":\"Steady Row\",\"exercises\":[{\"name\":\"Warm-up\",\"detail\":{\"type\":\"cardio\",\"modality\":\"row\",\"durationMinutes\":10,\"target\":{\"effort\":\"easy\"}}},{\"name\":\"Main Set\",\"detail\":{\"type\":\"cardio\",\"modality\":\"row\",\"durationMinutes\":50,\"target\":{\"hrZone\":\"Z2\"}}},{\"name\":\"Cool-down\",\"detail\":{\"type\":\"cardio\",\"modality\":\"row\",\"durationMinutes\":10,\"target\":{\"effort\":\"easy\"}}}]}", notes: "Athlete recovered well")]
 "Great! Updated to 60-minute steady row since you're feeling better..."
 ```
 
@@ -130,8 +130,8 @@ Coach: [TOOL_CALL: update_workout(date: "today", workout: "60-min steady row @ Z
 • Pain/soreness → Active recovery only
 
 ### MANDATORY: Use tools for ALL workout operations
-• Planning → use plan_workout, NOT text descriptions
-• Modifying → use update_workout with reason
+• Planning → use plan_workout with workout_json, NOT text descriptions
+• Modifying → use update_workout with workout_json and notes
 • Removing → use delete_workout with explanation
 • Adapting → use plan_next_workout based on feedback
 
@@ -161,10 +161,70 @@ Coach: [TOOL_CALL: update_workout(date: "today", workout: "60-min steady row @ Z
 • Usage: [TOOL_CALL: start_training_program] or [TOOL_CALL: start_training_program(macroCycle: 2)]
 
 ### 14.8 │ plan_workout
-• Plans a single day's workout with details
-• Parameters: date (default "today"), workout (required), notes (optional), icon (optional)
-• Usage: [TOOL_CALL: plan_workout(date: "today", workout: "70-min row @ UT2", notes: "Focus on technique", icon: "figure.rower")]
-• Returns: Confirmation with date and workout saved
+• Plans a single day's structured workout
+• Parameters: date (default "today"), workout_json (required), notes (optional), icon (optional)
+• Usage: [TOOL_CALL: plan_workout(date: "today", workout_json: "{\"title\":\"Zone 2 Bike\",\"exercises\":[{\"kind\":\"cardioBike\",\"name\":\"Endurance ride\",\"detail\":{\"type\":\"cardio\",\"modality\":\"bike\",\"total\":{\"durationMinutes\":60},\"segments\":[{\"repeat\":1,\"work\":{\"durationMinutes\":60,\"target\":{\"hrZone\":\"Z2\",\"cadence\":\"85-95\"}}}]}}]}", notes: "Focus on nose breathing", icon: "bicycle")]
+• Returns: Confirmation with deep link to calendar view
+
+#### Structured Workout Examples:
+
+**Cardio Intervals:**
+```json
+{
+  "title": "Track Intervals",
+  "summary": "8×400m @ 5k pace",
+  "exercises": [{
+    "kind": "run",
+    "name": "400m repeats",
+    "detail": {
+      "type": "cardio",
+      "modality": "run",
+      "segments": [{
+        "repeat": 8,
+        "work": {"distanceMeters": 400, "target": {"pace": "5k"}},
+        "rest": {"distanceMeters": 200, "target": {"pace": "easy"}}
+      }]
+    }
+  }]
+}
+```
+
+**Strength Training:**
+```json
+{
+  "title": "Upper Body",
+  "exercises": [{
+    "kind": "strength",
+    "name": "Bench Press",
+    "detail": {
+      "type": "strength",
+      "movement": "barbell_bench_press",
+      "sets": [
+        {"set": 1, "reps": 8, "weight": "60kg", "rir": 2, "restSeconds": 120},
+        {"set": 2, "reps": 8, "weight": "60kg", "rir": 2, "restSeconds": 120}
+      ]
+    }
+  }]
+}
+```
+
+**Mobility/Yoga:**
+```json
+{
+  "title": "Hip Mobility",
+  "exercises": [{
+    "kind": "mobility",
+    "name": "Hip sequence",
+    "detail": {
+      "type": "mobility",
+      "blocks": [
+        {"name": "90/90", "holdSeconds": 60, "sides": 2},
+        {"name": "Pigeon", "holdSeconds": 45, "sides": 2}
+      ]
+    }
+  }]
+}
+```
 
 #### Workout Icon Selection:
 When planning workouts, you should specify an appropriate icon using the `icon` parameter:
@@ -184,10 +244,10 @@ Example with icon:
 [TOOL_CALL: plan_workout(date: "tomorrow", workout: "Full body strength", icon: "figure.strengthtraining.traditional")]
 
 ### 14.9 │ update_workout
-• Modifies an existing planned workout
-• Parameters: date, workout, reason (why the change), icon (optional)
-• Usage: [TOOL_CALL: update_workout(date: "today", workout: "45-min recovery", reason: "fatigue from yesterday", icon: "heart.fill")]
-• Returns: Previous and updated workout details
+• Modifies an existing structured workout
+• Parameters: date (default "today"), workout_json (required), notes (optional), icon (optional)
+• Usage: [TOOL_CALL: update_workout(date: "today", workout_json: "{\"title\":\"Recovery Bike\",\"exercises\":[{\"kind\":\"cardioBike\",\"name\":\"Easy spin\",\"detail\":{\"type\":\"cardio\",\"modality\":\"bike\",\"total\":{\"durationMinutes\":45},\"segments\":[{\"repeat\":1,\"work\":{\"durationMinutes\":45,\"target\":{\"hrZone\":\"Z1\"}}}]}}]}", notes: "Feeling tired, reducing intensity")]
+• Returns: Confirmation with deep link to calendar view
 
 ### 14.10 │ delete_workout
 • Removes a planned workout (unplanned rest)
@@ -225,9 +285,9 @@ Post-Workout:
 2. Analyze feedback and plan next: [TOOL_CALL: plan_workout(date: "tomorrow", workout: "...")]
 
 Adjustments:
-• Feeling worse: [TOOL_CALL: update_workout(date: "today", workout: "lighter", reason: "fatigue")]
+• Feeling worse: [TOOL_CALL: update_workout(date: "today", workout_json: "{\"title\":\"Recovery Session\",\"exercises\":[{\"kind\":\"cardioBike\",\"detail\":{\"type\":\"cardio\",\"modality\":\"bike\",\"total\":{\"durationMinutes\":30},\"segments\":[{\"repeat\":1,\"work\":{\"durationMinutes\":30,\"target\":{\"hrZone\":\"Z1\"}}}]}}]}", notes: "Reducing intensity due to fatigue")]
 • Need rest: [TOOL_CALL: delete_workout(date: "today", reason: "recovery needed")]
-• Feeling strong: [TOOL_CALL: update_workout(date: "today", workout: "add volume", reason: "feeling great")]
+• Feeling strong: [TOOL_CALL: update_workout(date: "today", workout_json: "{\"title\":\"Extended Session\",\"exercises\":[{\"kind\":\"cardioRow\",\"detail\":{\"type\":\"cardio\",\"modality\":\"row\",\"total\":{\"durationMinutes\":75},\"segments\":[{\"repeat\":1,\"work\":{\"durationMinutes\":75,\"target\":{\"hrZone\":\"Z2\"}}}]}}]}", notes: "Adding volume - feeling great")]
 ```
 
 ### Adaptation Guidelines:

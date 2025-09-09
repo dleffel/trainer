@@ -62,9 +62,12 @@ struct WorkoutDay: Codable, Identifiable {
     let date: Date
     let dayOfWeek: DayOfWeek
     let blockType: BlockType
-    var plannedWorkout: String?  // Changed to var to allow updates
+    var plannedWorkout: String?  // Legacy field - kept for backward compatibility, read-only
     var isCoachPlanned: Bool = false  // Track if coach-generated vs template
     var workoutIcon: String?  // Coach-selected icon (SF Symbol name)
+    
+    // NEW: Structured workout data
+    var structuredWorkout: StructuredWorkout?
     
     init(date: Date, blockType: BlockType, plannedWorkout: String? = nil) {
         self.date = date
@@ -75,7 +78,7 @@ struct WorkoutDay: Codable, Identifiable {
         self.blockType = blockType
         
         if let workout = plannedWorkout {
-            // Use provided workout
+            // Use provided workout (legacy path)
             self.plannedWorkout = workout
             self.isCoachPlanned = true
         } else {
@@ -83,6 +86,35 @@ struct WorkoutDay: Codable, Identifiable {
             self.plannedWorkout = nil
             self.isCoachPlanned = false
         }
+    }
+    
+    /// Check if this day has any workout content (structured or legacy)
+    var hasWorkout: Bool {
+        return structuredWorkout != nil || plannedWorkout != nil
+    }
+    
+    /// Get the display icon for this workout day
+    var displayIcon: String {
+        // Priority 1: Coach-selected icon
+        if let workoutIcon = workoutIcon {
+            return workoutIcon
+        }
+        
+        // Priority 2: Derive from structured workout
+        if let structured = structuredWorkout {
+            return structured.derivedIcon
+        }
+        
+        // Priority 3: No workout indicator
+        return WorkoutType.noWorkout.icon
+    }
+    
+    /// Get a summary for display (structured takes priority)
+    var displaySummary: String? {
+        if let structured = structuredWorkout {
+            return structured.displaySummary
+        }
+        return plannedWorkout
     }
 }
 

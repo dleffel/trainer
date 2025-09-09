@@ -247,10 +247,16 @@ class TrainingScheduleManager: ObservableObject {
                     workoutDay = savedDay
                     print("📥 Loaded saved workout for \(dateKey(for: dayDate))")
                     print("📥 DEBUG: Planned workout content: \(savedDay.plannedWorkout ?? "nil")")
+                    print("🔍 DEBUG: StructuredWorkout exists: \(savedDay.structuredWorkout != nil)")
+                    if let structuredWorkout = savedDay.structuredWorkout {
+                        print("🔍 DEBUG: StructuredWorkout title: '\(structuredWorkout.title)'")
+                        print("🔍 DEBUG: StructuredWorkout exercise count: \(structuredWorkout.exercises.count)")
+                    }
                 } else {
                     // Create new workout day (blank, to be filled by coach)
                     workoutDay = WorkoutDay(date: dayDate, blockType: targetBlock.type)
                     print("📭 DEBUG: No saved workout found, creating blank day")
+                    print("🔍 DEBUG: New day structuredWorkout: nil")
                 }
                 
                 days.append(workoutDay)
@@ -339,7 +345,7 @@ class TrainingScheduleManager: ObservableObject {
         
         let weeksSinceStart = Calendar.current.dateComponents([.weekOfYear],
                                                               from: program.startDate,
-                                                              to: Date()).weekOfYear ?? 0
+                                                              to: Date.current).weekOfYear ?? 0
         let totalWeek = (weeksSinceStart % 20) + 1
         
         // Calculate week within current block
@@ -544,7 +550,7 @@ class TrainingScheduleManager: ObservableObject {
     
     // MARK: - New Single-Day CRUD Operations for Adaptive Planning
     
-    /// Plan a single workout for a specific date
+    /// Plan a single workout for a specific date (LEGACY - for text workouts)
     func planSingleWorkout(for date: Date, workout: String, notes: String?, icon: String? = nil) -> Bool {
         print("📝 Planning single workout for \(date)")
         if let icon = icon {
@@ -584,6 +590,89 @@ class TrainingScheduleManager: ObservableObject {
             // Save to storage
             return saveWorkoutDay(newDay)
         }
+    }
+    
+    // MARK: - Structured Workout APIs
+    
+    /// Plan a structured workout for a specific date
+    func planStructuredWorkout(for date: Date, structuredWorkout: StructuredWorkout, notes: String?, icon: String?) -> Bool {
+        print("🔍 DEBUG planStructuredWorkout: === STARTING ===")
+        print("🔍 DEBUG planStructuredWorkout: Date = \(date)")
+        print("🔍 DEBUG planStructuredWorkout: Workout title = '\(structuredWorkout.title)'")
+        print("🔍 DEBUG planStructuredWorkout: Exercise count = \(structuredWorkout.exercises.count)")
+        let distribution = structuredWorkout.exerciseDistribution
+        print("🔍 DEBUG planStructuredWorkout: Distribution = cardio:\(distribution.cardio) strength:\(distribution.strength) mobility:\(distribution.mobility) yoga:\(distribution.yoga) generic:\(distribution.generic)")
+        print("🔍 DEBUG planStructuredWorkout: Notes = \(notes ?? "nil")")
+        print("🔍 DEBUG planStructuredWorkout: Icon = \(icon ?? "nil")")
+        print("🔍 DEBUG planStructuredWorkout: Current workoutDays count = \(workoutDays.count)")
+        
+        // Find or create workout day
+        if let existingDay = getWorkoutDay(for: date) {
+            print("🔍 DEBUG planStructuredWorkout: Found existing day, updating")
+            // Update existing
+            var updatedDay = existingDay
+            updatedDay.structuredWorkout = structuredWorkout
+            updatedDay.isCoachPlanned = true
+            updatedDay.workoutIcon = icon
+            // Do NOT write to plannedWorkout - structured workouts only
+            
+            // Set notes separately if provided
+            if let notes = notes {
+                print("🔍 DEBUG planStructuredWorkout: Setting notes: \(notes)")
+            }
+            
+            print("🔍 DEBUG planStructuredWorkout: Calling saveWorkoutDay() for existing day")
+            // Save to storage
+            let saveResult = saveWorkoutDay(updatedDay)
+            print("🔍 DEBUG planStructuredWorkout: Save result = \(saveResult)")
+            return saveResult
+        } else {
+            print("🔍 DEBUG planStructuredWorkout: No existing day found, creating new")
+            // Create new workout day
+            var newDay = generateDayForDate(date)
+            print("🔍 DEBUG planStructuredWorkout: Generated new day for \(date)")
+            newDay.structuredWorkout = structuredWorkout
+            newDay.isCoachPlanned = true
+            newDay.workoutIcon = icon
+            // Do NOT write to plannedWorkout - structured workouts only
+            
+            if let notes = notes {
+                print("🔍 DEBUG planStructuredWorkout: Setting notes: \(notes)")
+            }
+            
+            // Add to workoutDays array
+            workoutDays.append(newDay)
+            print("🔍 DEBUG planStructuredWorkout: Added to workoutDays array, new count = \(workoutDays.count)")
+            
+            print("🔍 DEBUG planStructuredWorkout: Calling saveWorkoutDay() for new day")
+            // Save to storage
+            let saveResult = saveWorkoutDay(newDay)
+            print("🔍 DEBUG planStructuredWorkout: Save result = \(saveResult)")
+            print("✅ DEBUG planStructuredWorkout: COMPLETED")
+            return saveResult
+        }
+    }
+    
+    /// Update an existing structured workout
+    func updateStructuredWorkout(for date: Date, structuredWorkout: StructuredWorkout, notes: String?, icon: String?) -> Bool {
+        print("✏️ Updating structured workout for \(date)")
+        
+        guard var workoutDay = getWorkoutDay(for: date) else {
+            print("❌ No workout found to update")
+            return false
+        }
+        
+        // Update the structured workout
+        workoutDay.structuredWorkout = structuredWorkout
+        workoutDay.isCoachPlanned = true
+        workoutDay.workoutIcon = icon
+        // Do NOT write to plannedWorkout - structured workouts only
+        
+        if let notes = notes {
+            print("   Notes: \(notes)")
+        }
+        
+        return saveWorkoutDay(workoutDay)
     }
     
     /// Update an existing workout with modification tracking

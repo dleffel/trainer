@@ -180,8 +180,77 @@ class ToolProcessor {
     private func parseStructuredParameters(_ paramsStr: String) -> [String: Any] {
         var parameters: [String: Any] = [:]
         
-        // Handle the workouts parameter specially since it contains JSON
-        if paramsStr.contains("workouts:") {
+        // Handle the workout_json parameter specially since it contains JSON
+        if paramsStr.contains("workout_json:") {
+            print("🔍 DEBUG parseStructuredParameters: Found workout_json parameter")
+            
+            // Use smart parameter parsing for workout_json
+            let paramPairs = paramsStr.components(separatedBy: ", ")
+            
+            for pair in paramPairs {
+                if let colonIndex = pair.firstIndex(of: ":") {
+                    let key = String(pair[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+                    let valueStartIndex = paramsStr.index(after: colonIndex)
+                    var value = String(pair[valueStartIndex...]).trimmingCharacters(in: .whitespaces)
+                    
+                    // Remove surrounding quotes if present
+                    if value.hasPrefix("\"") && value.hasSuffix("\"") {
+                        value = String(value.dropFirst().dropLast())
+                    }
+                    
+                    // Special handling for workout_json - preserve the entire JSON string
+                    if key == "workout_json" {
+                        // Find the complete JSON by looking for the opening quote after workout_json:
+                        if let workoutJsonRange = paramsStr.range(of: "workout_json:") {
+                            let searchStart = workoutJsonRange.upperBound
+                            
+                            // Skip whitespace and find opening quote
+                            var currentIndex = searchStart
+                            while currentIndex < paramsStr.endIndex && paramsStr[currentIndex].isWhitespace {
+                                currentIndex = paramsStr.index(after: currentIndex)
+                            }
+                            
+                            // Skip the opening quote
+                            if currentIndex < paramsStr.endIndex && paramsStr[currentIndex] == "\"" {
+                                currentIndex = paramsStr.index(after: currentIndex)
+                            }
+                            
+                            // Find the closing quote, handling escaped quotes
+                            var jsonEndIndex = currentIndex
+                            var inEscape = false
+                            
+                            while jsonEndIndex < paramsStr.endIndex {
+                                let char = paramsStr[jsonEndIndex]
+                                
+                                if inEscape {
+                                    inEscape = false
+                                } else if char == "\\" {
+                                    inEscape = true
+                                } else if char == "\"" {
+                                    // Found the closing quote - check if it's really the end
+                                    let nextIndex = paramsStr.index(after: jsonEndIndex)
+                                    if nextIndex >= paramsStr.endIndex || paramsStr[nextIndex] == "," || paramsStr[nextIndex].isWhitespace {
+                                        // This is the real closing quote
+                                        break
+                                    }
+                                }
+                                
+                                jsonEndIndex = paramsStr.index(after: jsonEndIndex)
+                            }
+                            
+                            if jsonEndIndex < paramsStr.endIndex {
+                                let workoutJson = String(paramsStr[currentIndex..<jsonEndIndex])
+                                parameters["workout_json"] = workoutJson
+                                print("🔍 DEBUG parseStructuredParameters: Extracted workout_json length = \(workoutJson.count)")
+                            }
+                        }
+                    } else {
+                        parameters[key] = value
+                    }
+                }
+            }
+        } else if paramsStr.contains("workouts:") {
+            // Legacy handling for the workouts parameter (weekly schedule tool)
             // Extract week_start_date first
             let datePattern = #"week_start_date:\s*"([^"]+)""#
             if let dateRegex = try? NSRegularExpression(pattern: datePattern, options: []),
@@ -290,14 +359,45 @@ class ToolProcessor {
             // Adaptive Planning Tools
             case "plan_workout":
                 print("📝 ToolProcessor: Matched plan_workout tool")
+                print("🔍 DEBUG plan_workout: All parameters = \(toolCall.parameters)")
+                print("🔍 DEBUG plan_workout: Parameter keys = \(Array(toolCall.parameters.keys))")
                 let dateParam = toolCall.parameters["date"] as? String ?? "today"
-                let workoutParam = toolCall.parameters["workout"] as? String ?? ""
+                let workoutJsonParam = toolCall.parameters["workout_json"] as? String
                 let notesParam = toolCall.parameters["notes"] as? String
-                let iconParam = toolCall.parameters["icon"] as? String  // NEW: coach-selected icon
-                let result = try await executePlanWorkout(date: dateParam, workout: workoutParam, notes: notesParam, icon: iconParam)
+                let iconParam = toolCall.parameters["icon"] as? String
+                
+                print("🔍 DEBUG plan_workout: dateParam = \(dateParam)")
+                print("🔍 DEBUG plan_workout: workoutJsonParam exists = \(workoutJsonParam != nil)")
+                print("🔍 DEBUG plan_workout: notesParam = \(notesParam ?? "nil")")
+                print("🔍 DEBUG plan_workout: iconParam = \(iconParam ?? "nil")")
+                
+                // Require workout_json for new structured workouts
+                guard let workoutJson = workoutJsonParam else {
+                    print("❌ DEBUG plan_workout: workout_json parameter missing or nil")
+                    return ToolCallResult(toolName: toolCall.name, result: "[Error: workout_json parameter is required. Provide structured workout data as JSON.]", success: false)
+                }
+                
+                print("✅ DEBUG plan_workout: Found workout_json, length = \(workoutJson.count)")
+                
+                let result = try await executePlanStructuredWorkout(date: dateParam, workoutJson: workoutJson, notes: notesParam, icon: iconParam)
                 return ToolCallResult(toolName: toolCall.name, result: result)
                 
             case "update_workout":
+                print("✏️ ToolProcessor: Matched update_workout tool")
+                let dateParam = toolCall.parameters["date"] as? String ?? "today"
+                let workoutJsonParam = toolCall.parameters["workout_json"] as? String
+                let notesParam = toolCall.parameters["notes"] as? String
+                let iconParam = toolCall.parameters["icon"] as? String
+                
+                // Require workout_json for structured workouts
+                guard let workoutJson = workoutJsonParam else {
+                    return ToolCallResult(toolName: toolCall.name, result: "[Error: workout_json parameter is required. Provide structured workout data as JSON.]", success: false)
+                }
+                
+                let result = try await executeUpdateStructuredWorkout(date: dateParam, workoutJson: workoutJson, notes: notesParam, icon: iconParam)
+                return ToolCallResult(toolName: toolCall.name, result: result)
+                
+            case "update_workout_legacy":
                 print("✏️ ToolProcessor: Matched update_workout tool")
                 let dateParam = toolCall.parameters["date"] as? String ?? "today"
                 let workoutParam = toolCall.parameters["workout"] as? String ?? ""
@@ -575,9 +675,163 @@ class ToolProcessor {
     }
     // MARK: - New Adaptive Planning Tool Implementations
     
-    /// Plan a single day's workout
+    /// Plan a structured workout for a single day
+    private func executePlanStructuredWorkout(date: String, workoutJson: String, notes: String?, icon: String?) async throws -> String {
+        print("🔍 DEBUG executePlanStructuredWorkout: === STARTING EXECUTION ===")
+        print("🔍 DEBUG executePlanStructuredWorkout: Date parameter = '\(date)'")
+        print("🔍 DEBUG executePlanStructuredWorkout: JSON length = \(workoutJson.count) characters")
+        print("🔍 DEBUG executePlanStructuredWorkout: Notes = \(notes ?? "nil")")
+        print("🔍 DEBUG executePlanStructuredWorkout: Icon = \(icon ?? "nil")")
+        print("🔍 DEBUG executePlanStructuredWorkout: Raw JSON (first 300 chars) = \(String(workoutJson.prefix(300)))")
+        
+        return await MainActor.run {
+            print("🔍 DEBUG executePlanStructuredWorkout: Entered MainActor.run")
+            let manager = TrainingScheduleManager.shared
+            print("🔍 DEBUG executePlanStructuredWorkout: Got TrainingScheduleManager.shared")
+            
+            let targetDate = parseDate(date)
+            print("🔍 DEBUG executePlanStructuredWorkout: Parsed target date = \(targetDate)")
+            
+            // Check if program exists
+            let hasProgram = manager.programStartDate != nil
+            print("🔍 DEBUG executePlanStructuredWorkout: Program exists = \(hasProgram)")
+            guard hasProgram else {
+                print("❌ DEBUG executePlanStructuredWorkout: No program - returning error")
+                return "[Error: No training program started. Use start_training_program first]"
+            }
+            
+            // Unescape the JSON string - remove backslash escapes
+            print("🔍 DEBUG executePlanStructuredWorkout: Starting JSON unescaping")
+            let unescapedJson = workoutJson
+                .replacingOccurrences(of: "\\\"", with: "\"")
+                .replacingOccurrences(of: "\\'", with: "'")
+                .replacingOccurrences(of: "\\\\", with: "\\")
+            
+            print("🔍 DEBUG executePlanStructuredWorkout: Unescaped JSON length = \(unescapedJson.count)")
+            print("🔍 DEBUG executePlanStructuredWorkout: Unescaped JSON (first 300 chars) = \(String(unescapedJson.prefix(300)))")
+            
+            // Decode the JSON into StructuredWorkout
+            print("🔍 DEBUG executePlanStructuredWorkout: Creating JSON decoder")
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            guard let jsonData = unescapedJson.data(using: .utf8) else {
+                print("❌ DEBUG executePlanStructuredWorkout: Failed to convert JSON to Data")
+                return "[Error: Invalid workout_json format. Could not convert to data.]"
+            }
+            print("🔍 DEBUG executePlanStructuredWorkout: JSON converted to Data, size = \(jsonData.count) bytes")
+            
+            let structuredWorkout: StructuredWorkout
+            do {
+                print("🔍 DEBUG executePlanStructuredWorkout: Attempting JSON decode...")
+                structuredWorkout = try decoder.decode(StructuredWorkout.self, from: jsonData)
+                print("✅ DEBUG executePlanStructuredWorkout: JSON decode SUCCESS!")
+                print("🔍 DEBUG executePlanStructuredWorkout: Workout title = '\(structuredWorkout.title)'")
+                print("🔍 DEBUG executePlanStructuredWorkout: Exercise count = \(structuredWorkout.exercises.count)")
+                let distribution = structuredWorkout.exerciseDistribution
+                print("🔍 DEBUG executePlanStructuredWorkout: Distribution = cardio:\(distribution.cardio) strength:\(distribution.strength) mobility:\(distribution.mobility) yoga:\(distribution.yoga) generic:\(distribution.generic)")
+            } catch {
+                print("❌ DEBUG executePlanStructuredWorkout: JSON decode FAILED!")
+                print("❌ DEBUG executePlanStructuredWorkout: Error = \(error)")
+                print("❌ DEBUG executePlanStructuredWorkout: Localized description = \(error.localizedDescription)")
+                if let decodingError = error as? DecodingError {
+                    print("❌ DEBUG executePlanStructuredWorkout: DecodingError details = \(decodingError)")
+                }
+                return "[Error: Failed to decode workout_json. \(error.localizedDescription)]"
+            }
+            
+            // Save the structured workout
+            print("🔍 DEBUG executePlanStructuredWorkout: Calling manager.planStructuredWorkout...")
+            print("🔍 DEBUG executePlanStructuredWorkout: Target date = \(targetDate)")
+            print("🔍 DEBUG executePlanStructuredWorkout: Workout title = '\(structuredWorkout.title)'")
+            let saveResult = manager.planStructuredWorkout(for: targetDate, structuredWorkout: structuredWorkout, notes: notes, icon: icon)
+            print("🔍 DEBUG executePlanStructuredWorkout: Save result = \(saveResult)")
+            
+            if saveResult {
+                print("✅ DEBUG executePlanStructuredWorkout: Save SUCCESS - creating response")
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "EEEE, MMM d"
+                let dateStr = dateFormatter.string(from: targetDate)
+                
+                let distribution = structuredWorkout.exerciseDistribution
+                
+                let response = """
+                [Structured Workout Planned]
+                • Date: \(dateStr)
+                • Workout: \(structuredWorkout.displaySummary)
+                • Exercises: \(structuredWorkout.exercises.count) (cardio: \(distribution.cardio), strength: \(distribution.strength), mobility: \(distribution.mobility), yoga: \(distribution.yoga))
+                \(structuredWorkout.totalDuration != nil ? "• Duration: \(structuredWorkout.totalDuration!) minutes" : "")
+                \(notes != nil ? "• Notes: \(notes!)" : "")
+                \(icon != nil ? "• Icon: \(icon!)" : "")
+                • Link: trainer://calendar/\(dateFormatter.string(from: targetDate).replacingOccurrences(of: " ", with: "-"))
+                """
+                print("🔍 DEBUG executePlanStructuredWorkout: Response = \(response)")
+                return response
+            } else {
+                print("❌ DEBUG executePlanStructuredWorkout: Save FAILED")
+                return "[Error: Could not save structured workout for \(date)]"
+            }
+        }
+    }
+    
+    /// Update an existing structured workout
+    private func executeUpdateStructuredWorkout(date: String, workoutJson: String, notes: String?, icon: String?) async throws -> String {
+        print("✏️ ToolProcessor: Updating structured workout for \(date)")
+        
+        return await MainActor.run {
+            let manager = TrainingScheduleManager.shared
+            let targetDate = parseDate(date)
+            
+            // Unescape the JSON string - remove backslash escapes
+            let unescapedJson = workoutJson
+                .replacingOccurrences(of: "\\\"", with: "\"")
+                .replacingOccurrences(of: "\\'", with: "'")
+                .replacingOccurrences(of: "\\\\", with: "\\")
+            
+            print("🔍 DEBUG executeUpdateStructuredWorkout: Unescaped JSON length = \(unescapedJson.count)")
+            
+            // Decode the JSON into StructuredWorkout
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            guard let jsonData = unescapedJson.data(using: .utf8) else {
+                return "[Error: Invalid workout_json format. Could not convert to data.]"
+            }
+            
+            let structuredWorkout: StructuredWorkout
+            do {
+                structuredWorkout = try decoder.decode(StructuredWorkout.self, from: jsonData)
+                print("✅ Successfully decoded updated structured workout: \(structuredWorkout.displaySummary)")
+            } catch {
+                print("❌ JSON decoding failed: \(error)")
+                return "[Error: Failed to decode workout_json. \(error.localizedDescription)]"
+            }
+            
+            // Update the structured workout
+            if manager.updateStructuredWorkout(for: targetDate, structuredWorkout: structuredWorkout, notes: notes, icon: icon) {
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "EEEE, MMM d"
+                let dateStr = dateFormatter.string(from: targetDate)
+                
+                let distribution = structuredWorkout.exerciseDistribution
+                
+                return """
+                [Structured Workout Updated]
+                • Date: \(dateStr)
+                • Updated to: \(structuredWorkout.displaySummary)
+                • Exercises: \(structuredWorkout.exercises.count) (cardio: \(distribution.cardio), strength: \(distribution.strength), mobility: \(distribution.mobility), yoga: \(distribution.yoga))
+                \(notes != nil ? "• Notes: \(notes!)" : "")
+                • Link: trainer://calendar/\(dateFormatter.string(from: targetDate).replacingOccurrences(of: " ", with: "-"))
+                """
+            } else {
+                return "[Error: Could not update structured workout for \(date). No existing workout found]"
+            }
+        }
+    }
+    
+    /// Plan a single day's workout (LEGACY - for backward compatibility)
     private func executePlanWorkout(date: String, workout: String, notes: String?, icon: String?) async throws -> String {
-        print("📝 ToolProcessor: Planning single workout for \(date)")
+        print("📝 ToolProcessor: Planning single workout for \(date) (LEGACY)")
         if let icon = icon {
             print("   with icon: \(icon)")
         }
@@ -591,7 +845,7 @@ class ToolProcessor {
                 return "[Error: No training program started. Use start_training_program first]"
             }
             
-            // Call the new single-day planning method with icon
+            // Call the legacy single-day planning method with icon
             if manager.planSingleWorkout(for: targetDate, workout: workout, notes: notes, icon: icon) {
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "EEEE, MMM d"

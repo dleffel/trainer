@@ -13,11 +13,13 @@
 		B759471B2E07006C00BE6537 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B759471A2E07006C00BE6537 /* Preview Assets.xcassets */; };
 		B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A86662E5D884700CB5792 /* CalendarView.swift */; };
 		B75A866A2E5D884700CB5792 /* WeeklyCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */; };
-		B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */; };
 		B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */; };
 		B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866D2E5D886800CB5792 /* TrainingBlock.swift */; };
 		B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */; };
 		B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33382E59A5A6004C515B /* ToolProcessor.swift */; };
+		B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33342E5993D8004C515B /* APILogEntry.swift */; };
+		B75C333B2E5993D8004C515B /* APILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33352E5993D8004C515B /* APILogger.swift */; };
+		B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E5993D8004C515B /* LoggingPersistence.swift */; };
 		B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33402E59A6C7004C515B /* HealthKitManager.swift */; };
 		B75C33432E59A829004C515B /* SystemPrompt.md in Resources */ = {isa = PBXBuildFile; fileRef = B75C33422E59A829004C515B /* SystemPrompt.md */; };
 		B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */; };
@@ -26,9 +28,8 @@
 		B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9282E639CB300B866CE /* DebugMenuView.swift */; };
 		B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9272E639CB300B866CE /* APILogDetailView.swift */; };
 		B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9242E639C5600B866CE /* EnhancedAPILogger.swift */; };
-		B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33342E5993D8004C515B /* APILogEntry.swift */; };
-		B75C333B2E5993D8004C515B /* APILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33352E5993D8004C515B /* APILogger.swift */; };
-		B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E5993D8004C515B /* LoggingPersistence.swift */; };
+		B781C9332E7007C100B866CE /* StructuredWorkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9322E7007C100B866CE /* StructuredWorkout.swift */; };
+		B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */; };
 		B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2352E6900F100CB5792 /* DateProvider.swift */; };
 		B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */; };
 /* End PBXBuildFile section */
@@ -42,7 +43,6 @@
 		B759474B2E07048400BE6537 /* TrainerApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerApp.entitlements; sourceTree = "<group>"; };
 		B75A86662E5D884700CB5792 /* CalendarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WeeklyCalendarView.swift; sourceTree = "<group>"; };
-		B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatStateComponents.swift; sourceTree = "<group>"; };
 		B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingScheduleManager.swift; sourceTree = "<group>"; };
 		B75A866D2E5D886800CB5792 /* TrainingBlock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingBlock.swift; sourceTree = "<group>"; };
 		B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingCalendar.swift; sourceTree = "<group>"; };
@@ -59,9 +59,11 @@
 		B781C9272E639CB300B866CE /* APILogDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogDetailView.swift; sourceTree = "<group>"; };
 		B781C9282E639CB300B866CE /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
 		B781C92A2E639CB300B866CE /* ExportOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportOptionsView.swift; sourceTree = "<group>"; };
-		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
+		B781C9322E7007C100B866CE /* StructuredWorkout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredWorkout.swift; sourceTree = "<group>"; };
+		B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatStateComponents.swift; sourceTree = "<group>"; };
 		B7A1B2352E6900F100CB5792 /* DateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateProvider.swift; sourceTree = "<group>"; };
 		B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleDeveloperTimeControl.swift; sourceTree = "<group>"; };
+		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
 		B7D1A55A2E073CCB00D19700 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TrainerApp/Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -162,6 +164,7 @@
 		B75A866F2E5D886800CB5792 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B781C9322E7007C100B866CE /* StructuredWorkout.swift */,
 				B75A866D2E5D886800CB5792 /* TrainingBlock.swift */,
 				B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */,
 			);
@@ -284,6 +287,7 @@
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
 				B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */,
 				B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */,
+				B781C9332E7007C100B866CE /* StructuredWorkout.swift in Sources */,
 				B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */,
 				B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */,
 				B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */,
