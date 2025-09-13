@@ -22,7 +22,7 @@ struct ContentView: View {
     @EnvironmentObject var navigationState: NavigationState
 
     private let persistence = ConversationPersistence()
-    private let model = "openai/gpt-5" // GPT-5 via OpenRouter with 128k context window
+    private let model = "openai/gpt-5-mini" // GPT-5 via OpenRouter with 128k context window
     private let healthKitManager = HealthKitManager.shared
     private let maxConversationTurns = 5 // Maximum turns for tool processing
     
