@@ -17,6 +17,8 @@
 		B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866D2E5D886800CB5792 /* TrainingBlock.swift */; };
 		B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */; };
 		B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33382E59A5A6004C515B /* ToolProcessor.swift */; };
+		B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33432E59A5A7004C515B /* ConversationManager.swift */; };
+		B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33442E59A5A8004C515B /* ConversationPersistence.swift */; };
 		B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33342E5993D8004C515B /* APILogEntry.swift */; };
 		B75C333B2E5993D8004C515B /* APILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33352E5993D8004C515B /* APILogger.swift */; };
 		B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E5993D8004C515B /* LoggingPersistence.swift */; };
@@ -50,6 +52,8 @@
 		B75C33352E5993D8004C515B /* APILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogger.swift; sourceTree = "<group>"; };
 		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
 		B75C33382E59A5A6004C515B /* ToolProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolProcessor.swift; sourceTree = "<group>"; };
+		B75C33432E59A5A7004C515B /* ConversationManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationManager.swift; sourceTree = "<group>"; };
+		B75C33442E59A5A8004C515B /* ConversationPersistence.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationPersistence.swift; sourceTree = "<group>"; };
 		B75C33402E59A6C7004C515B /* HealthKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		B75C33422E59A829004C515B /* SystemPrompt.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = SystemPrompt.md; sourceTree = "<group>"; };
 		B75C33452E5B53D9004C515B /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
@@ -147,6 +151,8 @@
 			isa = PBXGroup;
 			children = (
 				B75C33382E59A5A6004C515B /* ToolProcessor.swift */,
+				B75C33432E59A5A7004C515B /* ConversationManager.swift */,
+				B75C33442E59A5A8004C515B /* ConversationPersistence.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -285,6 +291,8 @@
 				B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
+				B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */,
+				B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */,
 				B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */,
 				B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */,
 				B781C9332E7007C100B866CE /* StructuredWorkout.swift in Sources */,

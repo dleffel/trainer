@@ -7,9 +7,8 @@ import CloudKit
 // MARK: - Original ContentView with Logging Integration
 
 struct ContentView: View {
-    @State private var messages: [ChatMessage] = []
+    @StateObject private var conversationManager = ConversationManager()
     @State private var input: String = ""
-    @State private var chatState: ChatState = .idle  // New single state variable
     @State private var showSettings: Bool = false
     @State private var showCalendar: Bool = false
     @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY") ?? ""
@@ -21,14 +20,21 @@ struct ContentView: View {
     // Navigation state for deep linking
     @EnvironmentObject var navigationState: NavigationState
 
-    private let persistence = ConversationPersistence()
     private let model = "openai/gpt-5-mini" // GPT-5 via OpenRouter with 128k context window
     private let healthKitManager = HealthKitManager.shared
-    private let maxConversationTurns = 5 // Maximum turns for tool processing
     
     // Load system prompt from file
     private var systemPrompt: String {
         loadSystemPromptFromFile()
+    }
+    
+    // Computed properties for UI state
+    private var messages: [ChatMessage] {
+        conversationManager.messages
+    }
+    
+    private var chatState: ChatState {
+        conversationManager.conversationState.chatState
     }
     
     private func loadSystemPromptFromFile() -> String {
@@ -123,7 +129,10 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            messages = (try? persistence.load()) ?? []
+            // Initialize conversation manager
+            Task {
+                await conversationManager.initialize()
+            }
             
             // Check iCloud availability
             CKContainer.default().accountStatus { status, _ in
@@ -144,7 +153,9 @@ struct ContentView: View {
                 queue: .main
             ) { _ in
                 print("📲 iCloud data changed")
-                messages = (try? persistence.load()) ?? messages
+                Task {
+                    await conversationManager.loadConversation()
+                }
             }
             
             // Listen for proactive messages
@@ -154,8 +165,9 @@ struct ContentView: View {
                 queue: .main
             ) { notification in
                 print("🤖 Proactive message received")
-                // Reload messages to include the new proactive message
-                messages = (try? persistence.load()) ?? messages
+                Task {
+                    await conversationManager.loadConversation()
+                }
             }
             
             // Request HealthKit authorization on app launch
@@ -173,8 +185,9 @@ struct ContentView: View {
             SettingsSheet(
                 apiKey: $apiKey,
                 onClearChat: {
-                    messages.removeAll()
-                    try? persistence.clear()
+                    Task {
+                        await conversationManager.clearConversation()
+                    }
                 },
                 onSave: {
                     UserDefaults.standard.set(apiKey, forKey: "OPENROUTER_API_KEY")
@@ -329,7 +342,7 @@ struct ContentView: View {
     }
 
     private var canSend: Bool {
-        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && chatState == .idle
+        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && conversationManager.conversationState == .idle
     }
 
     // MARK: - Actions
@@ -338,243 +351,21 @@ struct ContentView: View {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         guard !apiKey.isEmpty else {
-            errorMessage = "Set your OpenAI API key in Settings."
+            errorMessage = "Set your OpenRouter API key in Settings."
             return
         }
         
         input = ""
-        let userMsg = ChatMessage(role: .user, content: text)
-        messages.append(userMsg)
-        persist()
-        
-        // Update state with animation
-        withAnimation(.easeInOut(duration: 0.3)) {
-            chatState = .preparingResponse
-        }
         
         do {
-            // Create a working copy of messages for the conversation
-            var conversationHistory = messages
-            var finalResponse = ""
-            var turns = 0
-            
-            // Prepare a placeholder assistant message for streaming
-            var assistantIndex: Int? = nil
-            
-            repeat {
-                turns += 1
-                
-                if turns == 1 {
-                    // STREAMING: Start in streaming state, but don't create message yet
-                    await MainActor.run {
-                        // Just transition to streaming state - no message creation yet
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            chatState = .streaming(progress: nil)
-                        }
-                    }
-                    
-                    let requestStart = Date()
-                    print("⏱️ request_start: \(requestStart.timeIntervalSince1970)")
-                    
-                    var streamedFullText = ""
-                    var tokenBuffer = ""
-                    var isBufferingTool = false
-                    var messageCreated = false
-                    let assistantText: String
-                    do {
-                        assistantText = try await LLMClient.streamComplete(
-                            apiKey: apiKey,
-                            model: model,
-                            systemPrompt: systemPrompt,
-                            history: conversationHistory,
-                            onToken: { token in
-                                // Buffer tokens to detect tool patterns early
-                                tokenBuffer.append(token)
-                                
-                                // Check for tool pattern in buffer
-                                if tokenBuffer.contains("[TOOL_CALL:") && !isBufferingTool {
-                                    isBufferingTool = true
-                                    // Extract tool name for specific feedback
-                                    if tokenBuffer.range(of: #"\[TOOL_CALL:\s*(\w+)"#, options: .regularExpression) != nil {
-                                        // Extract tool name for specific feedback
-                                        if let colonRange = tokenBuffer.range(of: ":"),
-                                           let toolNameStart = tokenBuffer.index(colonRange.upperBound, offsetBy: 1, limitedBy: tokenBuffer.endIndex) {
-                                            let toolNameEnd = tokenBuffer.firstIndex(of: "(") ?? tokenBuffer.firstIndex(of: "]") ?? tokenBuffer.endIndex
-                                            let toolName = String(tokenBuffer[toolNameStart..<toolNameEnd]).trimmingCharacters(in: .whitespaces)
-                                        
-                                            Task { @MainActor in
-                                                withAnimation(.easeInOut(duration: 0.3)) {
-                                                    chatState = .toolState(for: toolName)
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if !isBufferingTool {
-                                    // Only append non-tool content to visible message
-                                    streamedFullText.append(token)
-                                    Task { @MainActor in
-                                        // Create message on first content token
-                                        if !messageCreated && !streamedFullText.isEmpty {
-                                            let newMessage = ChatMessage(role: .assistant, content: streamedFullText)
-                                            messages.append(newMessage)
-                                            assistantIndex = messages.count - 1
-                                            messageCreated = true
-                                        } else if let idx = assistantIndex {
-                                            // Update existing message
-                                            messages[idx] = ChatMessage(role: .assistant, content: streamedFullText)
-                                        }
-                                    }
-                                }
-                                
-                                // Keep full text for processing
-                                if isBufferingTool {
-                                    streamedFullText = tokenBuffer
-                                }
-                            }
-                        )
-                    } catch {
-                        // Fallback to non-streaming on invalid request/model/other 4xx
-                        print("⚠️ Streaming failed: \(error). Falling back to non-streaming.")
-                        let fallbackText = try await LLMClient.complete(
-                            apiKey: apiKey,
-                            model: model,
-                            systemPrompt: systemPrompt,
-                            history: conversationHistory
-                        )
-                        // Ensure user sees a response even without streaming
-                        await MainActor.run {
-                            if let idx = assistantIndex {
-                                messages[idx] = ChatMessage(role: .assistant, content: fallbackText)
-                            } else {
-                                messages.append(ChatMessage(role: .assistant, content: fallbackText))
-                                assistantIndex = messages.count - 1
-                            }
-                        }
-                        streamedFullText = fallbackText
-                        assistantText = fallbackText
-                    }
-                    
-                    print("⏱️ response_complete (streamed): \(Date().timeIntervalSince1970)")
-                    
-                    // Process any tool calls in the streamed response
-                    let toolProcessor = ToolProcessor.shared
-                    let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
-                    
-                    if processedResponse.requiresFollowUp && !processedResponse.toolResults.isEmpty {
-                        print("⏱️ tools_start: \(Date().timeIntervalSince1970)")
-                        
-                        // Update state to show tool processing with specific feedback
-                        for result in processedResponse.toolResults {
-                            await MainActor.run {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    chatState = .toolState(for: result.toolName)
-                                }
-                            }
-                            // Brief pause to show each tool
-                            try? await Task.sleep(for: .milliseconds(500))
-                        }
-                        
-                        // Add the cleaned assistant response if it has content
-                        if !processedResponse.cleanedResponse.isEmpty {
-                            conversationHistory.append(
-                                ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
-                            )
-                            // Update visible bubble to cleaned response (remove any tool tags)
-                            await MainActor.run {
-                                if let idx = assistantIndex {
-                                    messages[idx] = ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
-                                }
-                            }
-                        }
-                        
-                        // Format and add tool results as a system message
-                        let toolResultsMessage = toolProcessor.formatToolResults(processedResponse.toolResults)
-                        conversationHistory.append(
-                            ChatMessage(role: .system, content: toolResultsMessage)
-                        )
-                        
-                        print("⏱️ tools_complete: \(Date().timeIntervalSince1970)")
-                        // Continue the loop to get AI's response to the tool results (non-streaming for now)
-                    } else {
-                        // No tool calls, this is the final response
-                        finalResponse = processedResponse.cleanedResponse
-                        // Ensure the visible bubble matches final response
-                        await MainActor.run {
-                            if let idx = assistantIndex {
-                                messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
-                            }
-                            
-                            // Transition to finalizing
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                chatState = .finalizing
-                            }
-                        }
-                        break
-                    }
-                } else {
-                    // FOLLOW-UP: Use non-streaming completion
-                    await MainActor.run {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            chatState = .preparingResponse
-                        }
-                    }
-                    
-                    let assistantText = try await LLMClient.complete(
-                        apiKey: apiKey,
-                        model: model,
-                        systemPrompt: systemPrompt,
-                        history: conversationHistory
-                    )
-                    
-                    let toolProcessor = ToolProcessor.shared
-                    let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
-                    
-                    finalResponse = processedResponse.cleanedResponse
-                    await MainActor.run {
-                        if let idx = assistantIndex {
-                            messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
-                        } else {
-                            // Fallback: append if no streaming bubble present
-                            messages.append(ChatMessage(role: .assistant, content: finalResponse))
-                        }
-                        
-                        // Transition to finalizing
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            chatState = .finalizing
-                        }
-                    }
-                    break
-                }
-                
-            } while turns < maxConversationTurns
-            
-            persist()
-            
-            // Brief pause before returning to idle
-            try? await Task.sleep(for: .milliseconds(200))
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    chatState = .idle
-                }
-            }
-            
+            try await conversationManager.sendMessage(
+                text,
+                apiKey: apiKey,
+                model: model,
+                systemPrompt: systemPrompt
+            )
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    chatState = .idle
-                }
-            }
-        }
-    }
-
-    private func persist() {
-        do {
-            try persistence.save(messages)
-            print("💾 Persist called with \(messages.count) messages")
-        }
-        catch {
-            print("❌ Persist error: \(error)")
         }
     }
 }
@@ -847,106 +638,6 @@ private struct SettingsSheet: View {
 
 // MARK: - Models & Persistence
 
-struct ChatMessage: Identifiable, Codable {
-    let id: UUID
-    let role: Role
-    let content: String
-    let date: Date
-
-    init(id: UUID = UUID(), role: Role, content: String, date: Date = Date()) {
-        self.id = id
-        self.role = role
-        self.content = content
-        self.date = date
-    }
-
-    enum Role: String, Codable {
-        case user, assistant, system
-    }
-}
-
-private struct StoredMessage: Codable {
-    let id: UUID
-    let role: String
-    let content: String
-    let date: Date
-}
-
-private struct ConversationPersistence {
-    private let keyValueStore = NSUbiquitousKeyValueStore.default
-    private let conversationKey = "trainer_conversations"
-    
-    // Local backup URL
-    private var localURL: URL {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("conversation.json")
-    }
-    
-    init() {
-        // Synchronize with iCloud to get latest data
-        let synchronized = keyValueStore.synchronize()
-        print("🔄 iCloud synchronize on init: \(synchronized)")
-    }
-    
-    func load() throws -> [ChatMessage] {
-        // Try iCloud first
-        if let data = keyValueStore.data(forKey: conversationKey) {
-            let messages = try JSONDecoder().decode([StoredMessage].self, from: data)
-            print("✅ Loaded from iCloud")
-            return messages.compactMap { s in
-                guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
-                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date)
-            }
-        }
-        
-        // Fallback to local
-        if FileManager.default.fileExists(atPath: localURL.path) {
-            let data = try Data(contentsOf: localURL)
-            let stored = try JSONDecoder().decode([StoredMessage].self, from: data)
-            print("📱 Loaded from local storage")
-            return stored.compactMap { s in
-                guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
-                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date)
-            }
-        }
-        
-        return []
-    }
-    
-    func save(_ messages: [ChatMessage]) throws {
-        let stored = messages.map { m in
-            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, date: m.date)
-        }
-        let data = try JSONEncoder().encode(stored)
-        
-        // Save to both local and iCloud
-        try data.write(to: localURL, options: [.atomic])
-        
-        // Save to iCloud (1MB limit)
-        if data.count < 1_000_000 {
-            keyValueStore.set(data, forKey: conversationKey)
-            let synced = keyValueStore.synchronize()
-            print("☁️ Saved to iCloud (\(data.count) bytes) - Sync started: \(synced)")
-            
-            // Verify the save
-            if let savedData = keyValueStore.data(forKey: conversationKey) {
-                print("✅ Verified: Data exists in iCloud store (\(savedData.count) bytes)")
-            } else {
-                print("⚠️ Warning: Data not found in iCloud store after save")
-            }
-        } else {
-            print("⚠️ Data too large for iCloud key-value store (\(data.count) bytes)")
-        }
-    }
-    
-    func clear() throws {
-        if FileManager.default.fileExists(atPath: localURL.path) {
-            try FileManager.default.removeItem(at: localURL)
-        }
-        keyValueStore.removeObject(forKey: conversationKey)
-        keyValueStore.synchronize()
-    }
-}
 
 // MARK: - LLM Client
 
