@@ -765,7 +765,7 @@ enum LLMClient {
         request.httpBody = try JSONEncoder().encode(reqBody)
         
         // Stream response lines
-        let (bytes, resp) = try await URLSession.shared.bytes(for: request)
+        let (bytes, resp, logId) = try await URLSession.shared.streamingLoggingDataTask(for: request)
         
         // If server returns an error status, consume the body to surface details, then throw
         if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
@@ -782,6 +782,18 @@ enum LLMClient {
             } else {
                 print("❌ Streaming error \(http.statusCode): <no body>")
             }
+            
+            // Complete logging with error
+            let errorMessage = (try? JSONSerialization.jsonObject(with: errorData) as? [String: Any])
+                .flatMap { ($0["error"] as? [String: Any])?["message"] as? String }
+                ?? String(data: errorData, encoding: .utf8) ?? "<no body>"
+            
+            URLSession.shared.completeStreamingLog(
+                id: logId,
+                response: http,
+                responseBody: errorMessage,
+                error: LLMError.httpError(http.statusCode)
+            )
             throw LLMError.httpError(http.statusCode)
         }
         
@@ -800,7 +812,25 @@ enum LLMClient {
             onToken(delta)
         }
         
-        guard !fullText.isEmpty else { throw LLMError.missingContent }
+        guard !fullText.isEmpty else {
+            // Complete logging with error
+            URLSession.shared.completeStreamingLog(
+                id: logId,
+                response: resp,
+                responseBody: "",
+                error: LLMError.missingContent
+            )
+            throw LLMError.missingContent
+        }
+        
+        // Complete logging with successful response
+        URLSession.shared.completeStreamingLog(
+            id: logId,
+            response: resp,
+            responseBody: fullText,
+            error: nil
+        )
+        
         return fullText
     }
 }

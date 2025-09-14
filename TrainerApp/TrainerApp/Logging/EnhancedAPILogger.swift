@@ -142,6 +142,77 @@ final class EnhancedAPILogger {
         }
     }
     
+    // MARK: - Streaming Specific Methods
+    
+    /// Log the start of a streaming request with full request body capture
+    func logStreamingRequestStart(_ request: URLRequest) -> UUID {
+        guard isLoggingEnabled else { return UUID() }
+        
+        let requestId = UUID()
+        let activeRequest = ActiveRequest(
+            id: requestId,
+            request: request,
+            startTime: Date()
+        )
+        
+        activeRequestsLock.lock()
+        activeRequests[requestId] = activeRequest
+        activeRequestsLock.unlock()
+        
+        // Log initial request entry with proper phase
+        let entry = createRequestEntry(
+            id: requestId,
+            request: request,
+            phase: APILogEntry.APILogPhase.sent,
+            startTime: activeRequest.startTime
+        )
+        
+        queue.async { [weak self] in
+            self?.persistence.append(entry)
+        }
+        
+        return requestId
+    }
+    
+    /// Complete streaming request with full response text
+    func logStreamingComplete(
+        _ requestId: UUID,
+        response: URLResponse?,
+        fullResponseText: String,
+        error: Error?
+    ) {
+        guard isLoggingEnabled else { return }
+        
+        activeRequestsLock.lock()
+        guard let activeRequest = activeRequests[requestId] else {
+            activeRequestsLock.unlock()
+            return
+        }
+        activeRequests.removeValue(forKey: requestId)
+        activeRequestsLock.unlock()
+        
+        let duration = Date().timeIntervalSince(activeRequest.startTime)
+        
+        // Convert response text to Data for storage
+        let responseData = fullResponseText.data(using: .utf8)
+        
+        // Create response entry with complete conversation data
+        let entry = createResponseEntry(
+            id: requestId,
+            request: activeRequest.request,
+            response: response,
+            data: responseData,
+            error: error,
+            duration: duration,
+            phase: error != nil ? APILogEntry.APILogPhase.failed : APILogEntry.APILogPhase.completed,
+            bytesReceived: activeRequest.bytesReceived
+        )
+        
+        queue.async { [weak self] in
+            self?.persistence.append(entry)
+        }
+    }
+    
     // MARK: - Timeout Monitoring
     
     private func startTimeoutMonitor() {

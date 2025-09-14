@@ -90,6 +90,109 @@ struct APILogEntry: Codable, Identifiable {
         return String(data: data, encoding: .utf8)
     }
     
+    /// Enhanced request body formatting for chat completions
+    var formattedRequestBody: String? {
+        guard let data = requestBody,
+              let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return requestBodyString
+        }
+        
+        // Check if this is a chat completion request
+        if let messages = jsonObject["messages"] as? [[String: Any]] {
+            var formatted = "Chat Completion Request:\n"
+            
+            if let model = jsonObject["model"] as? String {
+                formatted += "Model: \(model)\n"
+            }
+            
+            if let stream = jsonObject["stream"] as? Bool, stream {
+                formatted += "Streaming: Yes\n"
+            }
+            
+            formatted += "\nConversation:\n"
+            formatted += String(repeating: "=", count: 50) + "\n"
+            
+            for (index, message) in messages.enumerated() {
+                if let role = message["role"] as? String,
+                   let content = message["content"] as? String {
+                    formatted += "\n[\(index + 1)] \(role.uppercased()):\n"
+                    formatted += content + "\n"
+                    
+                    if index < messages.count - 1 {
+                        formatted += "\n" + String(repeating: "-", count: 30) + "\n"
+                    }
+                }
+            }
+            
+            formatted += "\n" + String(repeating: "=", count: 50)
+            return formatted
+        }
+        
+        return requestBodyString
+    }
+    
+    /// Enhanced response body formatting for streaming responses
+    var formattedResponseBody: String? {
+        guard let data = responseBody else { return nil }
+        
+        // For streaming responses, the data might be plain text (the assembled response)
+        if let plainText = String(data: data, encoding: .utf8),
+           !plainText.isEmpty,
+           !plainText.hasPrefix("{") { // Not JSON
+            var formatted = "Assistant Response:\n"
+            formatted += String(repeating: "=", count: 50) + "\n\n"
+            formatted += plainText
+            formatted += "\n\n" + String(repeating: "=", count: 50)
+            return formatted
+        }
+        
+        // Try to parse as JSON response (for non-streaming)
+        if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let choices = jsonObject["choices"] as? [[String: Any]],
+           let firstChoice = choices.first,
+           let message = firstChoice["message"] as? [String: Any],
+           let content = message["content"] as? String {
+            
+            var formatted = "Assistant Response:\n"
+            formatted += String(repeating: "=", count: 50) + "\n\n"
+            formatted += content
+            formatted += "\n\n" + String(repeating: "=", count: 50)
+            
+            // Add metadata if available
+            if let model = jsonObject["model"] as? String {
+                formatted += "\n\nModel: \(model)"
+            }
+            
+            if let usage = jsonObject["usage"] as? [String: Any] {
+                formatted += "\nUsage: "
+                if let promptTokens = usage["prompt_tokens"] as? Int,
+                   let completionTokens = usage["completion_tokens"] as? Int {
+                    formatted += "\(promptTokens) prompt + \(completionTokens) completion tokens"
+                }
+            }
+            
+            return formatted
+        }
+        
+        // Fallback to standard JSON formatting
+        return responseBodyString
+    }
+    
+    /// Extract conversation messages from request for summary display
+    var conversationSummary: String? {
+        guard let data = requestBody,
+              let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let messages = jsonObject["messages"] as? [[String: Any]] else {
+            return nil
+        }
+        
+        let messageCount = messages.count
+        let userMessages = messages.filter { ($0["role"] as? String) == "user" }.count
+        let assistantMessages = messages.filter { ($0["role"] as? String) == "assistant" }.count
+        
+        return "\(messageCount) messages (\(userMessages) user, \(assistantMessages) assistant)"
+    }
+    
     /// Indicates if the request was successful (2xx status code)
     var isSuccess: Bool {
         guard let statusCode = responseStatusCode else { return false }

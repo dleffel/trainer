@@ -68,9 +68,18 @@ struct APILogDetailView: View {
                 }
                 
                 // Body
-                if let bodyString = log.requestBodyString {
+                if let bodyString = log.formattedRequestBody {
                     detailSection("Body") {
-                        codeBlock(bodyString, copyValue: bodyString)
+                        codeBlock(bodyString, copyValue: log.requestBodyString ?? bodyString)
+                    }
+                }
+                
+                // Conversation Summary
+                if let summary = log.conversationSummary {
+                    detailSection("Conversation Summary") {
+                        Text(summary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -116,9 +125,9 @@ struct APILogDetailView: View {
                 }
                 
                 // Body
-                if let bodyString = log.responseBodyString {
+                if let bodyString = log.formattedResponseBody {
                     detailSection("Body") {
-                        codeBlock(bodyString, copyValue: bodyString)
+                        codeBlock(bodyString, copyValue: log.responseBodyString ?? bodyString)
                     }
                 }
             }

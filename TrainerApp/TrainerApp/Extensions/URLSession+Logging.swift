@@ -68,3 +68,40 @@ extension URLSession {
         return try await loggingDataTask(with: request)
     }
 }
+
+// MARK: - Streaming Logging Support
+extension URLSession {
+    /// Data task with streaming support and comprehensive logging
+    func streamingLoggingDataTask(for request: URLRequest) async throws -> (URLSession.AsyncBytes, URLResponse, UUID) {
+        print("🔍 DEBUG streamingLoggingDataTask: CALLED with URL: \(request.url?.absoluteString ?? "nil")")
+        let loggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
+        print("🔍 DEBUG streamingLoggingDataTask: API logging enabled = \(loggingEnabled)")
+        
+        guard loggingEnabled else {
+            // If logging is disabled, fall back to regular streaming
+            let (bytes, response) = try await URLSession.shared.bytes(for: request)
+            return (bytes, response, UUID()) // Return dummy UUID
+        }
+        
+        // Start logging the request
+        let logId = EnhancedAPILogger.shared.logStreamingRequestStart(request)
+        
+        // Perform the actual streaming request
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        
+        return (bytes, response, logId)
+    }
+    
+    /// Complete the streaming log entry with response data
+    func completeStreamingLog(id: UUID, response: URLResponse, responseBody: String, error: Error?) {
+        let loggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
+        guard loggingEnabled else { return }
+        
+        EnhancedAPILogger.shared.logStreamingComplete(
+            id,
+            response: response,
+            fullResponseText: responseBody,
+            error: error
+        )
+    }
+}
