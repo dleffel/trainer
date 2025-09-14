@@ -130,6 +130,31 @@ class ConversationManager: ObservableObject {
             } else {
                 // No tool calls, finalize the response
                 finalResponse = processedResponse.cleanedResponse
+                
+                // DEBUG: Log the response processing state
+                print("🔍 DEBUG ConversationManager: Response processing state:")
+                print("🔍   cleanedResponse: '\(processedResponse.cleanedResponse)'")
+                print("🔍   toolResults.count: \(processedResponse.toolResults.count)")
+                print("🔍   requiresFollowUp: \(processedResponse.requiresFollowUp)")
+                print("🔍   finalResponse: '\(finalResponse)'")
+                
+                // Defensive check: if cleaned response is empty, use a fallback
+                if finalResponse.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    print("⚠️ ConversationManager: Cleaned response is empty, checking tool results...")
+                    
+                    // If we have tool results but they didn't trigger follow-up, format them
+                    if !processedResponse.toolResults.isEmpty {
+                        print("🔍 DEBUG: Tool results exist but no follow-up - this is the fallback trigger!")
+                        let toolResultsMessage = toolProcessor.formatToolResults(processedResponse.toolResults)
+                        finalResponse = "Task completed successfully.\n\n\(toolResultsMessage)"
+                        print("✅ ConversationManager: Using tool results as fallback response")
+                    } else {
+                        print("🚨 DEBUG: No tool results and empty response - showing error message!")
+                        finalResponse = "I've processed your request, but encountered an issue generating a response. Please try again."
+                        print("⚠️ ConversationManager: Using generic fallback response")
+                    }
+                }
+                
                 if let idx = assistantIndex {
                     messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
                 }
@@ -248,25 +273,49 @@ class ConversationManager: ObservableObject {
     ) async throws -> String {
         updateState(.preparingResponse)
         
-        let assistantText = try await LLMClient.complete(
-            apiKey: apiKey,
-            model: model,
-            systemPrompt: systemPrompt,
-            history: conversationHistory
-        )
-        
-        let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
-        let finalResponse = processedResponse.cleanedResponse
-        
-        if let idx = assistantIndex {
-            messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
-        } else {
-            // Fallback: append if no streaming bubble present
-            messages.append(ChatMessage(role: .assistant, content: finalResponse))
+        do {
+            let assistantText = try await LLMClient.complete(
+                apiKey: apiKey,
+                model: model,
+                systemPrompt: systemPrompt,
+                history: conversationHistory
+            )
+            
+            let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
+            let finalResponse = processedResponse.cleanedResponse
+            
+            if let idx = assistantIndex {
+                messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
+            } else {
+                // Fallback: append if no streaming bubble present
+                messages.append(ChatMessage(role: .assistant, content: finalResponse))
+            }
+            
+            updateState(.finalizing)
+            return finalResponse
+        } catch LLMError.missingContent {
+            // Graceful handling: When tools execute successfully but AI has no additional response
+            print("🔍 handleFollowUpResponse: No additional AI response needed after tool execution - conversation complete")
+            
+            // Check if we have any tool results from previous conversation
+            let hasToolResults = conversationHistory.contains { message in
+                message.role == .system && message.content.contains("[Structured Workout Planned]")
+            }
+            
+            let gracefulResponse = hasToolResults
+                ? "Task completed successfully."
+                : "I've processed your request."
+            
+            if let idx = assistantIndex {
+                messages[idx] = ChatMessage(role: .assistant, content: gracefulResponse)
+            } else {
+                // Fallback: append if no streaming bubble present
+                messages.append(ChatMessage(role: .assistant, content: gracefulResponse))
+            }
+            
+            updateState(.finalizing)
+            return gracefulResponse
         }
-        
-        updateState(.finalizing)
-        return finalResponse
     }
     
     /// Update conversation state with animation

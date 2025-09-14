@@ -651,7 +651,7 @@ struct StrengthSetRow: View {
                 .frame(width: 40, alignment: .leading)
             
             if let reps = set.reps {
-                Text("\(reps) reps")
+                Text("\(reps.displayValue) reps")
                     .font(.caption)
                     .frame(width: 50, alignment: .leading)
             }
@@ -887,8 +887,8 @@ struct Chip: View {
                 detail: .strength(StrengthDetail(
                     movement: "back_squat",
                     sets: [
-                        StrengthSet(set: 1, reps: 8, weight: "60kg", rir: 2, tempo: "2-0-2", restSeconds: 120),
-                        StrengthSet(set: 2, reps: 8, weight: "60kg", rir: 2, tempo: "2-0-2", restSeconds: 120)
+                        StrengthSet(set: 1, reps: .integer(8), weight: "60kg", rir: 2, tempo: "2-0-2", restSeconds: 120),
+                        StrengthSet(set: 2, reps: .integer(8), weight: "60kg", rir: 2, tempo: "2-0-2", restSeconds: 120)
                     ],
                     superset: nil
                 ))
@@ -898,7 +898,7 @@ struct Chip: View {
     
     let sampleDay = WorkoutDay(date: Date(), blockType: .aerobicCapacity)
     
-    return VStack {
+    VStack {
         StructuredWorkoutView(workout: sampleWorkout)
         Spacer()
     }

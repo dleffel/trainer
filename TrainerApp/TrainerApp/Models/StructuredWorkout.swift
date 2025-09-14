@@ -287,11 +287,65 @@ struct StrengthDetail: Codable {
 
 struct StrengthSet: Codable {
     let set: Int
-    let reps: Int?
+    let reps: RepValue?
     let weight: String?
     let rir: Int?  // Reps in reserve
     let tempo: String?  // e.g., "2-0-2"
     let restSeconds: Int?
+}
+
+/// Flexible rep value that can be either an integer or a string (e.g., "max-2", "AMRAP")
+enum RepValue: Codable {
+    case integer(Int)
+    case string(String)
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if let intValue = try? container.decode(Int.self) {
+            self = .integer(intValue)
+        } else if let stringValue = try? container.decode(String.self) {
+            self = .string(stringValue)
+        } else {
+            throw DecodingError.typeMismatch(RepValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Expected Int or String for reps"))
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .integer(let value):
+            try container.encode(value)
+        case .string(let value):
+            try container.encode(value)
+        }
+    }
+    
+    /// Get the display string for UI purposes
+    var displayValue: String {
+        switch self {
+        case .integer(let value):
+            return "\(value)"
+        case .string(let value):
+            return value
+        }
+    }
+    
+    /// Extract integer value if possible (useful for calculations)
+    var intValue: Int? {
+        switch self {
+        case .integer(let value):
+            return value
+        case .string(let value):
+            // Try to extract number from strings like "max-2" -> 2
+            if value.lowercased().contains("max") {
+                let components = value.components(separatedBy: CharacterSet.decimalDigits.inverted)
+                return components.compactMap { Int($0) }.first
+            }
+            // For pure numeric strings
+            return Int(value)
+        }
+    }
 }
 
 // MARK: - Mobility Detail
