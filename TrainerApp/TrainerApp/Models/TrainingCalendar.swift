@@ -117,18 +117,3 @@ struct WorkoutDay: Codable, Identifiable {
         return plannedWorkout
     }
 }
-
-/// Calendar view options
-enum CalendarViewMode: String, CaseIterable {
-    case week = "Week"
-    case month = "Month"
-    
-    var icon: String {
-        switch self {
-        case .week:
-            return "calendar.day.timeline.left"
-        case .month:
-            return "calendar"
-        }
-    }
-}
