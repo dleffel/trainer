@@ -98,7 +98,7 @@ class ConversationManager: ObservableObject {
             // Process tool calls if any
             let processedResponse = try await toolProcessor.processResponseWithToolCalls(finalResponse)
             
-            if processedResponse.requiresFollowUp && !processedResponse.toolResults.isEmpty {
+            if !processedResponse.toolResults.isEmpty {
                 print("⏱️ tools_start: \(Date().timeIntervalSince1970)")
                 
                 // Show tool processing states
@@ -107,16 +107,28 @@ class ConversationManager: ObservableObject {
                     try? await Task.sleep(for: .milliseconds(500))
                 }
                 
+                // ALWAYS preserve the original assistant message with clean content
+                if let idx = assistantIndex, idx < messages.count {
+                    // Extract clean content (everything before first tool call)
+                    let cleanContent = extractCleanContentBeforeTools(from: finalResponse)
+                    if !cleanContent.isEmpty {
+                        messages[idx] = ChatMessage(
+                            id: messages[idx].id,
+                            role: .assistant,
+                            content: cleanContent,
+                            date: messages[idx].date,
+                            state: .completed
+                        )
+                    } else {
+                        messages[idx] = messages[idx].markCompleted()
+                    }
+                }
+                
                 // Update conversation history with cleaned response
                 if !processedResponse.cleanedResponse.isEmpty {
                     conversationHistory.append(
                         ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
                     )
-                    
-                    // Update visible message
-                    if let idx = assistantIndex {
-                        messages[idx] = ChatMessage(role: .assistant, content: processedResponse.cleanedResponse)
-                    }
                 }
                 
                 // Add tool results as system message
@@ -126,7 +138,7 @@ class ConversationManager: ObservableObject {
                 )
                 
                 print("⏱️ tools_complete: \(Date().timeIntervalSince1970)")
-                // Continue loop for AI's response to tool results
+                // ALWAYS continue loop for AI's response to tool results
             } else {
                 // No tool calls, finalize the response
                 finalResponse = processedResponse.cleanedResponse
@@ -155,8 +167,21 @@ class ConversationManager: ObservableObject {
                     }
                 }
                 
-                if let idx = assistantIndex {
-                    messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
+                // For final responses without tool follow-up, update only if streaming or append new message
+                if let idx = assistantIndex, idx < messages.count {
+                    if messages[idx].state == .streaming {
+                        // Update streaming message with final content and mark completed
+                        messages[idx] = ChatMessage(
+                            id: messages[idx].id,
+                            role: .assistant,
+                            content: finalResponse,
+                            date: messages[idx].date,
+                            state: .completed
+                        )
+                    }
+                } else {
+                    // Fallback: append new message if no streaming message exists
+                    messages.append(ChatMessage(role: .assistant, content: finalResponse, state: .completed))
                 }
                 updateState(.finalizing)
                 break
@@ -221,13 +246,15 @@ class ConversationManager: ObservableObject {
                         Task { @MainActor in
                             // Create message on first content token
                             if !messageCreated && !streamedFullText.isEmpty {
-                                let newMessage = ChatMessage(role: .assistant, content: streamedFullText)
+                                let newMessage = ChatMessage(role: .assistant, content: streamedFullText, state: .streaming)
                                 self.messages.append(newMessage)
                                 assistantIndex = self.messages.count - 1
                                 messageCreated = true
-                            } else if let idx = assistantIndex {
-                                // Update existing message
-                                self.messages[idx] = ChatMessage(role: .assistant, content: streamedFullText)
+                            } else if let idx = assistantIndex, idx < self.messages.count, self.messages[idx].state == .streaming {
+                                // Only update if message is still in streaming state
+                                if let updatedMessage = self.messages[idx].updatedContent(streamedFullText) {
+                                    self.messages[idx] = updatedMessage
+                                }
                             }
                         }
                     }
@@ -249,10 +276,19 @@ class ConversationManager: ObservableObject {
             )
             
             // Ensure user sees a response
-            if let idx = assistantIndex {
-                messages[idx] = ChatMessage(role: .assistant, content: fallbackText)
+            if let idx = assistantIndex, idx < messages.count {
+                if messages[idx].state == .streaming {
+                    // Update streaming message with fallback content and mark completed
+                    messages[idx] = ChatMessage(
+                        id: messages[idx].id,
+                        role: .assistant,
+                        content: fallbackText,
+                        date: messages[idx].date,
+                        state: .completed
+                    )
+                }
             } else {
-                messages.append(ChatMessage(role: .assistant, content: fallbackText))
+                messages.append(ChatMessage(role: .assistant, content: fallbackText, state: .completed))
                 assistantIndex = messages.count - 1
             }
             streamedFullText = fallbackText
@@ -281,40 +317,65 @@ class ConversationManager: ObservableObject {
                 history: conversationHistory
             )
             
+            // DEBUG: Log the full response before processing
+            print("🔍 DEBUG handleFollowUpResponse: Raw AI response: '\(assistantText)'")
+            
             let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
             let finalResponse = processedResponse.cleanedResponse
             
-            if let idx = assistantIndex {
-                messages[idx] = ChatMessage(role: .assistant, content: finalResponse)
+            print("🔍 DEBUG handleFollowUpResponse: Cleaned response: '\(finalResponse)'")
+            print("🔍 DEBUG handleFollowUpResponse: Tool results count: \(processedResponse.toolResults.count)")
+            
+            // For follow-up responses, always append a new message instead of replacing
+            if !finalResponse.isEmpty {
+                messages.append(ChatMessage(role: .assistant, content: finalResponse, state: .completed))
+                print("📝 Follow-up response: Appended new assistant message with content: '\(finalResponse)'")
             } else {
-                // Fallback: append if no streaming bubble present
-                messages.append(ChatMessage(role: .assistant, content: finalResponse))
+                print("⚠️ WARNING: Follow-up response is empty after processing!")
+                if !assistantText.isEmpty {
+                    print("🔧 RECOVERY: Using original AI response since cleaned version is empty")
+                    messages.append(ChatMessage(role: .assistant, content: assistantText, state: .completed))
+                }
             }
             
             updateState(.finalizing)
             return finalResponse
         } catch LLMError.missingContent {
-            // Graceful handling: When tools execute successfully but AI has no additional response
-            print("🔍 handleFollowUpResponse: No additional AI response needed after tool execution - conversation complete")
+            // Create a meaningful response based on tool results
+            print("🔍 handleFollowUpResponse: AI returned empty content, generating response from tool results")
             
-            // Check if we have any tool results from previous conversation
-            let hasToolResults = conversationHistory.contains { message in
-                message.role == .system && message.content.contains("[Structured Workout Planned]")
+            // Extract meaningful information from tool results
+            let toolResultsMessages = conversationHistory.filter { $0.role == .system }
+            var responseComponents: [String] = []
+            
+            // Look for specific tool result patterns
+            for message in toolResultsMessages {
+                if message.content.contains("[Structured Workout Planned]") {
+                    if message.content.contains("Workout: ") {
+                        // Extract workout details
+                        let lines = message.content.components(separatedBy: "\n")
+                        for line in lines {
+                            if line.contains("Workout: ") || line.contains("Exercises: ") || line.contains("Duration: ") {
+                                responseComponents.append(line.trimmingCharacters(in: .whitespacesAndNewlines))
+                            }
+                        }
+                    }
+                }
+                if message.content.contains("Training Status:") {
+                    responseComponents.append("I've checked your training status and set up your program.")
+                }
             }
             
-            let gracefulResponse = hasToolResults
-                ? "Task completed successfully."
-                : "I've processed your request."
+            let meaningfulResponse = responseComponents.isEmpty
+                ? "Great! I've completed the requested actions and everything is set up for you."
+                : "Perfect! I've completed the setup:\n\n" + responseComponents.joined(separator: "\n")
             
-            if let idx = assistantIndex {
-                messages[idx] = ChatMessage(role: .assistant, content: gracefulResponse)
-            } else {
-                // Fallback: append if no streaming bubble present
-                messages.append(ChatMessage(role: .assistant, content: gracefulResponse))
-            }
+            // Append new message with meaningful content
+            messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, state: .completed))
+            print("✅ Generated meaningful response from tool results: '\(meaningfulResponse)'")
             
             updateState(.finalizing)
-            return gracefulResponse
+            return meaningfulResponse
         }
     }
     
@@ -348,6 +409,17 @@ class ConversationManager: ObservableObject {
     /// Get tool description for UI display
     private func getToolDescription(_ toolName: String) -> String {
         return toolDescriptions[toolName]?.description ?? "Processing \(toolName)..."
+    }
+    
+    /// Extract clean content before the first tool call
+    private func extractCleanContentBeforeTools(from response: String) -> String {
+        // Find the first occurrence of [TOOL_CALL:
+        if let toolCallRange = response.range(of: "[TOOL_CALL:") {
+            let cleanContent = String(response[..<toolCallRange.lowerBound])
+            return cleanContent.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // No tool calls found, return the entire response
+        return response.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

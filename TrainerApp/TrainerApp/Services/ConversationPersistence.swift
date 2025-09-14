@@ -3,17 +3,37 @@ import CloudKit
 
 // MARK: - Chat Message Types
 
+/// Represents the current state of a message
+enum MessageState: String, Codable {
+    case completed    // Message is final, never changes
+    case streaming    // Message is being updated via streaming
+    case processing   // Message completed but tools are running
+}
+
 struct ChatMessage: Identifiable, Codable {
     let id: UUID
     let role: Role
     let content: String
     let date: Date
-
-    init(id: UUID = UUID(), role: Role, content: String, date: Date = Date()) {
+    var state: MessageState
+    
+    init(id: UUID = UUID(), role: Role, content: String, date: Date = Date(), state: MessageState = .completed) {
         self.id = id
         self.role = role
         self.content = content
         self.date = date
+        self.state = state
+    }
+    
+    /// Create a mutable copy of this message with new content (only if currently streaming)
+    func updatedContent(_ newContent: String) -> ChatMessage? {
+        guard state == .streaming else { return nil }
+        return ChatMessage(id: id, role: role, content: newContent, date: date, state: state)
+    }
+    
+    /// Mark message as completed (no longer modifiable)
+    func markCompleted() -> ChatMessage {
+        return ChatMessage(id: id, role: role, content: content, date: date, state: .completed)
     }
 
     enum Role: String, Codable {
@@ -26,6 +46,15 @@ private struct StoredMessage: Codable {
     let role: String
     let content: String
     let date: Date
+    let state: String?  // Optional for backwards compatibility
+    
+    init(id: UUID, role: String, content: String, date: Date, state: String? = nil) {
+        self.id = id
+        self.role = role
+        self.content = content
+        self.date = date
+        self.state = state
+    }
 }
 
 // MARK: - Conversation Persistence
@@ -53,7 +82,8 @@ struct ConversationPersistence {
             print("✅ Loaded from iCloud")
             return messages.compactMap { s in
                 guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
-                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date)
+                let state = MessageState(rawValue: s.state ?? "completed") ?? .completed
+                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date, state: state)
             }
         }
         
@@ -64,7 +94,8 @@ struct ConversationPersistence {
             print("📱 Loaded from local storage")
             return stored.compactMap { s in
                 guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
-                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date)
+                let state = MessageState(rawValue: s.state ?? "completed") ?? .completed
+                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date, state: state)
             }
         }
         
@@ -73,7 +104,7 @@ struct ConversationPersistence {
     
     func save(_ messages: [ChatMessage]) throws {
         let stored = messages.map { m in
-            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, date: m.date)
+            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, date: m.date, state: m.state.rawValue)
         }
         let data = try JSONEncoder().encode(stored)
         
