@@ -656,6 +656,43 @@ enum LLMError: LocalizedError {
 }
 
 enum LLMClient {
+    /// Create temporal-enhanced system prompt with current time context
+    private static func createTemporalSystemPrompt(
+        _ systemPrompt: String, 
+        conversationHistory: [ChatMessage]
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss zzz"
+        formatter.timeZone = TimeZone.current
+        
+        let currentTime = DateProvider.shared.currentDate
+        let currentTimeString = formatter.string(from: currentTime)
+        let sessionStartTime = conversationHistory.first?.date ?? currentTime
+        let sessionStartString = formatter.string(from: sessionStartTime)
+        
+        let sessionDuration = currentTime.timeIntervalSince(sessionStartTime)
+        let durationMinutes = Int(sessionDuration / 60)
+        
+        let temporalContext = """
+        
+        [TEMPORAL_CONTEXT]
+        Current time: \(currentTimeString)
+        User timezone: \(TimeZone.current.identifier)
+        Conversation started: \(sessionStartString)
+        Session duration: \(durationMinutes) minutes
+        """
+        
+        let enhancedPrompt = systemPrompt + temporalContext
+        
+        // Debug logging
+        print("🕒 TEMPORAL_DEBUG: Enhanced system prompt with temporal context")
+        print("🕒 Current time: \(currentTimeString)")
+        print("🕒 Session duration: \(durationMinutes) minutes")
+        print("🕒 Enhanced prompt length: \(enhancedPrompt.count) characters")
+        
+        return enhancedPrompt
+    }
+    
     static func complete(
         apiKey: String,
         model: String,
@@ -684,7 +721,9 @@ enum LLMClient {
 
         var msgs: [APIMessage] = []
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            msgs.append(APIMessage(role: "system", content: systemPrompt))
+            let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
+            msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
+            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in streamComplete() method")
         }
         for m in history {
             let role = switch m.role {
@@ -750,7 +789,9 @@ enum LLMClient {
         
         var msgs: [APIMessage] = []
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            msgs.append(APIMessage(role: "system", content: systemPrompt))
+            let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
+            msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
+            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in streamComplete() method")
         }
         for m in history {
             let role = switch m.role {
