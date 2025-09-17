@@ -228,17 +228,29 @@ class ConversationManager: ObservableObject {
                     // Buffer tokens to detect tool patterns early
                     tokenBuffer.append(token)
                     
+                    // 🔍 DIAGNOSTIC: Log token buffering
+                    if tokenBuffer.count % 50 == 0 || tokenBuffer.contains("[TOOL_CALL:") {
+                        print("🔍 STREAM_DEBUG: Buffer length=\(tokenBuffer.count), isBuffering=\(isBufferingTool)")
+                        print("🔍 STREAM_DEBUG: Last 100 chars: '\(String(tokenBuffer.suffix(100)))'")
+                    }
+                    
                     // Check for tool pattern in buffer
                     if tokenBuffer.contains("[TOOL_CALL:") && !isBufferingTool {
                         isBufferingTool = true
+                        print("🔍 STREAM_DEBUG: TOOL DETECTED - Switching to buffering mode")
+                        print("🔍 STREAM_DEBUG: Buffer at detection: '\(tokenBuffer)'")
+                        
                         // Extract tool name for specific feedback
                         if let toolName = self.extractToolName(from: tokenBuffer) {
+                            print("🔍 STREAM_DEBUG: Extracted tool name: '\(toolName)'")
                             Task { @MainActor in
                                 self.updateState(.processingTool(
                                     name: toolName,
                                     description: self.getToolDescription(toolName)
                                 ))
                             }
+                        } else {
+                            print("🔍 STREAM_DEBUG: Failed to extract tool name from buffer")
                         }
                     } else if !isBufferingTool {
                         // Only append non-tool content to visible message
@@ -250,6 +262,7 @@ class ConversationManager: ObservableObject {
                                 self.messages.append(newMessage)
                                 assistantIndex = self.messages.count - 1
                                 messageCreated = true
+                                print("🔍 STREAM_DEBUG: Created streaming message")
                             } else if let idx = assistantIndex, idx < self.messages.count, self.messages[idx].state == .streaming {
                                 // Only update if message is still in streaming state
                                 if let updatedMessage = self.messages[idx].updatedContent(streamedFullText) {
@@ -262,6 +275,7 @@ class ConversationManager: ObservableObject {
                     // Keep full text for processing
                     if isBufferingTool {
                         streamedFullText = tokenBuffer
+                        print("🔍 STREAM_DEBUG: Updated streamedFullText length: \(streamedFullText.count)")
                     }
                 }
             )
@@ -296,6 +310,10 @@ class ConversationManager: ObservableObject {
         }
         
         print("⏱️ response_complete (streamed): \(Date().timeIntervalSince1970)")
+        print("🔍 STREAM_DEBUG: Final assistantText length: \(assistantText.count)")
+        print("🔍 STREAM_DEBUG: Final streamedFullText length: \(streamedFullText.count)")
+        print("🔍 STREAM_DEBUG: Final assistantText preview: '\(String(assistantText.prefix(200)))...'")
+        
         return (assistantIndex: assistantIndex, finalResponse: assistantText)
     }
     
@@ -332,52 +350,95 @@ class ConversationManager: ObservableObject {
                 print("📝 Follow-up response: Appended new assistant message with content: '\(finalResponse)'")
             } else {
                 print("⚠️ WARNING: Follow-up response is empty after processing!")
-                if !assistantText.isEmpty {
-                    print("🔧 RECOVERY: Using original AI response since cleaned version is empty")
-                    messages.append(ChatMessage(role: .assistant, content: assistantText, state: .completed))
-                }
+                
+                // Try to generate meaningful response from tool results instead of showing raw tool calls
+                let meaningfulResponse = try await generateMeaningfulResponse(from: conversationHistory)
+                messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, state: .completed))
+                print("✅ RECOVERY: Generated meaningful response from tool results: '\(meaningfulResponse)'")
             }
             
             updateState(.finalizing)
             return finalResponse
         } catch LLMError.missingContent {
             // Create a meaningful response based on tool results
-            print("🔍 handleFollowUpResponse: AI returned empty content, generating response from tool results")
-            
-            // Extract meaningful information from tool results
-            let toolResultsMessages = conversationHistory.filter { $0.role == .system }
-            var responseComponents: [String] = []
-            
-            // Look for specific tool result patterns
-            for message in toolResultsMessages {
-                if message.content.contains("[Structured Workout Planned]") {
-                    if message.content.contains("Workout: ") {
-                        // Extract workout details
-                        let lines = message.content.components(separatedBy: "\n")
-                        for line in lines {
-                            if line.contains("Workout: ") || line.contains("Exercises: ") || line.contains("Duration: ") {
-                                responseComponents.append(line.trimmingCharacters(in: .whitespacesAndNewlines))
-                            }
-                        }
+            return try await handleEmptyResponse(conversationHistory: conversationHistory)
+        }
+    }
+    /// Handle empty responses by generating meaningful content from tool results
+    private func handleEmptyResponse(conversationHistory: [ChatMessage]) async throws -> String {
+        print("🔍 handleEmptyResponse: AI returned empty content, generating response from tool results")
+        
+        // Extract meaningful information from recent tool results
+        let recentSystemMessages = conversationHistory.suffix(3).filter { $0.role == .system }
+        var responseComponents: [String] = []
+        
+        // Look for specific tool result patterns
+        for message in recentSystemMessages {
+            if message.content.contains("[Structured Workout Planned]") {
+                // Extract workout details
+                let lines = message.content.components(separatedBy: "\n")
+                for line in lines {
+                    if line.contains("• Workout: ") || line.contains("• Exercises: ") || line.contains("• Duration: ") {
+                        responseComponents.append(line.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
-                }
-                if message.content.contains("Training Status:") {
-                    responseComponents.append("I've checked your training status and set up your program.")
                 }
             }
             
-            let meaningfulResponse = responseComponents.isEmpty
-                ? "Great! I've completed the requested actions and everything is set up for you."
-                : "Perfect! I've completed the setup:\n\n" + responseComponents.joined(separator: "\n")
+            if message.content.contains("[Training Status]") || message.content.contains("Current Block:") {
+                responseComponents.append("I've checked your training status and everything is set up.")
+            }
             
-            // Append new message with meaningful content
-            messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, state: .completed))
-            print("✅ Generated meaningful response from tool results: '\(meaningfulResponse)'")
-            
-            updateState(.finalizing)
-            return meaningfulResponse
+            if message.content.contains("Hypertrophy-Strength") {
+                responseComponents.append("You're in the Hypertrophy-Strength phase - perfect for building strength and muscle.")
+            }
         }
+        
+        let meaningfulResponse = responseComponents.isEmpty
+            ? "Great! I've completed the requested actions and everything is set up for you."
+            : "Perfect! I've completed the setup:\n\n" + responseComponents.joined(separator: "\n")
+        
+        // Append new message with meaningful content
+        messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, state: .completed))
+        print("✅ Generated meaningful response from tool results: '\(meaningfulResponse)'")
+        
+        updateState(.finalizing)
+        return meaningfulResponse
     }
+    
+    /// Generate meaningful response from recent tool results
+    private func generateMeaningfulResponse(from conversationHistory: [ChatMessage]) async throws -> String {
+        print("🔧 generateMeaningfulResponse: Generating response from tool results")
+        
+        // Extract meaningful information from recent tool results
+        let recentSystemMessages = conversationHistory.suffix(3).filter { $0.role == .system }
+        var responseComponents: [String] = []
+        
+        // Look for specific tool result patterns
+        for message in recentSystemMessages {
+            if message.content.contains("[Structured Workout Planned]") {
+                // Extract workout details
+                let lines = message.content.components(separatedBy: "\n")
+                for line in lines {
+                    if line.contains("• Workout: ") || line.contains("• Exercises: ") || line.contains("• Duration: ") {
+                        responseComponents.append(line.trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
+                }
+            }
+            
+            if message.content.contains("[Training Status]") || message.content.contains("Current Block:") {
+                responseComponents.append("I've checked your training status and you're all set!")
+            }
+            
+            if message.content.contains("Hypertrophy-Strength") {
+                responseComponents.append("You're in the Hypertrophy-Strength phase - perfect for building strength.")
+            }
+        }
+        
+        return responseComponents.isEmpty
+            ? "Great! I've completed the requested actions and everything is set up for you."
+            : "Perfect! I've completed the setup:\n\n" + responseComponents.joined(separator: "\n")
+    }
+
     
     /// Update conversation state with animation
     private func updateState(_ newState: ConversationState) {

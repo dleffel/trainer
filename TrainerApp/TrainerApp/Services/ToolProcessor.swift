@@ -53,6 +53,18 @@ class ToolProcessor {
         let toolCallMarkers = response.components(separatedBy: "[TOOL_CALL:").count - 1
         print("🔍 ToolProcessor: Found \(toolCallMarkers) [TOOL_CALL: markers in response")
         
+        // 🔍 DIAGNOSTIC: Check for incomplete patterns
+        if response.contains("[TOOL_CALL") && !response.contains("[TOOL_CALL:") {
+            print("🚨 TOOL_DEBUG: INCOMPLETE TOOL_CALL PATTERN - Missing colon!")
+            print("🔍 TOOL_DEBUG: Pattern location: '\(response.suffix(100))'")
+        }
+        
+        if response.contains("[TOOL_CALL:") && !response.contains("]") {
+            print("🚨 TOOL_DEBUG: INCOMPLETE TOOL_CALL PATTERN - Missing closing bracket!")
+            let toolStart = response.lastIndex(of: "[") ?? response.startIndex
+            print("🔍 TOOL_DEBUG: Incomplete pattern: '\(String(response[toolStart...]))'")
+        }
+        
         // Debug: Try to find plan_week_workouts specifically
         if response.contains("plan_week_workouts") {
             print("✅ ToolProcessor: Response contains 'plan_week_workouts'")
@@ -329,6 +341,8 @@ class ToolProcessor {
     /// Execute a tool call and return the result
     func executeTool(_ toolCall: ToolCall) async throws -> ToolCallResult {
         print("🔧 ToolProcessor: Executing tool '\(toolCall.name)' with parameters: \(toolCall.parameters)")
+        print("🔍 TOOL_DEBUG: Tool execution START for '\(toolCall.name)'")
+        print("🔍 TOOL_DEBUG: Full match was: '\(toolCall.fullMatch)'")
         
         do {
             switch toolCall.name {
@@ -960,10 +974,23 @@ class ToolProcessor {
         print("🎯 ToolProcessor: Processing response")
         print("🎯 ToolProcessor: Response preview: \(String(response.prefix(200)))...")
         
+        // 🔍 DIAGNOSTIC: Log full response for debugging
+        print("🔍 TOOL_DEBUG: Full response length: \(response.count)")
+        print("🔍 TOOL_DEBUG: Response ends with: '\(String(response.suffix(50)))'")
+        print("🔍 TOOL_DEBUG: Contains [TOOL_CALL:: \(response.contains("[TOOL_CALL:"))")
+        
         let toolCalls = detectToolCalls(in: response)
         
         if toolCalls.isEmpty {
             print("🎯 ToolProcessor: No tool calls found, returning original response")
+            print("🔍 TOOL_DEBUG: DIAGNOSIS CLUE - No tool calls detected despite response")
+            
+            // Check for incomplete tool call patterns
+            if response.contains("[TOOL_CALL") || response.contains("TOOL_CALL:") {
+                print("🚨 TOOL_DEBUG: PARTIAL TOOL CALL DETECTED - Likely streaming interruption!")
+                print("🔍 TOOL_DEBUG: Partial pattern at: '\(response.suffix(100))'")
+            }
+            
             return ProcessedResponse(
                 cleanedResponse: response,
                 requiresFollowUp: false,
