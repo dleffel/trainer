@@ -16,6 +16,7 @@
 		B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */; };
 		B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866D2E5D886800CB5792 /* TrainingBlock.swift */; };
 		B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */; };
+		B75C33372E59A5A5004C515B /* ToolParameterParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E59A5A5004C515B /* ToolParameterParser.swift */; };
 		B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33382E59A5A6004C515B /* ToolProcessor.swift */; };
 		B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33432E59A5A7004C515B /* ConversationManager.swift */; };
 		B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33442E59A5A8004C515B /* ConversationPersistence.swift */; };
@@ -51,6 +52,7 @@
 		B75C33342E5993D8004C515B /* APILogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogEntry.swift; sourceTree = "<group>"; };
 		B75C33352E5993D8004C515B /* APILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogger.swift; sourceTree = "<group>"; };
 		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
+		B75C33362E59A5A5004C515B /* ToolParameterParser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolParameterParser.swift; sourceTree = "<group>"; };
 		B75C33382E59A5A6004C515B /* ToolProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolProcessor.swift; sourceTree = "<group>"; };
 		B75C33432E59A5A7004C515B /* ConversationManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationManager.swift; sourceTree = "<group>"; };
 		B75C33442E59A5A8004C515B /* ConversationPersistence.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationPersistence.swift; sourceTree = "<group>"; };
@@ -150,6 +152,7 @@
 		B759473D2E0703BD00BE6537 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B75C33362E59A5A5004C515B /* ToolParameterParser.swift */,
 				B75C33382E59A5A6004C515B /* ToolProcessor.swift */,
 				B75C33432E59A5A7004C515B /* ConversationManager.swift */,
 				B75C33442E59A5A8004C515B /* ConversationPersistence.swift */,
@@ -290,6 +293,7 @@
 				B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */,
 				B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
+				B75C33372E59A5A5004C515B /* ToolParameterParser.swift in Sources */,
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
 				B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */,
 				B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */,
