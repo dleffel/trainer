@@ -90,7 +90,11 @@ struct WorkoutDay: Codable, Identifiable {
     
     /// Check if this day has any workout content (structured or legacy)
     var hasWorkout: Bool {
-        return structuredWorkout != nil || plannedWorkout != nil
+        let result = structuredWorkout != nil || plannedWorkout != nil
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        print("🔍 hasWorkout DEBUG: \(dayOfWeek.name) \(formatter.string(from: date)) - plannedWorkout: \(plannedWorkout != nil), structuredWorkout: \(structuredWorkout != nil), hasWorkout: \(result)")
+        return result
     }
     
     /// Get the display icon for this workout day

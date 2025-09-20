@@ -8,7 +8,32 @@
 import Foundation
 
 struct SystemPromptLoader {
+    /// Load base system prompt without schedule data (for compatibility)
     static func loadSystemPrompt() -> String {
+        return loadBaseSystemPrompt()
+    }
+    
+    /// Load system prompt with embedded schedule snapshot for optimization
+    static func loadSystemPromptWithSchedule() -> String {
+        let basePrompt = loadBaseSystemPrompt()
+        let scheduleSnapshot = TrainingScheduleManager.shared.generateScheduleSnapshot()
+        
+        // Insert schedule snapshot after the main prompt but before tool definitions
+        let insertionMarker = "## 14 │ AVAILABLE TOOLS"
+        
+        if let insertionPoint = basePrompt.range(of: insertionMarker) {
+            let beforeTools = String(basePrompt[..<insertionPoint.lowerBound])
+            let fromTools = String(basePrompt[insertionPoint.lowerBound...])
+            
+            return beforeTools + "\n" + scheduleSnapshot + "\n\n" + fromTools
+        } else {
+            // Fallback: append at end if marker not found
+            return basePrompt + "\n\n" + scheduleSnapshot
+        }
+    }
+    
+    /// Load the base system prompt from file
+    private static func loadBaseSystemPrompt() -> String {
         // First, try Bundle (for when file is added to Xcode project)
         if let bundleURL = Bundle.main.url(forResource: "SystemPrompt", withExtension: "md") {
             do {

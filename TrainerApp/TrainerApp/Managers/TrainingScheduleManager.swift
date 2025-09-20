@@ -194,9 +194,24 @@ class TrainingScheduleManager: ObservableObject {
         print("🔍 DEBUG generateWeek - Requested date: \(date)")
         print("🔍 DEBUG generateWeek - Current block: \(currentBlock?.type.rawValue ?? "nil")")
         
+        // Auto-initialize program if none exists - using FIXED start date to avoid daily program creation
+        if currentProgram == nil {
+            print("🔄 DEBUG: currentProgram is nil during generateWeek - attempting explicit load")
+            loadProgram()
+            
+            if currentProgram == nil {
+                // Use simulated time for start date - only initialize ONCE, not daily
+                let startDate = Calendar.current.startOfDay(for: Date.current)
+                print("🔄 Auto-initializing training program during generateWeek with simulated start date: \(startDate)")
+                startNewProgram(startDate: startDate)
+            } else {
+                print("✅ Found existing program after explicit load during generateWeek")
+            }
+        }
+        
         // Find the appropriate block for the requested date, not just current block
         guard let program = currentProgram else {
-            print("⚠️ DEBUG generateWeek - No current program")
+            print("❌ Failed to auto-initialize program during generateWeek")
             return []
         }
         
@@ -249,7 +264,7 @@ class TrainingScheduleManager: ObservableObject {
                     print("📥 DEBUG: Planned workout content: \(savedDay.plannedWorkout ?? "nil")")
                     print("🔍 DEBUG: StructuredWorkout exists: \(savedDay.structuredWorkout != nil)")
                     if let structuredWorkout = savedDay.structuredWorkout {
-                        print("🔍 DEBUG: StructuredWorkout title: '\(structuredWorkout.title)'")
+                        print("🔍 DEBUG: StructuredWorkout title: '\(String(describing: structuredWorkout.title))'")
                         print("🔍 DEBUG: StructuredWorkout exercise count: \(structuredWorkout.exercises.count)")
                     }
                 } else {
@@ -598,7 +613,7 @@ class TrainingScheduleManager: ObservableObject {
     func planStructuredWorkout(for date: Date, structuredWorkout: StructuredWorkout, notes: String?, icon: String?) -> Bool {
         print("🔍 DEBUG planStructuredWorkout: === STARTING ===")
         print("🔍 DEBUG planStructuredWorkout: Date = \(date)")
-        print("🔍 DEBUG planStructuredWorkout: Workout title = '\(structuredWorkout.title)'")
+        print("🔍 DEBUG planStructuredWorkout: Workout title = '\(String(describing: structuredWorkout.title))'")
         print("🔍 DEBUG planStructuredWorkout: Exercise count = \(structuredWorkout.exercises.count)")
         let distribution = structuredWorkout.exerciseDistribution
         print("🔍 DEBUG planStructuredWorkout: Distribution = cardio:\(distribution.cardio) strength:\(distribution.strength) mobility:\(distribution.mobility) yoga:\(distribution.yoga) generic:\(distribution.generic)")
@@ -803,6 +818,81 @@ class TrainingScheduleManager: ObservableObject {
         }
         
         return nil
+    }
+    
+    // MARK: - Schedule Snapshot Generation for System Prompt Optimization
+    
+    /// Generate schedule snapshot for system prompt injection
+    func generateScheduleSnapshot() -> String {
+        // Auto-initialize program if none exists - using FIXED start date to avoid daily program creation
+        if currentProgram == nil {
+            print("🔄 DEBUG: currentProgram is nil during snapshot generation - attempting explicit load")
+            loadProgram()
+            
+            if currentProgram == nil {
+                // Use simulated time for start date - only initialize ONCE, not daily
+                let startDate = Calendar.current.startOfDay(for: Date.current)
+                print("🔄 Auto-initializing training program during snapshot generation with simulated start date: \(startDate)")
+                startNewProgram(startDate: startDate)
+            } else {
+                print("✅ Found existing program after explicit load during snapshot generation")
+            }
+        }
+        
+        guard let program = currentProgram else {
+            print("❌ Failed to auto-initialize program during snapshot generation")
+            return "## CURRENT SCHEDULE SNAPSHOT\n**Status**: Error initializing training program"
+        }
+        
+        let current = Date.current
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        
+        var snapshot = "## CURRENT SCHEDULE SNAPSHOT\n"
+        snapshot += "**Generated**: \(formatter.string(from: current))\n"
+        snapshot += "**Program**: Week \(totalWeekInProgram) of 20 - \(currentBlock?.type.rawValue ?? "Unknown") Block"
+        if let block = currentBlock {
+            snapshot += " (Week \(currentWeekInBlock) of \(block.type.duration))\n"
+        } else {
+            snapshot += "\n"
+        }
+        
+        // Add basic current week info with explicit debugging
+        snapshot += "\n### THIS WEEK\n"
+        let weekDays = generateWeek(containing: current)
+        
+        print("🔍 SNAPSHOT_DEBUG: Current date: \(current)")
+        print("🔍 SNAPSHOT_DEBUG: Generated \(weekDays.count) days for week")
+        
+        for day in weekDays {
+            let dayName = day.dayOfWeek.name
+            let isToday = Calendar.current.isDate(day.date, inSameDayAs: current)
+            let hasWorkout = day.hasWorkout
+            
+            print("🔍 SNAPSHOT_DEBUG: \(dayName) - Date: \(day.date), IsToday: \(isToday), HasWorkout: \(hasWorkout)")
+            
+            if isToday {
+                if hasWorkout {
+                    snapshot += "- **\(dayName) (TODAY)**: Workout planned ⚡\n"
+                    print("🔍 SNAPSHOT_DEBUG: Added TODAY with workout for \(dayName)")
+                } else {
+                    snapshot += "- **\(dayName) (TODAY)**: NO WORKOUT PLANNED ⚡ [TOOL_CALL REQUIRED]\n"
+                    print("🔍 SNAPSHOT_DEBUG: Added TODAY without workout for \(dayName)")
+                }
+            } else if hasWorkout {
+                snapshot += "- **\(dayName)**: Workout scheduled\n"
+                print("🔍 SNAPSHOT_DEBUG: Added workout for \(dayName)")
+            } else {
+                // Show all days to avoid confusion about which day needs planning
+                snapshot += "- **\(dayName)**: No workout\n"
+                print("🔍 SNAPSHOT_DEBUG: Added no workout for \(dayName)")
+            }
+        }
+        
+        print("🔍 SNAPSHOT_DEBUG: Final snapshot:\n\(snapshot)")
+        
+        return snapshot
     }
 }
 
