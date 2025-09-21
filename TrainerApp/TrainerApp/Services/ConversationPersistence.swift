@@ -17,7 +17,7 @@ struct ChatMessage: Identifiable, Codable {
     let date: Date
     var state: MessageState
     
-    init(id: UUID = UUID(), role: Role, content: String, date: Date = Date(), state: MessageState = .completed) {
+    init(id: UUID = UUID(), role: Role, content: String, date: Date = Date.current, state: MessageState = .completed) {
         self.id = id
         self.role = role
         self.content = content
