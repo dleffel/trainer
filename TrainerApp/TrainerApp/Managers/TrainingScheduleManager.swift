@@ -430,34 +430,54 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Restart training program
     func restartProgram(startDate: Date = Date.current) {
+        print("🧹 DEBUG restartProgram: === STARTING COMPREHENSIVE CLEAR ===")
+        print("🧹 DEBUG restartProgram: Current workoutDays count: \(workoutDays.count)")
+        
         // Clear old program data
         currentProgram = nil
         workoutDays = []
         
-        // Clear completion data
+        print("🧹 DEBUG restartProgram: In-memory data cleared")
+        
+        // Clear completion data with extended range
         if useICloud {
+            print("🧹 DEBUG restartProgram: Clearing iCloud data...")
             iCloudStore.removeObject(forKey: programKey)
-            // Clear workout completion keys
-            for i in -30...30 {
+            
+            // Extended clearing range to catch more data
+            var clearedKeys: [String] = []
+            for i in -365...365 {
                 if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
                     let key = "workout_\(dateKey(for: date))"
                     iCloudStore.removeObject(forKey: key)
+                    clearedKeys.append(key)
                 }
             }
+            print("🧹 DEBUG restartProgram: Cleared \(clearedKeys.count) iCloud keys")
             iCloudStore.synchronize()
         }
         
-        // Clear local storage
+        // Clear local storage with extended range
+        print("🧹 DEBUG restartProgram: Clearing UserDefaults data...")
         userDefaults.removeObject(forKey: programKey)
-        for i in -30...30 {
+        
+        var clearedLocalKeys: [String] = []
+        for i in -365...365 {
             if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
                 let key = "workout_\(dateKey(for: date))"
                 userDefaults.removeObject(forKey: key)
+                clearedLocalKeys.append(key)
             }
         }
+        print("🧹 DEBUG restartProgram: Cleared \(clearedLocalKeys.count) UserDefaults keys")
+        
+        print("🧹 DEBUG restartProgram: === CLEAR COMPLETE, STARTING NEW PROGRAM ===")
         
         // Start fresh program
         startNewProgram(startDate: startDate)
+        
+        print("🧹 DEBUG restartProgram: New program started with \(workoutDays.count) workout days")
+        print("🧹 DEBUG restartProgram: === RESTART COMPLETE ===")
     }
     
     /// Update workouts for a specific week
