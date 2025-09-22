@@ -538,29 +538,27 @@ private struct SettingsSheet: View {
                         manager.currentBlock = nil
                         manager.workoutDays = []
                         
-                        // Clear from UserDefaults and iCloud
+                        // Clear all workout data using TrainingScheduleManager's proper clear method
+                        TrainingScheduleManager.shared.restartProgram()
+                        
+                        // Also clear any remaining workout keys using brute force approach
                         let userDefaults = UserDefaults.standard
                         let iCloudStore = NSUbiquitousKeyValueStore.default
                         
-                        // Clear program key
-                        userDefaults.removeObject(forKey: "TrainingProgram")
-                        iCloudStore.removeObject(forKey: "TrainingProgram")
-                        
-                        // Clear workout completion keys for a reasonable date range
-                        let calendar = Calendar.current
-                        for dayOffset in -365...365 {
-                            if let date = calendar.date(byAdding: .day, value: dayOffset, to: Date()) {
-                                let formatter = DateFormatter()
-                                formatter.dateFormat = "yyyy-MM-dd"
-                                let dateKey = formatter.string(from: date)
-                                let workoutKey = "workout_\(dateKey)"
-                                
-                                userDefaults.removeObject(forKey: workoutKey)
-                                iCloudStore.removeObject(forKey: workoutKey)
+                        // Clear all keys starting with "workout_" from UserDefaults
+                        let allKeys = userDefaults.dictionaryRepresentation().keys
+                        for key in allKeys {
+                            if key.hasPrefix("workout_") {
+                                userDefaults.removeObject(forKey: key)
+                                print("🧹 Cleared UserDefaults key: \(key)")
                             }
                         }
                         
+                        // For iCloud, we'll rely on TrainingScheduleManager's clear method
+                        // since NSUbiquitousKeyValueStore doesn't provide a way to list all keys
                         iCloudStore.synchronize()
+                        
+                        print("✅ All workout data cleared using comprehensive approach")
                     } label: {
                         Label("Clear Workout Data", systemImage: "calendar.badge.minus")
                     }

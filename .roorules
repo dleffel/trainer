@@ -20,8 +20,14 @@
 - Always check if the current date is before/after the program start date
 - Use the program's effective date when initializing calendar views
 
+## Data Model Changes
+- When adding new fields to WorkoutDay, StructuredWorkout, or other persisted models, ALWAYS update TrainingScheduleManager's clearProgram() method to ensure the new fields are properly cleared
+- When adding new storage keys or persistence mechanisms, ensure they are included in all clear data operations
+- Test that "Clear Workout Data" completely removes all traces of enhanced data structures
+
 ## Reminders
 - Test builds without changing directories
 - Maintain proper file path references
 - Keep all operations relative to the workspace root
 - Be aware of date simulation in training schedule contexts
+- Always verify clear data functionality works completely when adding new model fields
