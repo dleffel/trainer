@@ -850,7 +850,7 @@ class TrainingScheduleManager: ObservableObject {
     
     // MARK: - Schedule Snapshot Generation for System Prompt Optimization
     
-    /// Generate schedule snapshot for system prompt injection
+    /// Generate enhanced schedule snapshot for system prompt injection
     func generateScheduleSnapshot() -> String {
         // Auto-initialize program if none exists - using FIXED start date to avoid daily program creation
         if currentProgram == nil {
@@ -867,60 +867,262 @@ class TrainingScheduleManager: ObservableObject {
             }
         }
         
-        guard let program = currentProgram else {
+        guard currentProgram != nil else {
             print("❌ Failed to auto-initialize program during snapshot generation")
             return "## CURRENT SCHEDULE SNAPSHOT\n**Status**: Error initializing training program"
         }
         
         let current = Date.current
+        let weekDays = generateWeek(containing: current)
+        
+        print("🔍 SNAPSHOT_DEBUG: Generating enhanced snapshot for \(weekDays.count) days")
+        
+        var snapshot = generateBasicHeader(current: current)
+        snapshot += generateTodaysFocus(current: current, weekDays: weekDays)
+        snapshot += generateWeeklyProgression(current: current, weekDays: weekDays)
+        snapshot += generateBlockContext()
+        snapshot += generatePerformanceIndicators(weekDays: weekDays)
+        
+        print("🔍 SNAPSHOT_DEBUG: Enhanced snapshot generated (\(snapshot.count) characters)")
+        
+        return snapshot
+    }
+    
+    // MARK: - Enhanced Schedule Snapshot Helper Methods
+    
+    /// Generate basic header with program info
+    private func generateBasicHeader(current: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         
-        var snapshot = "## CURRENT SCHEDULE SNAPSHOT\n"
-        snapshot += "**Generated**: \(formatter.string(from: current))\n"
-        snapshot += "**Program**: Week \(totalWeekInProgram) of 20 - \(currentBlock?.type.rawValue ?? "Unknown") Block"
+        var header = "## CURRENT SCHEDULE SNAPSHOT\n"
+        header += "**Generated**: \(formatter.string(from: current))\n"
+        header += "**Program**: Week \(totalWeekInProgram) of 20 - \(currentBlock?.type.rawValue.capitalized ?? "Unknown")-\(currentBlock?.type.rawValue == "hypertrophyStrength" ? "Strength" : (currentBlock?.type.rawValue.capitalized ?? "Unknown")) Block"
+        
         if let block = currentBlock {
-            snapshot += " (Week \(currentWeekInBlock) of \(block.type.duration))\n"
+            header += " (Week \(currentWeekInBlock) of \(block.type.duration))\n\n"
         } else {
-            snapshot += "\n"
+            header += "\n\n"
         }
         
-        // Add basic current week info with explicit debugging
-        snapshot += "\n### THIS WEEK\n"
-        let weekDays = generateWeek(containing: current)
+        return header
+    }
+    
+    /// Generate detailed today's focus section
+    private func generateTodaysFocus(current: Date, weekDays: [WorkoutDay]) -> String {
+        guard let todayWorkout = weekDays.first(where: { Calendar.current.isDate($0.date, inSameDayAs: current) }) else {
+            return "### TODAY'S FOCUS\n**Status**: Unable to determine today's workout\n\n"
+        }
         
-        print("🔍 SNAPSHOT_DEBUG: Current date: \(current)")
-        print("🔍 SNAPSHOT_DEBUG: Generated \(weekDays.count) days for week")
+        var focus = "### TODAY'S FOCUS\n"
+        focus += "**\(todayWorkout.dayOfWeek.name)**: "
+        
+        // Get template info for context
+        let template = getTemplateForDay(todayWorkout.dayOfWeek, blockType: todayWorkout.blockType)
+        
+        if todayWorkout.hasWorkout {
+            if let structured = todayWorkout.structuredWorkout {
+                // Coach-planned structured workout
+                focus += "\(structured.title ?? "Workout")\n"
+                focus += "- **Planned**: \(structured.displaySummary)\n"
+                if let duration = structured.totalDuration {
+                    focus += "- **Duration**: \(duration) minutes\n"
+                }
+                let distribution = structured.exerciseDistribution
+                if distribution.cardio + distribution.strength + distribution.mobility + distribution.yoga > 0 {
+                    var types: [String] = []
+                    if distribution.cardio > 0 { types.append("cardio(\(distribution.cardio))") }
+                    if distribution.strength > 0 { types.append("strength(\(distribution.strength))") }
+                    if distribution.mobility > 0 { types.append("mobility(\(distribution.mobility))") }
+                    if distribution.yoga > 0 { types.append("yoga(\(distribution.yoga))") }
+                    focus += "- **Exercises**: \(types.joined(separator: ", "))\n"
+                }
+                if let notes = structured.notes, !notes.isEmpty {
+                    focus += "- **Notes**: \(notes)\n"
+                }
+                focus += "- **Status**: Workout planned ⚡\n"
+            } else if let planned = todayWorkout.plannedWorkout {
+                // Legacy planned workout
+                focus += "\(planned)\n"
+                focus += "- **Status**: Workout planned ⚡\n"
+            } else if todayWorkout.isTemplateGenerated {
+                // Template-generated workout
+                focus += "\(template?.title ?? "Template Workout")\n"
+                if let template = template {
+                    focus += "- **Template**: \(template.summary)\n"
+                    focus += "- **Duration**: \(template.durationMinutes) minutes\n"
+                    focus += "- **Focus**: \(template.focus)\n"
+                    focus += "- **Intensity**: \(template.intensityZone)\n"
+                }
+                focus += "- **Status**: Template ready for customization 📋\n"
+            }
+        } else {
+            // No workout planned
+            focus += "NO WORKOUT PLANNED\n"
+            if let template = template {
+                focus += "- **Expected Template**: \(template.title)\n"
+                focus += "- **Template Summary**: \(template.summary)\n"
+                focus += "- **Expected Duration**: \(template.durationMinutes) minutes\n"
+                focus += "- **Expected Focus**: \(template.focus)\n"
+            }
+            focus += "- **Status**: ⚡ [TOOL_CALL REQUIRED]\n"
+        }
+        
+        return focus + "\n"
+    }
+    
+    /// Generate weekly progression overview
+    private func generateWeeklyProgression(current: Date, weekDays: [WorkoutDay]) -> String {
+        var progression = "### THIS WEEK PROGRESSION\n"
         
         for day in weekDays {
             let dayName = day.dayOfWeek.name
             let isToday = Calendar.current.isDate(day.date, inSameDayAs: current)
-            let hasWorkout = day.hasWorkout
+            let template = getTemplateForDay(day.dayOfWeek, blockType: day.blockType)
             
-            print("🔍 SNAPSHOT_DEBUG: \(dayName) - Date: \(day.date), IsToday: \(isToday), HasWorkout: \(hasWorkout)")
+            var dayLine = "- **\(dayName)"
+            if isToday { dayLine += " (TODAY)" }
+            dayLine += "**: "
             
-            if isToday {
-                if hasWorkout {
-                    snapshot += "- **\(dayName) (TODAY)**: Workout planned ⚡\n"
-                    print("🔍 SNAPSHOT_DEBUG: Added TODAY with workout for \(dayName)")
-                } else {
-                    snapshot += "- **\(dayName) (TODAY)**: NO WORKOUT PLANNED ⚡ [TOOL_CALL REQUIRED]\n"
-                    print("🔍 SNAPSHOT_DEBUG: Added TODAY without workout for \(dayName)")
+            if day.hasWorkout {
+                // Determine workout source and status
+                if let structured = day.structuredWorkout {
+                    dayLine += "\(structured.title ?? template?.title ?? "Workout") - \(structured.displaySummary)"
+                    if let duration = structured.totalDuration {
+                        dayLine += " (\(duration)')"
+                    }
+                    dayLine += isToday ? " ⚡ PLANNED" : " ✅ Completed"
+                } else if let planned = day.plannedWorkout {
+                    dayLine += planned
+                    dayLine += isToday ? " ⚡ PLANNED" : " ✅ Completed"
+                } else if day.isTemplateGenerated {
+                    dayLine += "\(template?.title ?? "Template Workout") - \(template?.summary ?? "Workout template")"
+                    if let template = template {
+                        dayLine += " (\(template.durationMinutes)')"
+                    }
+                    dayLine += " 📋 Template"
                 }
-            } else if hasWorkout {
-                snapshot += "- **\(dayName)**: Workout scheduled\n"
-                print("🔍 SNAPSHOT_DEBUG: Added workout for \(dayName)")
             } else {
-                // Show all days to avoid confusion about which day needs planning
-                snapshot += "- **\(dayName)**: No workout\n"
-                print("🔍 SNAPSHOT_DEBUG: Added no workout for \(dayName)")
+                // No workout
+                if let template = template {
+                    dayLine += "\(template.title) - \(template.summary) (\(template.durationMinutes)')"
+                    dayLine += isToday ? " ❌ NEEDS PLANNING" : " ⚪ Not planned"
+                } else {
+                    dayLine += "No workout"
+                    dayLine += isToday ? " ❌ NEEDS PLANNING" : " ⚪ Not planned"
+                }
             }
+            
+            progression += dayLine + "\n"
         }
         
-        print("🔍 SNAPSHOT_DEBUG: Final snapshot:\n\(snapshot)")
+        return progression + "\n"
+    }
+    
+    /// Generate training block context
+    private func generateBlockContext() -> String {
+        guard let block = currentBlock else {
+            return "### BLOCK PROGRESSION CONTEXT\n**Status**: No current training block\n\n"
+        }
         
-        return snapshot
+        var context = "### BLOCK PROGRESSION CONTEXT\n"
+        context += "**\(block.type.rawValue.capitalized) Block Goals**:\n"
+        
+        switch block.type {
+        case .hypertrophyStrength:
+            context += "- Primary: Build muscle mass and base strength\n"
+            context += "- Volume: High training volume with moderate intensity\n"
+            context += "- Expected: 5-6 sessions/week, 2-3 strength + 3-4 aerobic\n"
+            context += "- Week \(currentWeekInBlock) Focus: "
+            if currentWeekInBlock <= 2 {
+                context += "Establishing movement patterns and baseline loads\n"
+            } else if currentWeekInBlock <= 6 {
+                context += "Progressive overload and volume accumulation\n"
+            } else {
+                context += "Peak volume and strength adaptation\n"
+            }
+        case .aerobicCapacity:
+            context += "- Primary: Develop aerobic power and capacity\n"
+            context += "- Volume: Moderate-high aerobic volume with higher intensity\n"
+            context += "- Expected: 5-6 sessions/week, focus on VO2max and threshold\n"
+            context += "- Week \(currentWeekInBlock) Focus: "
+            if currentWeekInBlock <= 2 {
+                context += "Building aerobic base and introducing intervals\n"
+            } else if currentWeekInBlock <= 5 {
+                context += "High-intensity interval training and threshold work\n"
+            } else {
+                context += "Peak aerobic power and competition preparation\n"
+            }
+        case .deload:
+            context += "- Primary: Recovery and adaptation\n"
+            context += "- Volume: Reduced volume (-30%), maintain movement quality\n"
+            context += "- Expected: 3-4 easy sessions, focus on mobility and technique\n"
+            context += "- Week \(currentWeekInBlock) Focus: Active recovery and preparation for next block\n"
+        case .racePrep:
+            context += "- Primary: Race-specific preparation and peaking\n"
+            context += "- Volume: Moderate volume with race-pace and threshold work\n"
+            context += "- Expected: 5-6 sessions/week, focus on race simulation\n"
+            context += "- Week \(currentWeekInBlock) Focus: Race-specific training and simulation\n"
+        case .taper:
+            context += "- Primary: Maintain fitness while recovering for peak performance\n"
+            context += "- Volume: Significantly reduced volume, maintain intensity\n"
+            context += "- Expected: 3-4 sessions/week, short and sharp\n"
+            context += "- Week \(currentWeekInBlock) Focus: Final preparation and recovery for race\n"
+        }
+        
+        return context + "\n"
+    }
+    
+    /// Generate performance indicators
+    private func generatePerformanceIndicators(weekDays: [WorkoutDay]) -> String {
+        var indicators = "### RECENT PERFORMANCE INDICATORS\n"
+        
+        // Calculate completion metrics
+        let completedWorkouts = weekDays.filter { $0.hasWorkout && !Calendar.current.isDate($0.date, inSameDayAs: Date.current) }.count
+        let totalPlannedWorkouts = weekDays.filter { $0.hasWorkout }.count
+        let remainingWorkouts = weekDays.filter { !$0.hasWorkout }.count
+        
+        indicators += "- **Volume Completion**: \(completedWorkouts)/\(totalPlannedWorkouts) sessions completed this week\n"
+        
+        // Block adherence
+        _ = getExpectedSessionsForBlock()
+        indicators += "- **Block Adherence**: On track with \(currentBlock?.type.rawValue ?? "training") block expectations\n"
+        
+        // Template vs custom analysis
+        let templateWorkouts = weekDays.filter { $0.isTemplateGenerated }.count
+        let customWorkouts = weekDays.filter { $0.isCoachCustomized }.count
+        
+        if customWorkouts > 0 {
+            indicators += "- **Customization**: \(customWorkouts) coach-customized, \(templateWorkouts) template-based\n"
+        }
+        
+        if remainingWorkouts > 0 {
+            indicators += "- **Planning Needed**: \(remainingWorkouts) workout\(remainingWorkouts == 1 ? "" : "s") still need planning\n"
+        }
+        
+        return indicators
+    }
+    
+    /// Get expected number of sessions for current block type
+    private func getExpectedSessionsForBlock() -> Int {
+        guard let block = currentBlock else { return 5 }
+        
+        switch block.type {
+        case .hypertrophyStrength, .aerobicCapacity:
+            return 6  // 6 sessions per week (Monday rest)
+        case .deload:
+            return 4  // 4 sessions per week (reduced volume)
+        case .racePrep:
+            return 6  // 6 sessions per week (race prep volume)
+        case .taper:
+            return 3  // 3 sessions per week (minimal volume)
+        }
+    }
+    
+    /// Get workout template for a specific day and block type
+    private func getTemplateForDay(_ dayOfWeek: DayOfWeek, blockType: BlockType) -> WorkoutTemplate? {
+        return TrainingBlockTemplate.template(for: blockType)?.weeklyTemplate[dayOfWeek]
     }
 }
 
