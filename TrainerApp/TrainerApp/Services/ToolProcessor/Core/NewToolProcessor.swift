@@ -19,9 +19,11 @@ class NewToolProcessor {
     }
 
     private func setupExecutors() {
+        // Only register tools that are currently mentioned in the system prompt:
+        // - get_health_data
+        // - plan_workout
+        // - update_workout
         registry.register(executor: HealthDataToolExecutor())
-        registry.register(executor: TrainingProgramToolExecutor())
-        registry.register(executor: ScheduleToolExecutor())
         registry.register(executor: WorkoutToolExecutor())
         print("🧭 NewToolProcessor: Executors registered: \(registry.allSupportedTools)")
     }

@@ -5,9 +5,7 @@ class WorkoutToolExecutor: ToolExecutor {
     var supportedToolNames: [String] {
         return [
             "plan_workout",
-            "update_workout",
-            "update_workout_legacy",
-            "delete_workout"
+            "update_workout"
         ]
     }
 
@@ -62,21 +60,6 @@ class WorkoutToolExecutor: ToolExecutor {
                 success: success,
                 error: success ? nil : result
             )
-
-        case "update_workout_legacy":
-            print("✏️ WorkoutToolExecutor: Matched update_workout_legacy (string-based) tool")
-            let dateParam = toolCall.parameters["date"] as? String ?? "today"
-            let workoutParam = toolCall.parameters["workout"] as? String ?? ""
-            let reasonParam = toolCall.parameters["reason"] as? String
-            let result = try await executeUpdateWorkout(date: dateParam, workout: workoutParam, reason: reasonParam)
-            return ToolProcessor.ToolCallResult(toolName: toolCall.name, result: result)
-
-        case "delete_workout":
-            print("🗑️ WorkoutToolExecutor: Matched delete_workout tool")
-            let dateParam = toolCall.parameters["date"] as? String ?? "today"
-            let reasonParam = toolCall.parameters["reason"] as? String
-            let result = try await executeDeleteWorkout(date: dateParam, reason: reasonParam)
-            return ToolProcessor.ToolCallResult(toolName: toolCall.name, result: result)
 
         default:
             throw ToolError.unknownTool(toolCall.name)
@@ -229,97 +212,4 @@ class WorkoutToolExecutor: ToolExecutor {
         }
     }
 
-    // MARK: - Legacy (string-based) methods
-
-    /// Plan a single day's workout (LEGACY - for backward compatibility)
-    private func executePlanWorkout(date: String, workout: String, notes: String?, icon: String?) async throws -> String {
-        print("📝 WorkoutToolExecutor: Planning single workout for \(date) (LEGACY)")
-        if let icon = icon {
-            print("   with icon: \(icon)")
-        }
-
-        return await MainActor.run {
-            let manager = TrainingScheduleManager.shared
-            let targetDate = ToolUtilities.parseDate(date)
-
-            // Check if program exists
-            guard manager.programStartDate != nil else {
-                return "[Error: No training program started. Use start_training_program first]"
-            }
-
-            // Call the legacy single-day planning method with icon
-            if manager.planSingleWorkout(for: targetDate, workout: workout, notes: notes, icon: icon) {
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "EEEE, MMM d"
-                let dateStr = dateFormatter.string(from: targetDate)
-
-                return """
-                [Workout Planned]
-                • Date: \(dateStr)
-                • Workout: \(workout)
-                \(notes != nil ? "• Notes: \(notes!)" : "")
-                \(icon != nil ? "• Icon: \(icon!)" : "")
-                • Status: Saved to calendar
-                """
-            } else {
-                return "[Error: Could not plan workout for \(date)]"
-            }
-        }
-    }
-
-    /// Update an existing workout (legacy)
-    private func executeUpdateWorkout(date: String, workout: String, reason: String?) async throws -> String {
-        print("✏️ WorkoutToolExecutor: Updating workout for \(date)")
-
-        return await MainActor.run {
-            let manager = TrainingScheduleManager.shared
-            let targetDate = ToolUtilities.parseDate(date)
-
-            // Get existing workout first
-            if let existingDay = manager.getWorkoutDay(for: targetDate) {
-                let previousWorkout = existingDay.plannedWorkout ?? "None"
-
-                if manager.updateSingleWorkout(for: targetDate, workout: workout, reason: reason) {
-                    let dateFormatter = DateFormatter()
-                    dateFormatter.dateFormat = "EEEE, MMM d"
-                    let dateStr = dateFormatter.string(from: targetDate)
-
-                    return """
-                    [Workout Updated]
-                    • Date: \(dateStr)
-                    • Previous: \(previousWorkout)
-                    • Updated to: \(workout)
-                    \(reason != nil ? "• Reason: \(reason!)" : "")
-                    """
-                }
-            }
-
-            return "[Error: Could not update workout for \(date). No existing workout found]"
-        }
-    }
-
-    /// Delete a planned workout
-    private func executeDeleteWorkout(date: String, reason: String?) async throws -> String {
-        print("🗑️ WorkoutToolExecutor: Deleting workout for \(date)")
-
-        return await MainActor.run {
-            let manager = TrainingScheduleManager.shared
-            let targetDate = ToolUtilities.parseDate(date)
-
-            if manager.deleteSingleWorkout(for: targetDate, reason: reason) {
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "EEEE, MMM d"
-                let dateStr = dateFormatter.string(from: targetDate)
-
-                return """
-                [Workout Deleted]
-                • Date: \(dateStr)
-                \(reason != nil ? "• Reason: \(reason!)" : "")
-                • Status: Removed from calendar
-                """
-            } else {
-                return "[Error: Could not delete workout for \(date)]"
-            }
-        }
-    }
 }
