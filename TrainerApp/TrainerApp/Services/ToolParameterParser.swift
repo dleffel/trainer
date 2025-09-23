@@ -110,86 +110,90 @@ class ToolParameterParser {
         }
     }
     
-    /// Parse workout_json parameters with proper JSON extraction
+    /// Parse workout_json parameters with robust JSON extraction (quote/escape aware) and simple parsing of other fields
     private func parseWorkoutJsonParameters(_ paramsStr: String) -> [String: Any] {
         var parameters: [String: Any] = [:]
-        
-        // Use smart parameter parsing for workout_json
-        let paramPairs = paramsStr.components(separatedBy: ", ")
-        
-        for pair in paramPairs {
-            if let colonIndex = pair.firstIndex(of: ":") {
-                let key = String(pair[..<colonIndex]).trimmingCharacters(in: .whitespaces)
-                let valueStartIndex = paramsStr.index(after: colonIndex)
-                var value = String(pair[valueStartIndex...]).trimmingCharacters(in: .whitespaces)
-                
-                // Remove surrounding quotes if present
-                if value.hasPrefix("\"") && value.hasSuffix("\"") {
-                    value = String(value.dropFirst().dropLast())
-                }
-                
-                // Special handling for workout_json - preserve the entire JSON string
-                if key == "workout_json" {
-                    if let extractedJson = extractWorkoutJson(from: paramsStr) {
-                        parameters["workout_json"] = extractedJson
-                    }
-                } else {
-                    parameters[key] = value
-                }
-            }
+
+        // 1) Extract the workout_json payload first (handles very large, nested JSON with escapes)
+        guard let (jsonValue, jsonCloseIndex) = extractWorkoutJsonAndEndIndex(from: paramsStr) else {
+            print("❌ ToolParameterParser: workout_json not found or malformed in params (length=\(paramsStr.count))")
+            // Fallback to generic parsing to avoid returning empty params entirely
+            return parseGenericStructuredParameters(paramsStr)
         }
-        
+        parameters["workout_json"] = jsonValue
+        print("🧪 ToolParameterParser: Extracted workout_json length=\(jsonValue.count) chars")
+
+        // 2) Parse remaining simple fields (notes/icon/date) from the remainder around the JSON
+        // We search the entire string with regex because notes/icon are short and appear outside JSON.
+        if let notes = matchQuotedValue(for: "notes", in: paramsStr) {
+            parameters["notes"] = notes
+            print("🧪 ToolParameterParser: Extracted notes length=\(notes.count)")
+        }
+        if let icon = matchQuotedValue(for: "icon", in: paramsStr) {
+            parameters["icon"] = icon
+            print("🧪 ToolParameterParser: Extracted icon='\(icon)'")
+        }
+        if let date = matchQuotedValue(for: "date", in: paramsStr) {
+            parameters["date"] = date
+            print("🧪 ToolParameterParser: Extracted date='\(date)'")
+        }
+
         return parameters
     }
     
-    /// Extract and parse workout JSON specifically
-    private func extractWorkoutJson(from paramsStr: String) -> String? {
-        // Find the complete JSON by looking for the opening quote after workout_json:
+    /// Extract workout_json value and return it along with the index just after the closing quote
+    /// Handles escaped quotes (\") correctly.
+    private func extractWorkoutJsonAndEndIndex(from paramsStr: String) -> (String, String.Index)? {
         guard let workoutJsonRange = paramsStr.range(of: "workout_json:") else {
             return nil
         }
-        
-        let searchStart = workoutJsonRange.upperBound
-        
-        // Skip whitespace and find opening quote
-        var currentIndex = searchStart
-        while currentIndex < paramsStr.endIndex && paramsStr[currentIndex].isWhitespace {
-            currentIndex = paramsStr.index(after: currentIndex)
+        var idx = workoutJsonRange.upperBound
+
+        // Skip whitespace
+        while idx < paramsStr.endIndex, paramsStr[idx].isWhitespace {
+            idx = paramsStr.index(after: idx)
         }
-        
-        // Skip the opening quote
-        if currentIndex < paramsStr.endIndex && paramsStr[currentIndex] == "\"" {
-            currentIndex = paramsStr.index(after: currentIndex)
+
+        // Expect opening quote
+        guard idx < paramsStr.endIndex, paramsStr[idx] == "\"" else {
+            return nil
         }
-        
-        // Find the closing quote, handling escaped quotes
-        var jsonEndIndex = currentIndex
+        let startContent = paramsStr.index(after: idx) // character after opening quote
+        var i = startContent
         var inEscape = false
-        
-        while jsonEndIndex < paramsStr.endIndex {
-            let char = paramsStr[jsonEndIndex]
-            
+
+        while i < paramsStr.endIndex {
+            let ch = paramsStr[i]
             if inEscape {
                 inEscape = false
-            } else if char == "\\" {
+            } else if ch == "\\" {
                 inEscape = true
-            } else if char == "\"" {
-                // Found the closing quote - check if it's really the end
-                let nextIndex = paramsStr.index(after: jsonEndIndex)
-                if nextIndex >= paramsStr.endIndex || paramsStr[nextIndex] == "," || paramsStr[nextIndex].isWhitespace {
-                    // This is the real closing quote
-                    break
-                }
+            } else if ch == "\"" {
+                // closing quote reached
+                let jsonValue = String(paramsStr[startContent..<i])
+                let afterClosing = paramsStr.index(after: i)
+                return (jsonValue, afterClosing)
             }
-            
-            jsonEndIndex = paramsStr.index(after: jsonEndIndex)
+            i = paramsStr.index(after: i)
         }
-        
-        if jsonEndIndex < paramsStr.endIndex {
-            return String(paramsStr[currentIndex..<jsonEndIndex])
-        }
-        
         return nil
+    }
+
+    /// Match a quoted simple value for a given key (e.g., key: "value"), handling escaped quotes in the value
+    private func matchQuotedValue(for key: String, in text: String) -> String? {
+        // Regex: key:\s*"((?:[^"\\]|\\.)*)"
+        let pattern = "\(key)\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\""
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = regex.firstMatch(in: text, options: [], range: range),
+              let valueRange = Range(match.range(at: 1), in: text) else {
+            return nil
+        }
+        let raw = String(text[valueRange])
+        // Unescape common sequences
+        return raw
+            .replacingOccurrences(of: "\\\"", with: "\"")
+            .replacingOccurrences(of: "\\\\", with: "\\")
     }
     
     /// Parse legacy workouts parameters (weekly schedule tool)

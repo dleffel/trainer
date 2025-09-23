@@ -8,6 +8,9 @@ class ToolProcessor {
     
     private init() {}
     
+    // New modular processor (delegation target)
+    private let newProcessor = NewToolProcessor.shared
+    
     /// Pattern to detect tool calls in AI responses
     private let toolCallPattern = #"\[TOOL_CALL:\s*(\w+)(?:\((.*?)\))?\]"#
     
@@ -43,185 +46,15 @@ class ToolProcessor {
     
     /// Detect tool calls in the AI response
     func detectToolCalls(in response: String) -> [ToolCall] {
-        print("🔍 ToolProcessor: Detecting tool calls in response of length \(response.count)")
-        print("🔍 ToolProcessor: Pattern: \(toolCallPattern)")
-        
-        // Debug: Show first 500 chars to see tool call format
-        let preview = String(response.prefix(500))
-        print("🔍 ToolProcessor: Response preview:\n\(preview)")
-        
-        // Debug: Check for TOOL_CALL markers
-        let toolCallMarkers = response.components(separatedBy: "[TOOL_CALL:").count - 1
-        print("🔍 ToolProcessor: Found \(toolCallMarkers) [TOOL_CALL: markers in response")
-        
-        // 🔍 DIAGNOSTIC: Check for incomplete patterns
-        if response.contains("[TOOL_CALL") && !response.contains("[TOOL_CALL:") {
-            print("🚨 TOOL_DEBUG: INCOMPLETE TOOL_CALL PATTERN - Missing colon!")
-            print("🔍 TOOL_DEBUG: Pattern location: '\(response.suffix(100))'")
-        }
-        
-        if response.contains("[TOOL_CALL:") && !response.contains("]") {
-            print("🚨 TOOL_DEBUG: INCOMPLETE TOOL_CALL PATTERN - Missing closing bracket!")
-            let toolStart = response.lastIndex(of: "[") ?? response.startIndex
-            print("🔍 TOOL_DEBUG: Incomplete pattern: '\(String(response[toolStart...]))'")
-        }
-        
-        // Debug: Try to find plan_week_workouts specifically
-        if response.contains("plan_week_workouts") {
-            print("✅ ToolProcessor: Response contains 'plan_week_workouts'")
-            let range = response.range(of: "plan_week_workouts")!
-            let startIndex = response.index(range.lowerBound, offsetBy: -50, limitedBy: response.startIndex) ?? response.startIndex
-            let endIndex = response.index(range.upperBound, offsetBy: 200, limitedBy: response.endIndex) ?? response.endIndex
-            let context = String(response[startIndex..<endIndex])
-            print("🔍 ToolProcessor: Context around plan_week_workouts:\n\(context)")
-        }
-        
-        var toolCalls: [ToolCall] = []
-        
-        // Try with dotMatchesLineSeparators option for multiline matching
-        guard let regex = try? NSRegularExpression(pattern: toolCallPattern, options: [.dotMatchesLineSeparators]) else {
-            print("❌ ToolProcessor: Failed to create regex")
-            return []
-        }
-        
-        let matches = regex.matches(in: response, options: [], range: NSRange(response.startIndex..., in: response))
-        print("🔍 ToolProcessor: Regex found \(matches.count) matches (expected: \(toolCallMarkers))")
-        
-        for (index, match) in matches.enumerated() {
-            print("🔍 ToolProcessor: Processing match #\(index + 1)")
-            
-            if let nameRange = Range(match.range(at: 1), in: response) {
-                let name = String(response[nameRange])
-                print("🔍 ToolProcessor: Tool name: \(name)")
-                
-                // Parse parameters if present
-                var parameters: [String: Any] = [:]
-                if match.numberOfRanges > 2,
-                   let paramsRange = Range(match.range(at: 2), in: response) {
-                    let paramsStr = String(response[paramsRange])
-                    parameters = parameterParser.parseParameters(paramsStr)
-                }
-                
-                let toolCall = ToolCall(
-                    name: name,
-                    parameters: parameters,
-                    fullMatch: String(response[Range(match.range, in: response)!]),
-                    range: match.range
-                )
-                toolCalls.append(toolCall)
-            }
-        }
-        
-        return toolCalls
+        // Delegate to the new modular processor
+        return newProcessor.detectToolCalls(in: response)
     }
     
     
     /// Execute a tool call and return the result
     func executeTool(_ toolCall: ToolCall) async throws -> ToolCallResult {
-        print("🔧 ToolProcessor: Executing tool '\(toolCall.name)' with parameters: \(toolCall.parameters)")
-        print("🔍 TOOL_DEBUG: Tool execution START for '\(toolCall.name)'")
-        print("🔍 TOOL_DEBUG: Full match was: '\(toolCall.fullMatch)'")
-        
-        do {
-            switch toolCall.name {
-            // Health Data Tools
-            case "get_health_data":
-                print("📊 ToolProcessor: Matched get_health_data tool")
-                let result = try await executeGetHealthData()
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            // Calendar Reading Tools
-            case "get_training_status":
-                print("📅 ToolProcessor: Matched get_training_status tool")
-                let result = try await executeGetTrainingStatus()
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            case "get_weekly_schedule":
-                print("📋 ToolProcessor: Matched get_weekly_schedule tool")
-                let result = try await executeGetWeeklySchedule()
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-                
-            // Calendar Writing Tools
-            case "start_training_program":
-                print("🚀 ToolProcessor: Matched start_training_program tool")
-                let result = try await executeStartTrainingProgram()
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            // Adaptive Planning Tools
-            case "plan_workout":
-                print("📝 ToolProcessor: Matched plan_workout tool")
-                print("🔍 DEBUG plan_workout: All parameters = \(toolCall.parameters)")
-                print("🔍 DEBUG plan_workout: Parameter keys = \(Array(toolCall.parameters.keys))")
-                let dateParam = toolCall.parameters["date"] as? String ?? "today"
-                let workoutJsonParam = toolCall.parameters["workout_json"] as? String
-                let notesParam = toolCall.parameters["notes"] as? String
-                let iconParam = toolCall.parameters["icon"] as? String
-                
-                print("🔍 DEBUG plan_workout: dateParam = \(dateParam)")
-                print("🔍 DEBUG plan_workout: workoutJsonParam exists = \(workoutJsonParam != nil)")
-                print("🔍 DEBUG plan_workout: notesParam = \(notesParam ?? "nil")")
-                print("🔍 DEBUG plan_workout: iconParam = \(iconParam ?? "nil")")
-                
-                // Require workout_json for new structured workouts
-                guard let workoutJson = workoutJsonParam else {
-                    print("❌ DEBUG plan_workout: workout_json parameter missing or nil")
-                    return ToolCallResult(toolName: toolCall.name, result: "[Error: workout_json parameter is required. Provide structured workout data as JSON.]", success: false)
-                }
-                
-                print("✅ DEBUG plan_workout: Found workout_json, length = \(workoutJson.count)")
-                
-                let result = try await executePlanStructuredWorkout(date: dateParam, workoutJson: workoutJson, notes: notesParam, icon: iconParam)
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            case "update_workout":
-                print("✏️ ToolProcessor: Matched update_workout tool")
-                let dateParam = toolCall.parameters["date"] as? String ?? "today"
-                let workoutJsonParam = toolCall.parameters["workout_json"] as? String
-                let notesParam = toolCall.parameters["notes"] as? String
-                let iconParam = toolCall.parameters["icon"] as? String
-                
-                // Require workout_json for structured workouts
-                guard let workoutJson = workoutJsonParam else {
-                    return ToolCallResult(toolName: toolCall.name, result: "[Error: workout_json parameter is required. Provide structured workout data as JSON.]", success: false)
-                }
-                
-                let result = try await executeUpdateStructuredWorkout(date: dateParam, workoutJson: workoutJson, notes: notesParam, icon: iconParam)
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            case "update_workout_legacy":
-                print("✏️ ToolProcessor: Matched update_workout tool")
-                let dateParam = toolCall.parameters["date"] as? String ?? "today"
-                let workoutParam = toolCall.parameters["workout"] as? String ?? ""
-                let reasonParam = toolCall.parameters["reason"] as? String
-                let result = try await executeUpdateWorkout(date: dateParam, workout: workoutParam, reason: reasonParam)
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            case "delete_workout":
-                print("🗑️ ToolProcessor: Matched delete_workout tool")
-                let dateParam = toolCall.parameters["date"] as? String ?? "today"
-                let reasonParam = toolCall.parameters["reason"] as? String
-                let result = try await executeDeleteWorkout(date: dateParam, reason: reasonParam)
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            case "get_workout":
-                print("🔍 ToolProcessor: Matched get_workout tool")
-                let dateParam = toolCall.parameters["date"] as? String ?? "today"
-                let result = try await executeGetWorkout(date: dateParam)
-                return ToolCallResult(toolName: toolCall.name, result: result)
-                
-            default:
-                print("❌ ToolProcessor: Unknown tool '\(toolCall.name)'")
-                throw ToolError.unknownTool(toolCall.name)
-            }
-        } catch {
-            return ToolCallResult(
-                toolName: toolCall.name,
-                result: "",
-                success: false,
-                error: error.localizedDescription
-            )
-        }
+        // Delegate to the new modular processor
+        return try await newProcessor.executeTool(toolCall)
     }
     
     /// Execute the get_health_data tool
@@ -749,81 +582,14 @@ class ToolProcessor {
     /// Process a response that may contain tool calls
     /// Returns cleaned response, whether follow-up is needed, and tool results
     func processResponseWithToolCalls(_ response: String) async throws -> ProcessedResponse {
-        print("🎯 ToolProcessor: Processing response")
-        print("🎯 ToolProcessor: Response preview: \(String(response.prefix(200)))...")
-        
-        // 🔍 DIAGNOSTIC: Log full response for debugging
-        print("🔍 TOOL_DEBUG: Full response length: \(response.count)")
-        print("🔍 TOOL_DEBUG: Response ends with: '\(String(response.suffix(50)))'")
-        print("🔍 TOOL_DEBUG: Contains [TOOL_CALL:: \(response.contains("[TOOL_CALL:"))")
-        
-        let toolCalls = detectToolCalls(in: response)
-        
-        if toolCalls.isEmpty {
-            print("🎯 ToolProcessor: No tool calls found, returning original response")
-            print("🔍 TOOL_DEBUG: DIAGNOSIS CLUE - No tool calls detected despite response")
-            
-            // Check for incomplete tool call patterns
-            if response.contains("[TOOL_CALL") || response.contains("TOOL_CALL:") {
-                print("🚨 TOOL_DEBUG: PARTIAL TOOL CALL DETECTED - Likely streaming interruption!")
-                print("🔍 TOOL_DEBUG: Partial pattern at: '\(response.suffix(100))'")
-            }
-            
-            return ProcessedResponse(
-                cleanedResponse: response,
-                requiresFollowUp: false,
-                toolResults: []
-            )
-        }
-        
-        print("🎯 ToolProcessor: Found \(toolCalls.count) tool calls")
-        
-        var cleanedResponse = response
-        var toolResults: [ToolCallResult] = []
-        
-        // CRITICAL FIX: Execute tools in FORWARD order (preserve logical sequence)
-        print("🔧 ToolProcessor: Executing tools in forward order...")
-        for (index, toolCall) in toolCalls.enumerated() {
-            print("🔧 ToolProcessor: Executing tool \(index + 1)/\(toolCalls.count): \(toolCall.name)")
-            // Execute the tool
-            let result = try await executeTool(toolCall)
-            toolResults.append(result) // Add to end to maintain order
-        }
-        
-        // Remove tool calls from response in REVERSE order (to maintain string indices)
-        print("🧹 ToolProcessor: Removing tool calls from response in reverse order...")
-        for toolCall in toolCalls.reversed() {
-            // Remove the tool call from the response
-            if let range = Range(toolCall.range, in: cleanedResponse) {
-                cleanedResponse.replaceSubrange(range, with: "")
-            }
-        }
-        
-        // Clean up any trailing spaces or punctuation before removed tool calls
-        cleanedResponse = cleanedResponse
-            .replacingOccurrences(of: "  ", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        return ProcessedResponse(
-            cleanedResponse: cleanedResponse,
-            requiresFollowUp: true,
-            toolResults: toolResults
-        )
+        // Delegate to the new modular processor
+        return try await newProcessor.processResponseWithToolCalls(response)
     }
     
     /// Format tool results for inclusion in conversation
     func formatToolResults(_ results: [ToolCallResult]) -> String {
-        var formattedResults: [String] = []
-        
-        for result in results {
-            if result.success {
-                formattedResults.append("Tool '\(result.toolName)' executed successfully:\n\(result.result)")
-            } else {
-                formattedResults.append("Tool '\(result.toolName)' failed: \(result.error ?? "Unknown error")")
-            }
-        }
-        
-        return formattedResults.joined(separator: "\n\n")
+        // Delegate to the new modular processor utilities
+        return newProcessor.formatToolResults(results)
     }
     
     // MARK: - Helper Methods
