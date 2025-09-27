@@ -67,15 +67,37 @@ class WorkoutToolExecutor: ToolExecutor {
         case "log_set_result":
             print("🧾 WorkoutToolExecutor: Matched log_set_result tool")
             // Expected simple params: date, exercise, set, reps, load_lb, load_kg, rir, rpe, notes
-            let dateParam = (toolCall.parameters["date"] as? String) ?? "today"
-            let exercise = toolCall.parameters["exercise"] as? String ?? (toolCall.parameters["exerciseName"] as? String ?? "Unknown")
-            let setStr = toolCall.parameters["set"] as? String
-            let repsStr = toolCall.parameters["reps"] as? String
-            let loadLb = toolCall.parameters["load_lb"] as? String
-            let loadKg = toolCall.parameters["load_kg"] as? String
-            let rirStr = toolCall.parameters["rir"] as? String
-            let rpeStr = toolCall.parameters["rpe"] as? String
-            let notes = toolCall.parameters["notes"] as? String
+            let params = toolCall.parameters
+
+            let dateParam = (params["date"] as? String) ?? "today"
+
+            // Be tolerant to different field names coming from the coach
+            // Prefer explicit "exercise", then common aliases
+            let exercise = (params["exercise"] as? String)
+                ?? (params["exerciseName"] as? String)
+                ?? (params["movement"] as? String)
+                ?? (params["name"] as? String)
+                ?? "Unknown"
+
+            // Accept alternate names for set and reps
+            let setStr = (params["set"] as? String)
+                ?? (params["set_number"] as? String)
+                ?? (params["setIndex"] as? String)
+
+            let repsStr = (params["reps"] as? String)
+                ?? (params["rep"] as? String)
+                ?? (params["repetitions"] as? String)
+
+            // Accept alternate names for weight units
+            let loadLb = (params["load_lb"] as? String)
+                ?? (params["weight_lb"] as? String)
+
+            let loadKg = (params["load_kg"] as? String)
+                ?? (params["weight_kg"] as? String)
+
+            let rirStr = (params["rir"] as? String)
+            let rpeStr = (params["rpe"] as? String)
+            let notes = params["notes"] as? String
 
             let setNumber = setStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
             let reps = repsStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
