@@ -420,6 +420,13 @@ struct WorkoutDetailsCard: View {
 
 struct StructuredWorkoutView: View {
     let workout: StructuredWorkout
+    @State private var selectedExerciseIndex: Int = 0
+    @State private var pageHeights: [Int: CGFloat] = [:]
+    private var pagerHeight: CGFloat {
+        // Keep the pager tight to content to avoid vertical whitespace
+        // with sensible defaults and bounds.
+        max(180, min(pageHeights[selectedExerciseIndex] ?? 320, 600))
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -450,10 +457,64 @@ struct StructuredWorkoutView: View {
             }
             
             // Exercises list
-            ForEach(workout.exercises) { exercise in
-                ExerciseCard(exercise: exercise)
+            let exercises = workout.exercises
+            let count = exercises.count
+            let showDots = count <= 4
+            
+            if count > 1 {
+                HStack(spacing: 8) {
+                    Button {
+                        if selectedExerciseIndex > 0 { selectedExerciseIndex -= 1 }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .disabled(selectedExerciseIndex == 0)
+                    
+                    Text("Exercise \(min(selectedExerciseIndex + 1, count)) of \(count) — \(selectedExerciseIndex < count ? (exercises[selectedExerciseIndex].name ?? exercises[selectedExerciseIndex].kind.capitalized) : "")")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    
+                    Button {
+                        if selectedExerciseIndex < count - 1 { selectedExerciseIndex += 1 }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .disabled(selectedExerciseIndex >= count - 1)
+                }
+            }
+            
+            TabView(selection: $selectedExerciseIndex) {
+                ForEach(Array(exercises.enumerated()), id: \.offset) { index, exercise in
+                    // Make the page height track actual content height to remove vertical whitespace
+                    VStack(alignment: .leading, spacing: 0) {
+                        ExerciseCard(exercise: exercise)
+                    }
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear
+                                .preference(key: ExercisePageHeightKey.self, value: [index: proxy.size.height])
+                        }
+                    )
+                    .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: showDots ? .automatic : .never))
+            .indexViewStyle(.page(backgroundDisplayMode: .interactive))
+            .frame(maxWidth: .infinity)
+            .frame(height: pagerHeight)
+            .onPreferenceChange(ExercisePageHeightKey.self) { dict in
+                pageHeights.merge(dict) { _, new in new }
             }
         }
+    }
+}
+
+private struct ExercisePageHeightKey: PreferenceKey {
+    static var defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 
