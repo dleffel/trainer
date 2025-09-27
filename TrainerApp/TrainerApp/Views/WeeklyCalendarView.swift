@@ -395,6 +395,11 @@ struct WorkoutDetailsCard: View {
                     } else if !day.hasWorkout {
                         NoWorkoutView()
                     }
+
+                    Divider()
+                        .padding(.vertical, 4)
+
+                    ResultsSection(day: day, scheduleManager: scheduleManager)
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
@@ -903,4 +908,91 @@ struct Chip: View {
         Spacer()
     }
     .padding()
+}
+
+// MARK: - Results Section (Per-Day Logged Sets)
+struct ResultsSection: View {
+    let day: WorkoutDay
+    @ObservedObject var scheduleManager: TrainingScheduleManager
+    @State private var results: [TrainingScheduleManager.WorkoutSetResult] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Results")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button {
+                    refresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(6)
+                        .background(Circle().fill(Color(.systemGray5)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Refresh results")
+            }
+
+            if sortedResults.isEmpty {
+                Text("No results logged yet.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(sortedResults.indices, id: \.self) { idx in
+                        let r = sortedResults[idx]
+                        Text(formattedLine(for: r))
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray5))
+        .cornerRadius(8)
+        .onAppear { refresh() }
+        .onChange(of: day.id) { _, _ in refresh() }
+    }
+
+    private var sortedResults: [TrainingScheduleManager.WorkoutSetResult] {
+        results.sorted { $0.timestamp < $1.timestamp }
+    }
+
+    private func formattedLine(for r: TrainingScheduleManager.WorkoutSetResult) -> String {
+        var line = "• \(r.exerciseName)"
+        if let set = r.setNumber { line += " — Set \(set)" }
+
+        var metrics: [String] = []
+        if let reps = r.reps { metrics.append("\(reps) reps") }
+        if let w = weightText(r) { metrics.append(w) }
+        if !metrics.isEmpty { line += ": " + metrics.joined(separator: " × ") }
+
+        var suffix: [String] = []
+        if let rir = r.rir { suffix.append("RIR \(rir)") }
+        if let rpe = r.rpe { suffix.append("RPE \(rpe)") }
+        if !suffix.isEmpty { line += " (" + suffix.joined(separator: ", ") + ")" }
+
+        return line
+    }
+
+    private func weightText(_ r: TrainingScheduleManager.WorkoutSetResult) -> String? {
+        if let lb = r.loadLb, !lb.isEmpty {
+            if lb.lowercased().contains("lb") || lb.lowercased().contains("kg") { return lb }
+            return "\(lb) lb"
+        }
+        if let kg = r.loadKg, !kg.isEmpty {
+            if kg.lowercased().contains("kg") || kg.lowercased().contains("lb") { return kg }
+            return "\(kg) kg"
+        }
+        return nil
+    }
+
+    private func refresh() {
+        results = scheduleManager.loadSetResults(for: day.date)
+    }
 }
