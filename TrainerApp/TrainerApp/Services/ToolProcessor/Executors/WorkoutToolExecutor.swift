@@ -2,10 +2,13 @@ import Foundation
 
 /// Executor for workout CRUD operations (structured + legacy)
 class WorkoutToolExecutor: ToolExecutor {
+    // New tool for per-set logging
+    // log_set_result(date, exercise, set, reps, load_lb, load_kg, rir, rpe, notes)
     var supportedToolNames: [String] {
         return [
             "plan_workout",
-            "update_workout"
+            "update_workout",
+            "log_set_result"
         ]
     }
 
@@ -59,6 +62,57 @@ class WorkoutToolExecutor: ToolExecutor {
                 result: result,
                 success: success,
                 error: success ? nil : result
+            )
+
+        case "log_set_result":
+            print("🧾 WorkoutToolExecutor: Matched log_set_result tool")
+            // Expected simple params: date, exercise, set, reps, load_lb, load_kg, rir, rpe, notes
+            let dateParam = (toolCall.parameters["date"] as? String) ?? "today"
+            let exercise = toolCall.parameters["exercise"] as? String ?? (toolCall.parameters["exerciseName"] as? String ?? "Unknown")
+            let setStr = toolCall.parameters["set"] as? String
+            let repsStr = toolCall.parameters["reps"] as? String
+            let loadLb = toolCall.parameters["load_lb"] as? String
+            let loadKg = toolCall.parameters["load_kg"] as? String
+            let rirStr = toolCall.parameters["rir"] as? String
+            let rpeStr = toolCall.parameters["rpe"] as? String
+            let notes = toolCall.parameters["notes"] as? String
+
+            let setNumber = setStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let reps = repsStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let rir = rirStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let rpe = rpeStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+
+            let targetDate = ToolUtilities.parseDate(dateParam)
+
+            let result = await MainActor.run { () -> Bool in
+                let manager = TrainingScheduleManager.shared
+                let entry = TrainingScheduleManager.WorkoutSetResult(
+                    timestamp: Date.current,
+                    exerciseName: exercise,
+                    setNumber: setNumber,
+                    reps: reps,
+                    loadLb: loadLb,
+                    loadKg: loadKg,
+                    rir: rir,
+                    rpe: rpe,
+                    notes: notes
+                )
+                return manager.appendSetResult(for: targetDate, result: entry)
+            }
+
+            let dateFmt = DateFormatter()
+            dateFmt.dateFormat = "yyyy-MM-dd"
+            let dateKey = dateFmt.string(from: targetDate)
+
+            let response = result
+                ? "[Set Logged] date=\(dateKey), exercise=\(exercise), set=\(setNumber ?? 0), reps=\(reps ?? 0), load_lb=\(loadLb ?? "-"), load_kg=\(loadKg ?? "-"), rir=\(rir ?? -1), rpe=\(rpe ?? -1)\(notes != nil ? ", notes=\(notes!)" : "")"
+                : "[Error: Failed to persist set result for \(dateParam)]"
+
+            return ToolProcessor.ToolCallResult(
+                toolName: toolCall.name,
+                result: response,
+                success: result,
+                error: result ? nil : response
             )
 
         default:

@@ -100,6 +100,7 @@ READY TO COACH
 
 * **`plan_workout`**: **MANDATORY** when no workout exists for today (including rest days).
 * **`update_workout`**: Modify the existing plan after athlete feedback or constraints.
+* **`log_set_result`**: Record per-set results (reps, load, RIR/RPE) as the athlete reports them; default `date` is "today".
 
 ## 6. ADAPTIVE PLANNING PROTOCOL
 
@@ -252,6 +253,24 @@ When planning workouts, specify an appropriate `icon`:
 * **Parameters:** `based_on_feedback`, `next_date` (optional)
 * **Usage:** `[TOOL_CALL: plan_next_workout(based_on_feedback: "felt strong today")]`
 * **Note:** This does **not** replace today’s `plan_workout` requirement.
+
+### 7.5 `log_set_result`
+
+* Logs a single set result for the specified date (per-day persistence via iCloud KVS)
+* **Parameters:** `date` (default `"today"`), `exercise` (name), `set` (number), `reps`, `load_lb` (string), `load_kg` (string), `rir` (int), `rpe` (int), `notes` (optional)
+* **Usage:**
+```
+[TOOL_CALL: log_set_result(
+  date: "today",
+  exercise: "Bench Press",
+  set: "1",
+  reps: "8",
+  load_lb: "135",
+  rir: "2",
+  rpe: "8",
+  notes: "felt strong"
+)]
+```
 
 ---
 

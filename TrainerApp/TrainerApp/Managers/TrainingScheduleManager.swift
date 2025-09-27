@@ -14,6 +14,59 @@ class TrainingScheduleManager: ObservableObject {
     private let programKey = "TrainingProgram"
     private var useICloud = true
     
+// MARK: - Results Logging (Per-Set)
+struct WorkoutSetResult: Codable {
+    let timestamp: Date
+    let exerciseName: String
+    let setNumber: Int?
+    let reps: Int?
+    let loadLb: String?
+    let loadKg: String?
+    let rir: Int?
+    let rpe: Int?
+    let notes: String?
+}
+
+private func resultsKey(for date: Date) -> String {
+    "workout_results_\(dateKey(for: date))"
+}
+
+/// Load all logged set results for a given date
+func loadSetResults(for date: Date) -> [WorkoutSetResult] {
+    let key = resultsKey(for: date)
+    let data: Data?
+    if useICloud {
+        data = iCloudStore.data(forKey: key) ?? userDefaults.data(forKey: key)
+    } else {
+        data = userDefaults.data(forKey: key)
+    }
+    guard let data = data,
+          let results = try? JSONDecoder().decode([WorkoutSetResult].self, from: data) else {
+        return []
+    }
+    return results
+}
+
+/// Append a set result for a given date; persists to UserDefaults and iCloud (when available)
+@discardableResult
+func appendSetResult(for date: Date, result: WorkoutSetResult) -> Bool {
+    var existing = loadSetResults(for: date)
+    existing.append(result)
+
+    guard let data = try? JSONEncoder().encode(existing) else { return false }
+
+    let key = resultsKey(for: date)
+
+    // Save locally
+    userDefaults.set(data, forKey: key)
+
+    // Save to iCloud when enabled
+    if useICloud {
+        iCloudStore.set(data, forKey: key)
+        iCloudStore.synchronize()
+    }
+    return true
+}
     private init() {
         setupICloudSync()
         loadProgram()
@@ -448,9 +501,13 @@ class TrainingScheduleManager: ObservableObject {
             var clearedKeys: [String] = []
             for i in -365...365 {
                 if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
-                    let key = "workout_\(dateKey(for: date))"
-                    iCloudStore.removeObject(forKey: key)
-                    clearedKeys.append(key)
+                    let workoutKey = "workout_\(dateKey(for: date))"
+                    iCloudStore.removeObject(forKey: workoutKey)
+                    clearedKeys.append(workoutKey)
+                    
+                    let resultsKey = "workout_results_\(dateKey(for: date))"
+                    iCloudStore.removeObject(forKey: resultsKey)
+                    clearedKeys.append(resultsKey)
                 }
             }
             print("🧹 DEBUG restartProgram: Cleared \(clearedKeys.count) iCloud keys")
@@ -464,9 +521,13 @@ class TrainingScheduleManager: ObservableObject {
         var clearedLocalKeys: [String] = []
         for i in -365...365 {
             if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
-                let key = "workout_\(dateKey(for: date))"
-                userDefaults.removeObject(forKey: key)
-                clearedLocalKeys.append(key)
+                let workoutKey = "workout_\(dateKey(for: date))"
+                userDefaults.removeObject(forKey: workoutKey)
+                clearedLocalKeys.append(workoutKey)
+                
+                let resultsKey = "workout_results_\(dateKey(for: date))"
+                userDefaults.removeObject(forKey: resultsKey)
+                clearedLocalKeys.append(resultsKey)
             }
         }
         print("🧹 DEBUG restartProgram: Cleared \(clearedLocalKeys.count) UserDefaults keys")
