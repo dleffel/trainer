@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B70B93D12E88E17300B9BD7E /* WorkoutSetResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -18,13 +19,13 @@
 		B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */; };
 		B75C33372E59A5A5004C515B /* ToolParameterParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E59A5A5004C515B /* ToolParameterParser.swift */; };
 		B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33382E59A5A6004C515B /* ToolProcessor.swift */; };
-		B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33432E59A5A7004C515B /* ConversationManager.swift */; };
-		B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33442E59A5A8004C515B /* ConversationPersistence.swift */; };
 		B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33342E5993D8004C515B /* APILogEntry.swift */; };
 		B75C333B2E5993D8004C515B /* APILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33352E5993D8004C515B /* APILogger.swift */; };
 		B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E5993D8004C515B /* LoggingPersistence.swift */; };
 		B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33402E59A6C7004C515B /* HealthKitManager.swift */; };
 		B75C33432E59A829004C515B /* SystemPrompt.md in Resources */ = {isa = PBXBuildFile; fileRef = B75C33422E59A829004C515B /* SystemPrompt.md */; };
+		B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33432E59A5A7004C515B /* ConversationManager.swift */; };
+		B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33442E59A5A8004C515B /* ConversationPersistence.swift */; };
 		B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */; };
 		B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9222E639C4800B866CE /* URLSession+Logging.swift */; };
 		B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C92A2E639CB300B866CE /* ExportOptionsView.swift */; };
@@ -35,6 +36,16 @@
 		B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */; };
 		B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2352E6900F100CB5792 /* DateProvider.swift */; };
 		B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */; };
+		B7E0B0010000000000000001 /* ToolProcessor/Protocols/ToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000001 /* ToolProcessor/Protocols/ToolExecutor.swift */; };
+		B7E0B0010000000000000002 /* ToolProcessor/Core/ToolCallDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000002 /* ToolProcessor/Core/ToolCallDetector.swift */; };
+		B7E0B0010000000000000003 /* ToolProcessor/Core/ToolExecutorRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000003 /* ToolProcessor/Core/ToolExecutorRegistry.swift */; };
+		B7E0B0010000000000000004 /* ToolProcessor/Core/ToolCallRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000004 /* ToolProcessor/Core/ToolCallRouter.swift */; };
+		B7E0B0010000000000000005 /* ToolProcessor/Core/NewToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000005 /* ToolProcessor/Core/NewToolProcessor.swift */; };
+		B7E0B0010000000000000006 /* ToolProcessor/Utilities/ToolUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000006 /* ToolProcessor/Utilities/ToolUtilities.swift */; };
+		B7E0B0010000000000000007 /* ToolProcessor/Executors/HealthDataToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000007 /* ToolProcessor/Executors/HealthDataToolExecutor.swift */; };
+		B7E0B0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift */; };
+		B7E0B0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift */; };
+		B7E0B001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift */; };
 		B7E0B0010000000000000001 /* ToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000001 /* ToolExecutor.swift */; };
 		B7E0B0010000000000000002 /* ToolCallDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000002 /* ToolCallDetector.swift */; };
 		B7E0B0010000000000000003 /* ToolExecutorRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000003 /* ToolExecutorRegistry.swift */; };
@@ -49,6 +60,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSetResult.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -65,10 +77,10 @@
 		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
 		B75C33362E59A5A5004C515B /* ToolParameterParser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolParameterParser.swift; sourceTree = "<group>"; };
 		B75C33382E59A5A6004C515B /* ToolProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolProcessor.swift; sourceTree = "<group>"; };
-		B75C33432E59A5A7004C515B /* ConversationManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationManager.swift; sourceTree = "<group>"; };
-		B75C33442E59A5A8004C515B /* ConversationPersistence.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationPersistence.swift; sourceTree = "<group>"; };
 		B75C33402E59A6C7004C515B /* HealthKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		B75C33422E59A829004C515B /* SystemPrompt.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = SystemPrompt.md; sourceTree = "<group>"; };
+		B75C33432E59A5A7004C515B /* ConversationManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationManager.swift; sourceTree = "<group>"; };
+		B75C33442E59A5A8004C515B /* ConversationPersistence.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationPersistence.swift; sourceTree = "<group>"; };
 		B75C33452E5B53D9004C515B /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptLoader.swift; sourceTree = "<group>"; };
 		B781C9222E639C4800B866CE /* URLSession+Logging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Logging.swift"; sourceTree = "<group>"; };
@@ -82,6 +94,16 @@
 		B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleDeveloperTimeControl.swift; sourceTree = "<group>"; };
 		B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TrainerAppDebug.entitlements; sourceTree = "<group>"; };
 		B7D1A55A2E073CCB00D19700 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TrainerApp/Info.plist; sourceTree = "<group>"; };
+		B7E0A0010000000000000001 /* ToolProcessor/Protocols/ToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Protocols/ToolExecutor.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000002 /* ToolProcessor/Core/ToolCallDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Core/ToolCallDetector.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000003 /* ToolProcessor/Core/ToolExecutorRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Core/ToolExecutorRegistry.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000004 /* ToolProcessor/Core/ToolCallRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Core/ToolCallRouter.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000005 /* ToolProcessor/Core/NewToolProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Core/NewToolProcessor.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000006 /* ToolProcessor/Utilities/ToolUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Utilities/ToolUtilities.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000007 /* ToolProcessor/Executors/HealthDataToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/HealthDataToolExecutor.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/TrainingProgramToolExecutor.swift; sourceTree = "<group>"; };
+		B7E0A0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/ScheduleToolExecutor.swift; sourceTree = "<group>"; };
+		B7E0A001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/WorkoutToolExecutor.swift; sourceTree = "<group>"; };
 		B7E0A0010000000000000001 /* ToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Protocols/ToolExecutor.swift"; sourceTree = "<group>"; };
 		B7E0A0010000000000000002 /* ToolCallDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Core/ToolCallDetector.swift"; sourceTree = "<group>"; };
 		B7E0A0010000000000000003 /* ToolExecutorRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Core/ToolExecutorRegistry.swift"; sourceTree = "<group>"; };
@@ -176,16 +198,16 @@
 			children = (
 				B75C33362E59A5A5004C515B /* ToolParameterParser.swift */,
 				B75C33382E59A5A6004C515B /* ToolProcessor.swift */,
-				B7E0A0010000000000000001 /* ToolExecutor.swift */,
-				B7E0A0010000000000000002 /* ToolCallDetector.swift */,
-				B7E0A0010000000000000003 /* ToolExecutorRegistry.swift */,
-				B7E0A0010000000000000004 /* ToolCallRouter.swift */,
-				B7E0A0010000000000000005 /* NewToolProcessor.swift */,
-				B7E0A0010000000000000006 /* ToolUtilities.swift */,
-				B7E0A0010000000000000007 /* HealthDataToolExecutor.swift */,
-				B7E0A0010000000000000008 /* TrainingProgramToolExecutor.swift */,
-				B7E0A0010000000000000009 /* ScheduleToolExecutor.swift */,
-				B7E0A001000000000000000A /* WorkoutToolExecutor.swift */,
+				B7E0A0010000000000000001 /* ToolProcessor/Protocols/ToolExecutor.swift */,
+				B7E0A0010000000000000002 /* ToolProcessor/Core/ToolCallDetector.swift */,
+				B7E0A0010000000000000003 /* ToolProcessor/Core/ToolExecutorRegistry.swift */,
+				B7E0A0010000000000000004 /* ToolProcessor/Core/ToolCallRouter.swift */,
+				B7E0A0010000000000000005 /* ToolProcessor/Core/NewToolProcessor.swift */,
+				B7E0A0010000000000000006 /* ToolProcessor/Utilities/ToolUtilities.swift */,
+				B7E0A0010000000000000007 /* ToolProcessor/Executors/HealthDataToolExecutor.swift */,
+				B7E0A0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift */,
+				B7E0A0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift */,
+				B7E0A001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift */,
 				B75C33432E59A5A7004C515B /* ConversationManager.swift */,
 				B75C33442E59A5A8004C515B /* ConversationPersistence.swift */,
 			);
@@ -205,6 +227,7 @@
 		B75A866F2E5D886800CB5792 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */,
 				B781C9322E7007C100B866CE /* StructuredWorkout.swift */,
 				B75A866D2E5D886800CB5792 /* TrainingBlock.swift */,
 				B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */,
@@ -327,17 +350,17 @@
 				B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
 				B75C33372E59A5A5004C515B /* ToolParameterParser.swift in Sources */,
-				B7E0B0010000000000000001 /* ToolExecutor.swift in Sources */,
+				B7E0B0010000000000000001 /* ToolProcessor/Protocols/ToolExecutor.swift in Sources */,
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
-				B7E0B0010000000000000002 /* ToolCallDetector.swift in Sources */,
-				B7E0B0010000000000000003 /* ToolExecutorRegistry.swift in Sources */,
-				B7E0B0010000000000000004 /* ToolCallRouter.swift in Sources */,
-				B7E0B0010000000000000005 /* NewToolProcessor.swift in Sources */,
-				B7E0B0010000000000000006 /* ToolUtilities.swift in Sources */,
-				B7E0B0010000000000000007 /* HealthDataToolExecutor.swift in Sources */,
-				B7E0B0010000000000000008 /* TrainingProgramToolExecutor.swift in Sources */,
-				B7E0B0010000000000000009 /* ScheduleToolExecutor.swift in Sources */,
-				B7E0B001000000000000000A /* WorkoutToolExecutor.swift in Sources */,
+				B7E0B0010000000000000002 /* ToolProcessor/Core/ToolCallDetector.swift in Sources */,
+				B7E0B0010000000000000003 /* ToolProcessor/Core/ToolExecutorRegistry.swift in Sources */,
+				B7E0B0010000000000000004 /* ToolProcessor/Core/ToolCallRouter.swift in Sources */,
+				B7E0B0010000000000000005 /* ToolProcessor/Core/NewToolProcessor.swift in Sources */,
+				B7E0B0010000000000000006 /* ToolProcessor/Utilities/ToolUtilities.swift in Sources */,
+				B7E0B0010000000000000007 /* ToolProcessor/Executors/HealthDataToolExecutor.swift in Sources */,
+				B7E0B0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift in Sources */,
+				B7E0B0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift in Sources */,
+				B7E0B001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift in Sources */,
 				B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */,
 				B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */,
 				B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */,
@@ -349,6 +372,7 @@
 				B75A866A2E5D884700CB5792 /* WeeklyCalendarView.swift in Sources */,
 				B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */,
 				B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */,
+				B70B93D12E88E17300B9BD7E /* WorkoutSetResult.swift in Sources */,
 				B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */,
 				B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */,
 				B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */,
