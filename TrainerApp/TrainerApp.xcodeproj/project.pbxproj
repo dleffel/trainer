@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B70B93D12E88E17300B9BD7E /* WorkoutSetResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */; };
-		B70B93D22E88E17400B9BD7E /* WorkoutResultsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93CF2E88E17400B9BD7E /* WorkoutResultsManager.swift */; };
+		B70B93D42E88E51400B9BD7E /* WorkoutResultsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93D32E88E51400B9BD7E /* WorkoutResultsManager.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -47,22 +47,11 @@
 		B7E0B0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift */; };
 		B7E0B0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift */; };
 		B7E0B001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift */; };
-		B7E0B0010000000000000001 /* ToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000001 /* ToolExecutor.swift */; };
-		B7E0B0010000000000000002 /* ToolCallDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000002 /* ToolCallDetector.swift */; };
-		B7E0B0010000000000000003 /* ToolExecutorRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000003 /* ToolExecutorRegistry.swift */; };
-		B7E0B0010000000000000004 /* ToolCallRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000004 /* ToolCallRouter.swift */; };
-		B7E0B0010000000000000005 /* NewToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000005 /* NewToolProcessor.swift */; };
-		B7E0B0010000000000000006 /* ToolUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000006 /* ToolUtilities.swift */; };
-		B7E0B0010000000000000007 /* HealthDataToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000007 /* HealthDataToolExecutor.swift */; };
-		B7E0B0010000000000000008 /* TrainingProgramToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000008 /* TrainingProgramToolExecutor.swift */; };
-		B7E0B0010000000000000009 /* ScheduleToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000009 /* ScheduleToolExecutor.swift */; };
-		B7E0B001000000000000000A /* WorkoutToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A001000000000000000A /* WorkoutToolExecutor.swift */; };
-		B7E0B001000000000000000B /* WorkoutSetResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A001000000000000000B /* WorkoutSetResult.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSetResult.swift; sourceTree = "<group>"; };
-		B70B93CF2E88E17400B9BD7E /* WorkoutResultsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutResultsManager.swift; sourceTree = "<group>"; };
+		B70B93D32E88E51400B9BD7E /* WorkoutResultsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutResultsManager.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -106,17 +95,6 @@
 		B7E0A0010000000000000008 /* ToolProcessor/Executors/TrainingProgramToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/TrainingProgramToolExecutor.swift; sourceTree = "<group>"; };
 		B7E0A0010000000000000009 /* ToolProcessor/Executors/ScheduleToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/ScheduleToolExecutor.swift; sourceTree = "<group>"; };
 		B7E0A001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/WorkoutToolExecutor.swift; sourceTree = "<group>"; };
-		B7E0A0010000000000000001 /* ToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Protocols/ToolExecutor.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000002 /* ToolCallDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Core/ToolCallDetector.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000003 /* ToolExecutorRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Core/ToolExecutorRegistry.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000004 /* ToolCallRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Core/ToolCallRouter.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000005 /* NewToolProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Core/NewToolProcessor.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000006 /* ToolUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Utilities/ToolUtilities.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000007 /* HealthDataToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Executors/HealthDataToolExecutor.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000008 /* TrainingProgramToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Executors/TrainingProgramToolExecutor.swift"; sourceTree = "<group>"; };
-		B7E0A0010000000000000009 /* ScheduleToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Executors/ScheduleToolExecutor.swift"; sourceTree = "<group>"; };
-		B7E0A001000000000000000A /* WorkoutToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Executors/WorkoutToolExecutor.swift"; sourceTree = "<group>"; };
-		B7E0A001000000000000000B /* WorkoutSetResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSetResult.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -181,6 +159,7 @@
 		B75947362E0703BD00BE6537 /* Managers */ = {
 			isa = PBXGroup;
 			children = (
+				B70B93D32E88E51400B9BD7E /* WorkoutResultsManager.swift */,
 				B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */,
 				B75C33402E59A6C7004C515B /* HealthKitManager.swift */,
 			);
@@ -233,7 +212,6 @@
 				B781C9322E7007C100B866CE /* StructuredWorkout.swift */,
 				B75A866D2E5D886800CB5792 /* TrainingBlock.swift */,
 				B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */,
-				B7E0A001000000000000000B /* WorkoutSetResult.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -349,6 +327,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B75A86692E5D884700CB5792 /* CalendarView.swift in Sources */,
+				B70B93D42E88E51400B9BD7E /* WorkoutResultsManager.swift in Sources */,
 				B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
 				B75C33372E59A5A5004C515B /* ToolParameterParser.swift in Sources */,
@@ -375,7 +354,6 @@
 				B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */,
 				B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */,
 				B70B93D12E88E17300B9BD7E /* WorkoutSetResult.swift in Sources */,
-				B70B93D22E88E17400B9BD7E /* WorkoutResultsManager.swift in Sources */,
 				B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */,
 				B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */,
 				B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */,
@@ -385,7 +363,6 @@
 				B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */,
 				B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */,
 				B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */,
-				B7E0B001000000000000000B /* WorkoutSetResult.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
