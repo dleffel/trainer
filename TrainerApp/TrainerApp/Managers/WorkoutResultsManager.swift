@@ -76,8 +76,7 @@ class WorkoutResultsManager: ObservableObject {
     /// Append a set result for a given date; persists to UserDefaults and iCloud (when available)
     @discardableResult
     func appendSetResult(for date: Date, result: WorkoutSetResult) throws -> Bool {
-        // Validate the result before saving
-        try validateSetResult(result)
+        // Note: Validation is now handled in WorkoutSetResult's initializer
         
         var existing = loadSetResults(for: date)
         existing.append(result)
@@ -127,58 +126,15 @@ class WorkoutResultsManager: ObservableObject {
         }
     }
     
-    // MARK: - Validation
-    
-    private func validateSetResult(_ result: WorkoutSetResult) throws {
-        // Exercise name validation
-        if result.exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            throw WorkoutResultsError.invalidExerciseName
-        }
-        
-        // RIR validation (0-10 scale)
-        if let rir = result.rir, rir < 0 || rir > 10 {
-            throw WorkoutResultsError.invalidRIR
-        }
-        
-        // RPE validation (1-10 scale)
-        if let rpe = result.rpe, rpe < 1 || rpe > 10 {
-            throw WorkoutResultsError.invalidRPE
-        }
-        
-        // Reps validation (must be positive)
-        if let reps = result.reps, reps <= 0 {
-            throw WorkoutResultsError.invalidReps
-        }
-        
-        // Set number validation (must be positive)
-        if let setNumber = result.setNumber, setNumber <= 0 {
-            throw WorkoutResultsError.invalidSetNumber
-        }
-    }
 }
 
 // MARK: - Error Types
 
 enum WorkoutResultsError: LocalizedError {
-    case invalidExerciseName
-    case invalidRIR
-    case invalidRPE
-    case invalidReps
-    case invalidSetNumber
     case encodingFailed
     
     var errorDescription: String? {
         switch self {
-        case .invalidExerciseName:
-            return "Exercise name cannot be empty"
-        case .invalidRIR:
-            return "RIR must be between 0 and 10"
-        case .invalidRPE:
-            return "RPE must be between 1 and 10"
-        case .invalidReps:
-            return "Reps must be a positive number"
-        case .invalidSetNumber:
-            return "Set number must be a positive number"
         case .encodingFailed:
             return "Failed to encode workout results"
         }

@@ -119,7 +119,7 @@ class WorkoutToolExecutor: ToolExecutor {
 
             let result = await MainActor.run { () -> (success: Bool, error: String?) in
                 do {
-                    let entry = WorkoutSetResult(
+                    let entry = try WorkoutSetResult(
                         timestamp: Date.current,
                         exerciseName: exercise,
                         setNumber: setNumber,

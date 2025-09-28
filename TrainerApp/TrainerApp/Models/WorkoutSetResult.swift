@@ -37,7 +37,7 @@ struct WorkoutSetResult: Codable {
          loadKg: String?,
          rir: Int?,
          rpe: Int?,
-         notes: String?) {
+         notes: String?) throws {
         self.timestamp = timestamp
         self.exerciseName = exerciseName
         self.setNumber = setNumber
@@ -47,6 +47,37 @@ struct WorkoutSetResult: Codable {
         self.rir = rir
         self.rpe = rpe
         self.notes = notes
+        
+        // Validate all fields after assignment
+        try self.validate()
+    }
+    
+    /// Validate the workout set result
+    private func validate() throws {
+        // Exercise name validation
+        if exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw WorkoutSetResultError.invalidExerciseName
+        }
+        
+        // RIR validation (0-10 scale)
+        if let rir = rir, rir < 0 || rir > 10 {
+            throw WorkoutSetResultError.invalidRIR
+        }
+        
+        // RPE validation (1-10 scale)
+        if let rpe = rpe, rpe < 1 || rpe > 10 {
+            throw WorkoutSetResultError.invalidRPE
+        }
+        
+        // Reps validation (must be positive)
+        if let reps = reps, reps <= 0 {
+            throw WorkoutSetResultError.invalidReps
+        }
+        
+        // Set number validation (must be positive)
+        if let setNumber = setNumber, setNumber <= 0 {
+            throw WorkoutSetResultError.invalidSetNumber
+        }
     }
 
     init(from decoder: Decoder) throws {
@@ -64,13 +95,6 @@ struct WorkoutSetResult: Codable {
                                     debugDescription: "Exercise name is required but missing"))
         }
         
-        // Validate exercise name is not empty
-        if self.exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(codingPath: decoder.codingPath,
-                                    debugDescription: "Exercise name cannot be empty"))
-        }
-        
         // Prefer canonical key; fall back to alias
         self.setNumber = (try? container.decode(Int.self, forKey: .setNumber))
             ?? (try? container.decode(Int.self, forKey: .set))
@@ -80,6 +104,9 @@ struct WorkoutSetResult: Codable {
         self.rir = try? container.decode(Int.self, forKey: .rir)
         self.rpe = try? container.decode(Int.self, forKey: .rpe)
         self.notes = try? container.decode(String.self, forKey: .notes)
+        
+        // Validate all fields after assignment
+        try self.validate()
     }
 
     func encode(to encoder: Encoder) throws {
@@ -93,5 +120,30 @@ struct WorkoutSetResult: Codable {
         try container.encodeIfPresent(rir, forKey: .rir)
         try container.encodeIfPresent(rpe, forKey: .rpe)
         try container.encodeIfPresent(notes, forKey: .notes)
+    }
+}
+
+// MARK: - Error Types
+
+enum WorkoutSetResultError: LocalizedError {
+    case invalidExerciseName
+    case invalidRIR
+    case invalidRPE
+    case invalidReps
+    case invalidSetNumber
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidExerciseName:
+            return "Exercise name cannot be empty"
+        case .invalidRIR:
+            return "RIR must be between 0 and 10"
+        case .invalidRPE:
+            return "RPE must be between 1 and 10"
+        case .invalidReps:
+            return "Reps must be a positive number"
+        case .invalidSetNumber:
+            return "Set number must be a positive number"
+        }
     }
 }
