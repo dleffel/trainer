@@ -19,60 +19,22 @@ class TrainingScheduleManager: ObservableObject {
         loadProgram()
     }
     
-    // MARK: - Results Logging (Per-Set)
+    // MARK: - Results Logging (Delegated to WorkoutResultsManager)
     
-    private func resultsKey(for date: Date) -> String {
-        "workout_results_\(dateKey(for: date))"
-    }
-
     /// Load all logged set results for a given date
     public func loadSetResults(for date: Date) -> [WorkoutSetResult] {
-        let key = resultsKey(for: date)
-        
-        // Standardized storage access: try iCloud first if available, then local
-        var data: Data?
-        if useICloud {
-            data = iCloudStore.data(forKey: key)
-        }
-        if data == nil {
-            data = userDefaults.data(forKey: key)
-        }
-        
-        guard let data = data,
-              let results = try? JSONDecoder().decode([WorkoutSetResult].self, from: data) else {
-            return []
-        }
-        return results
+        return WorkoutResultsManager.shared.loadSetResults(for: date)
     }
 
     /// Append a set result for a given date; persists to UserDefaults and iCloud (when available)
     @discardableResult
     public func appendSetResult(for date: Date, result: WorkoutSetResult) -> Bool {
-        var existing = loadSetResults(for: date)
-        existing.append(result)
-
-        guard let data = try? JSONEncoder().encode(existing) else {
-            print("❌ Failed to encode workout set results: JSON encoding error")
+        do {
+            return try WorkoutResultsManager.shared.appendSetResult(for: date, result: result)
+        } catch {
+            print("❌ Failed to save workout set result: \(error.localizedDescription)")
             return false
         }
-
-        let key = resultsKey(for: date)
-
-        // Save locally
-        userDefaults.set(data, forKey: key)
-
-        // Save to iCloud when enabled
-        if useICloud {
-            iCloudStore.set(data, forKey: key)
-            iCloudStore.synchronize()
-        }
-
-        // Log successful save for debugging
-        #if DEBUG
-        print("🧾 Saved set: date=\(dateKey(for: date)), exercise=\(result.exerciseName), set=\(result.setNumber?.description ?? "-"), reps=\(result.reps?.description ?? "-"), lb=\(result.loadLb ?? "-"), kg=\(result.loadKg ?? "-"), rir=\(result.rir?.description ?? "-"), rpe=\(result.rpe?.description ?? "-")")
-        #endif
-
-        return true
     }
     
     // MARK: - iCloud Setup
@@ -508,9 +470,8 @@ class TrainingScheduleManager: ObservableObject {
                     iCloudStore.removeObject(forKey: workoutKey)
                     clearedKeys.append(workoutKey)
                     
-                    let resultsKey = "workout_results_\(dateKey(for: date))"
-                    iCloudStore.removeObject(forKey: resultsKey)
-                    clearedKeys.append(resultsKey)
+                    // Clear results using WorkoutResultsManager
+                    WorkoutResultsManager.shared.clearResults(from: date, to: date)
                 }
             }
             print("🧹 DEBUG restartProgram: Cleared \(clearedKeys.count) iCloud keys")
@@ -528,9 +489,7 @@ class TrainingScheduleManager: ObservableObject {
                 userDefaults.removeObject(forKey: workoutKey)
                 clearedLocalKeys.append(workoutKey)
                 
-                let resultsKey = "workout_results_\(dateKey(for: date))"
-                userDefaults.removeObject(forKey: resultsKey)
-                clearedLocalKeys.append(resultsKey)
+                // Results clearing is handled by WorkoutResultsManager above
             }
         }
         print("🧹 DEBUG restartProgram: Cleared \(clearedLocalKeys.count) UserDefaults keys")

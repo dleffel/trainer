@@ -52,10 +52,25 @@ struct WorkoutSetResult: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.timestamp = try container.decode(Date.self, forKey: .timestamp)
-        // Prefer canonical key; fall back to alias
-        self.exerciseName = (try? container.decode(String.self, forKey: .exerciseName))
-            ?? (try? container.decode(String.self, forKey: .exercise))
-            ?? "Unknown"
+        
+        // Prefer canonical key; fall back to alias, but require exercise name
+        if let exerciseName = try? container.decode(String.self, forKey: .exerciseName) {
+            self.exerciseName = exerciseName
+        } else if let exercise = try? container.decode(String.self, forKey: .exercise) {
+            self.exerciseName = exercise
+        } else {
+            throw DecodingError.keyNotFound(CodingKeys.exerciseName,
+                DecodingError.Context(codingPath: decoder.codingPath,
+                                    debugDescription: "Exercise name is required but missing"))
+        }
+        
+        // Validate exercise name is not empty
+        if self.exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(codingPath: decoder.codingPath,
+                                    debugDescription: "Exercise name cannot be empty"))
+        }
+        
         // Prefer canonical key; fall back to alias
         self.setNumber = (try? container.decode(Int.self, forKey: .setNumber))
             ?? (try? container.decode(Int.self, forKey: .set))

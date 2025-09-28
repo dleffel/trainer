@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		B70B93D12E88E17300B9BD7E /* WorkoutSetResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */; };
+		B70B93D22E88E17400B9BD7E /* WorkoutResultsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93CF2E88E17400B9BD7E /* WorkoutResultsManager.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -61,6 +62,7 @@
 
 /* Begin PBXFileReference section */
 		B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSetResult.swift; sourceTree = "<group>"; };
+		B70B93CF2E88E17400B9BD7E /* WorkoutResultsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutResultsManager.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -373,6 +375,7 @@
 				B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */,
 				B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */,
 				B70B93D12E88E17300B9BD7E /* WorkoutSetResult.swift in Sources */,
+				B70B93D22E88E17400B9BD7E /* WorkoutResultsManager.swift in Sources */,
 				B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */,
 				B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */,
 				B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */,

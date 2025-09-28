@@ -975,6 +975,7 @@ struct Chip: View {
 struct ResultsSection: View {
     let day: WorkoutDay
     @ObservedObject var scheduleManager: TrainingScheduleManager
+    @ObservedObject private var resultsManager = WorkoutResultsManager.shared
     @State private var results: [WorkoutSetResult] = []
 
     var body: some View {
@@ -1054,6 +1055,6 @@ struct ResultsSection: View {
     }
 
     private func refresh() {
-        results = scheduleManager.loadSetResults(for: day.date)
+        results = resultsManager.loadSetResults(for: day.date)
     }
 }
