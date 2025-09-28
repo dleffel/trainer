@@ -106,8 +106,14 @@ class WorkoutToolExecutor: ToolExecutor {
 
             let targetDate = ToolUtilities.parseDate(dateParam)
 
-            let result = await MainActor.run { () -> Bool in
+            let result = await MainActor.run { () -> (success: Bool, error: String?) in
                 let manager = TrainingScheduleManager.shared
+                
+                // Validate required fields
+                if exercise.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return (false, "Exercise name cannot be empty")
+                }
+                
                 let entry = WorkoutSetResult(
                     timestamp: Date.current,
                     exerciseName: exercise,
@@ -119,22 +125,31 @@ class WorkoutToolExecutor: ToolExecutor {
                     rpe: rpe,
                     notes: notes
                 )
-                return manager.appendSetResult(for: targetDate, result: entry)
+                
+                let success = manager.appendSetResult(for: targetDate, result: entry)
+                return (success, success ? nil : "Failed to persist set result to storage")
             }
 
             let dateFmt = DateFormatter()
             dateFmt.dateFormat = "yyyy-MM-dd"
             let dateKey = dateFmt.string(from: targetDate)
 
-            let response = result
-                ? "[Set Logged] date=\(dateKey), exercise=\(exercise), set=\(setNumber ?? 0), reps=\(reps ?? 0), load_lb=\(loadLb ?? "-"), load_kg=\(loadKg ?? "-"), rir=\(rir ?? -1), rpe=\(rpe ?? -1)\(notes != nil ? ", notes=\(notes!)" : "")"
-                : "[Error: Failed to persist set result for \(dateParam)]"
+            let response: String
+            let success: Bool
+            
+            if result.success {
+                response = "[Set Logged] date=\(dateKey), exercise=\(exercise), set=\(setNumber ?? 0), reps=\(reps ?? 0), load_lb=\(loadLb ?? "-"), load_kg=\(loadKg ?? "-"), rir=\(rir ?? -1), rpe=\(rpe ?? -1)\(notes != nil ? ", notes=\(notes!)" : "")"
+                success = true
+            } else {
+                response = "[Error: \(result.error ?? "Failed to persist set result for \(dateParam)")]"
+                success = false
+            }
 
             return ToolProcessor.ToolCallResult(
                 toolName: toolCall.name,
                 result: response,
-                success: result,
-                error: result ? nil : response
+                success: success,
+                error: success ? nil : response
             )
 
         default:

@@ -45,6 +45,7 @@
 		B7E0B0010000000000000008 /* TrainingProgramToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000008 /* TrainingProgramToolExecutor.swift */; };
 		B7E0B0010000000000000009 /* ScheduleToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A0010000000000000009 /* ScheduleToolExecutor.swift */; };
 		B7E0B001000000000000000A /* WorkoutToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A001000000000000000A /* WorkoutToolExecutor.swift */; };
+		B7E0B001000000000000000B /* WorkoutSetResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A001000000000000000B /* WorkoutSetResult.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -91,6 +92,7 @@
 		B7E0A0010000000000000008 /* TrainingProgramToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Executors/TrainingProgramToolExecutor.swift"; sourceTree = "<group>"; };
 		B7E0A0010000000000000009 /* ScheduleToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Executors/ScheduleToolExecutor.swift"; sourceTree = "<group>"; };
 		B7E0A001000000000000000A /* WorkoutToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ToolProcessor/Executors/WorkoutToolExecutor.swift"; sourceTree = "<group>"; };
+		B7E0A001000000000000000B /* WorkoutSetResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSetResult.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -206,6 +208,7 @@
 				B781C9322E7007C100B866CE /* StructuredWorkout.swift */,
 				B75A866D2E5D886800CB5792 /* TrainingBlock.swift */,
 				B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */,
+				B7E0A001000000000000000B /* WorkoutSetResult.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -355,6 +358,7 @@
 				B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */,
 				B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */,
 				B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */,
+				B7E0B001000000000000000B /* WorkoutSetResult.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

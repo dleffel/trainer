@@ -51,7 +51,10 @@ class TrainingScheduleManager: ObservableObject {
         var existing = loadSetResults(for: date)
         existing.append(result)
 
-        guard let data = try? JSONEncoder().encode(existing) else { return false }
+        guard let data = try? JSONEncoder().encode(existing) else {
+            print("❌ Failed to encode workout set results: JSON encoding error")
+            return false
+        }
 
         let key = resultsKey(for: date)
 
