@@ -258,6 +258,8 @@ When planning workouts, specify an appropriate `icon`:
 
 * Logs a single set result for the specified date (per-day persistence via iCloud KVS)
 * **Parameters:** `date` (default `"today"`), `exercise` (name), `set` (number), `reps`, `load_lb` (string), `load_kg` (string), `rir` (int), `rpe` (int), `notes` (optional)
+* **Preferred Parameter Names:** Use `exercise`, `set`, `reps`, `load_lb`, `load_kg`, `rir`, `rpe` for consistency
+* **Alternative Names Supported:** `exerciseName`/`movement`/`name` for exercise, `set_number`/`setIndex` for set, `rep`/`repetitions` for reps, `weight_lb`/`weight_kg` for loads
 * **Usage:**
 ```
 [TOOL_CALL: log_set_result(

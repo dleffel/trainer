@@ -1,19 +1,5 @@
 import Foundation
 
-/// Manages the training schedule and calendar logic
-class TrainingScheduleManager: ObservableObject {
-    static let shared = TrainingScheduleManager()
-    
-    @Published var currentProgram: TrainingProgram?
-    @Published var currentBlock: TrainingBlock?
-    @Published var currentWeekInBlock: Int = 1
-    @Published var workoutDays: [WorkoutDay] = []
-    
-    private let userDefaults = UserDefaults.standard
-    private let iCloudStore = NSUbiquitousKeyValueStore.default
-    private let programKey = "TrainingProgram"
-    private var useICloud = true
-    
 // MARK: - Results Logging (Per-Set)
 struct WorkoutSetResult: Codable {
     let timestamp: Date
@@ -95,53 +81,72 @@ struct WorkoutSetResult: Codable {
     }
 }
 
-private func resultsKey(for date: Date) -> String {
-    "workout_results_\(dateKey(for: date))"
-}
-
-/// Load all logged set results for a given date
-func loadSetResults(for date: Date) -> [WorkoutSetResult] {
-    let key = resultsKey(for: date)
-    let data: Data?
-    if useICloud {
-        data = iCloudStore.data(forKey: key) ?? userDefaults.data(forKey: key)
-    } else {
-        data = userDefaults.data(forKey: key)
-    }
-    guard let data = data,
-          let results = try? JSONDecoder().decode([WorkoutSetResult].self, from: data) else {
-        return []
-    }
-    return results
-}
-
-/// Append a set result for a given date; persists to UserDefaults and iCloud (when available)
-@discardableResult
-func appendSetResult(for date: Date, result: WorkoutSetResult) -> Bool {
-    var existing = loadSetResults(for: date)
-    existing.append(result)
-
-    guard let data = try? JSONEncoder().encode(existing) else { return false }
-
-    let key = resultsKey(for: date)
-
-    // Save locally
-    userDefaults.set(data, forKey: key)
-
-    // Save to iCloud when enabled
-    if useICloud {
-        iCloudStore.set(data, forKey: key)
-        iCloudStore.synchronize()
-    }
-
-    // Debug: confirm what's persisted for easier diagnosis
-    print("🧾 Saved set: date=\(dateKey(for: date)), exercise=\(result.exerciseName), set=\(result.setNumber?.description ?? "-"), reps=\(result.reps?.description ?? "-"), lb=\(result.loadLb ?? "-"), kg=\(result.loadKg ?? "-"), rir=\(result.rir?.description ?? "-"), rpe=\(result.rpe?.description ?? "-")")
-
-    return true
-}
+/// Manages the training schedule and calendar logic
+class TrainingScheduleManager: ObservableObject {
+    static let shared = TrainingScheduleManager()
+    
+    @Published var currentProgram: TrainingProgram?
+    @Published var currentBlock: TrainingBlock?
+    @Published var currentWeekInBlock: Int = 1
+    @Published var workoutDays: [WorkoutDay] = []
+    
+    private let userDefaults = UserDefaults.standard
+    private let iCloudStore = NSUbiquitousKeyValueStore.default
+    private let programKey = "TrainingProgram"
+    private var useICloud = true
+    
     private init() {
         setupICloudSync()
         loadProgram()
+    }
+    
+    // MARK: - Results Logging (Per-Set)
+    
+    private func resultsKey(for date: Date) -> String {
+        "workout_results_\(dateKey(for: date))"
+    }
+
+    /// Load all logged set results for a given date
+    public func loadSetResults(for date: Date) -> [WorkoutSetResult] {
+        let key = resultsKey(for: date)
+        let data: Data?
+        if useICloud {
+            data = iCloudStore.data(forKey: key) ?? userDefaults.data(forKey: key)
+        } else {
+            data = userDefaults.data(forKey: key)
+        }
+        guard let data = data,
+              let results = try? JSONDecoder().decode([WorkoutSetResult].self, from: data) else {
+            return []
+        }
+        return results
+    }
+
+    /// Append a set result for a given date; persists to UserDefaults and iCloud (when available)
+    @discardableResult
+    public func appendSetResult(for date: Date, result: WorkoutSetResult) -> Bool {
+        var existing = loadSetResults(for: date)
+        existing.append(result)
+
+        guard let data = try? JSONEncoder().encode(existing) else { return false }
+
+        let key = resultsKey(for: date)
+
+        // Save locally
+        userDefaults.set(data, forKey: key)
+
+        // Save to iCloud when enabled
+        if useICloud {
+            iCloudStore.set(data, forKey: key)
+            iCloudStore.synchronize()
+        }
+
+        // Debug: confirm what's persisted for easier diagnosis
+        #if DEBUG
+        print("🧾 Saved set: date=\(dateKey(for: date)), exercise=\(result.exerciseName), set=\(result.setNumber?.description ?? "-"), reps=\(result.reps?.description ?? "-"), lb=\(result.loadLb ?? "-"), kg=\(result.loadKg ?? "-"), rir=\(result.rir?.description ?? "-"), rpe=\(result.rpe?.description ?? "-")")
+        #endif
+
+        return true
     }
     
     // MARK: - iCloud Setup
