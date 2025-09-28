@@ -108,7 +108,7 @@ class WorkoutToolExecutor: ToolExecutor {
 
             let result = await MainActor.run { () -> Bool in
                 let manager = TrainingScheduleManager.shared
-                let entry = TrainingScheduleManager.WorkoutSetResult(
+                let entry = WorkoutSetResult(
                     timestamp: Date.current,
                     exerciseName: exercise,
                     setNumber: setNumber,

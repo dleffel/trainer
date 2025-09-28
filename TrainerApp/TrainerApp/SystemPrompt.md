@@ -256,11 +256,20 @@ When planning workouts, specify an appropriate `icon`:
 
 ### 7.5 `log_set_result`
 
-* Logs a single set result for the specified date (per-day persistence via iCloud KVS)
-* **Parameters:** `date` (default `"today"`), `exercise` (name), `set` (number), `reps`, `load_lb` (string), `load_kg` (string), `rir` (int), `rpe` (int), `notes` (optional)
-* **Preferred Parameter Names:** Use `exercise`, `set`, `reps`, `load_lb`, `load_kg`, `rir`, `rpe` for consistency
-* **Alternative Names Supported:** `exerciseName`/`movement`/`name` for exercise, `set_number`/`setIndex` for set, `rep`/`repetitions` for reps, `weight_lb`/`weight_kg` for loads
-* **Usage:**
+* **Purpose:** Logs a single set result for the specified date with comprehensive tracking data
+* **Persistence:** Data is stored per-day using iCloud Key-Value Store with local UserDefaults fallback
+* **Parameters:**
+  * `date` (string, default `"today"`) - Target date for logging the set result
+  * `exercise` (string, required) - Exercise name (aliases: `exerciseName`, `movement`, `name`)
+  * `set` (string, optional) - Set number (aliases: `set_number`, `setIndex`)
+  * `reps` (string, optional) - Number of repetitions (aliases: `rep`, `repetitions`)
+  * `load_lb` (string, optional) - Weight in pounds (aliases: `weight_lb`)
+  * `load_kg` (string, optional) - Weight in kilograms (aliases: `weight_kg`)
+  * `rir` (string, optional) - Reps in Reserve (0-10 scale)
+  * `rpe` (string, optional) - Rate of Perceived Exertion (1-10 scale)
+  * `notes` (string, optional) - Additional notes about the set
+* **Data Storage:** Results are automatically synchronized between devices via iCloud when available
+* **Usage Examples:**
 ```
 [TOOL_CALL: log_set_result(
   date: "today",
@@ -271,6 +280,14 @@ When planning workouts, specify an appropriate `icon`:
   rir: "2",
   rpe: "8",
   notes: "felt strong"
+)]
+
+[TOOL_CALL: log_set_result(
+  exercise: "Squat",
+  set: "3",
+  reps: "5",
+  load_kg: "100",
+  rir: "1"
 )]
 ```
 

@@ -975,7 +975,7 @@ struct Chip: View {
 struct ResultsSection: View {
     let day: WorkoutDay
     @ObservedObject var scheduleManager: TrainingScheduleManager
-    @State private var results: [TrainingScheduleManager.WorkoutSetResult] = []
+    @State private var results: [WorkoutSetResult] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1020,11 +1020,11 @@ struct ResultsSection: View {
         .onChange(of: day.id) { _, _ in refresh() }
     }
 
-    private var sortedResults: [TrainingScheduleManager.WorkoutSetResult] {
+    private var sortedResults: [WorkoutSetResult] {
         results.sorted { $0.timestamp < $1.timestamp }
     }
 
-    private func formattedLine(for r: TrainingScheduleManager.WorkoutSetResult) -> String {
+    private func formattedLine(for r: WorkoutSetResult) -> String {
         var line = "• \(r.exerciseName)"
         if let set = r.setNumber { line += " — Set \(set)" }
 
@@ -1041,7 +1041,7 @@ struct ResultsSection: View {
         return line
     }
 
-    private func weightText(_ r: TrainingScheduleManager.WorkoutSetResult) -> String? {
+    private func weightText(_ r: WorkoutSetResult) -> String? {
         if let lb = r.loadLb, !lb.isEmpty {
             if lb.lowercased().contains("lb") || lb.lowercased().contains("kg") { return lb }
             return "\(lb) lb"

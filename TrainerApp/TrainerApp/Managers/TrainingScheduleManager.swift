@@ -1,86 +1,5 @@
 import Foundation
 
-// MARK: - Results Logging (Per-Set)
-struct WorkoutSetResult: Codable {
-    let timestamp: Date
-    let exerciseName: String
-    let setNumber: Int?
-    let reps: Int?
-    let loadLb: String?
-    let loadKg: String?
-    let rir: Int?
-    let rpe: Int?
-    let notes: String?
-
-    // Support legacy/alias keys (e.g., "exercise", "set") while encoding canonical keys
-    enum CodingKeys: String, CodingKey {
-        case timestamp
-        case exerciseName
-        case setNumber
-        case reps
-        case loadLb
-        case loadKg
-        case rir
-        case rpe
-        case notes
-
-        // Aliases that may appear in incoming tool calls or legacy payloads
-        case exercise        // alias for exerciseName
-        case set             // alias for setNumber
-    }
-
-    init(timestamp: Date,
-         exerciseName: String,
-         setNumber: Int?,
-         reps: Int?,
-         loadLb: String?,
-         loadKg: String?,
-         rir: Int?,
-         rpe: Int?,
-         notes: String?) {
-        self.timestamp = timestamp
-        self.exerciseName = exerciseName
-        self.setNumber = setNumber
-        self.reps = reps
-        self.loadLb = loadLb
-        self.loadKg = loadKg
-        self.rir = rir
-        self.rpe = rpe
-        self.notes = notes
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.timestamp = try container.decode(Date.self, forKey: .timestamp)
-        // Prefer canonical key; fall back to alias
-        self.exerciseName = (try? container.decode(String.self, forKey: .exerciseName))
-            ?? (try? container.decode(String.self, forKey: .exercise))
-            ?? "Unknown"
-        // Prefer canonical key; fall back to alias
-        self.setNumber = (try? container.decode(Int.self, forKey: .setNumber))
-            ?? (try? container.decode(Int.self, forKey: .set))
-        self.reps = try? container.decode(Int.self, forKey: .reps)
-        self.loadLb = try? container.decode(String.self, forKey: .loadLb)
-        self.loadKg = try? container.decode(String.self, forKey: .loadKg)
-        self.rir = try? container.decode(Int.self, forKey: .rir)
-        self.rpe = try? container.decode(Int.self, forKey: .rpe)
-        self.notes = try? container.decode(String.self, forKey: .notes)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(timestamp, forKey: .timestamp)
-        try container.encode(exerciseName, forKey: .exerciseName)
-        try container.encodeIfPresent(setNumber, forKey: .setNumber)
-        try container.encodeIfPresent(reps, forKey: .reps)
-        try container.encodeIfPresent(loadLb, forKey: .loadLb)
-        try container.encodeIfPresent(loadKg, forKey: .loadKg)
-        try container.encodeIfPresent(rir, forKey: .rir)
-        try container.encodeIfPresent(rpe, forKey: .rpe)
-        try container.encodeIfPresent(notes, forKey: .notes)
-    }
-}
-
 /// Manages the training schedule and calendar logic
 class TrainingScheduleManager: ObservableObject {
     static let shared = TrainingScheduleManager()
@@ -109,12 +28,16 @@ class TrainingScheduleManager: ObservableObject {
     /// Load all logged set results for a given date
     public func loadSetResults(for date: Date) -> [WorkoutSetResult] {
         let key = resultsKey(for: date)
-        let data: Data?
+        
+        // Standardized storage access: try iCloud first if available, then local
+        var data: Data?
         if useICloud {
-            data = iCloudStore.data(forKey: key) ?? userDefaults.data(forKey: key)
-        } else {
+            data = iCloudStore.data(forKey: key)
+        }
+        if data == nil {
             data = userDefaults.data(forKey: key)
         }
+        
         guard let data = data,
               let results = try? JSONDecoder().decode([WorkoutSetResult].self, from: data) else {
             return []
@@ -141,7 +64,7 @@ class TrainingScheduleManager: ObservableObject {
             iCloudStore.synchronize()
         }
 
-        // Debug: confirm what's persisted for easier diagnosis
+        // Log successful save for debugging
         #if DEBUG
         print("🧾 Saved set: date=\(dateKey(for: date)), exercise=\(result.exerciseName), set=\(result.setNumber?.description ?? "-"), reps=\(result.reps?.description ?? "-"), lb=\(result.loadLb ?? "-"), kg=\(result.loadKg ?? "-"), rir=\(result.rir?.description ?? "-"), rpe=\(result.rpe?.description ?? "-")")
         #endif
