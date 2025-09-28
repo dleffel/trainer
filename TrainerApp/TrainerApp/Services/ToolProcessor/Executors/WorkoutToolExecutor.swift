@@ -2,10 +2,24 @@ import Foundation
 
 /// Executor for workout CRUD operations (structured + legacy)
 class WorkoutToolExecutor: ToolExecutor {
+    // Dependencies
+    private let scheduleManager: TrainingScheduleManager
+    private let resultsManager: WorkoutResultsManager
+    
+    // Dependency injection constructor
+    init(scheduleManager: TrainingScheduleManager = TrainingScheduleManager.shared,
+         resultsManager: WorkoutResultsManager = WorkoutResultsManager.shared) {
+        self.scheduleManager = scheduleManager
+        self.resultsManager = resultsManager
+    }
+    
+    // New tool for per-set logging
+    // log_set_result(date, exercise, set, reps, load_lb, load_kg, rir, rpe, notes)
     var supportedToolNames: [String] {
         return [
             "plan_workout",
-            "update_workout"
+            "update_workout",
+            "log_set_result"
         ]
     }
 
@@ -61,6 +75,91 @@ class WorkoutToolExecutor: ToolExecutor {
                 error: success ? nil : result
             )
 
+        case "log_set_result":
+            print("🧾 WorkoutToolExecutor: Matched log_set_result tool")
+            // Expected simple params: date, exercise, set, reps, load_lb, load_kg, rir, rpe, notes
+            let params = toolCall.parameters
+
+            let dateParam = (params["date"] as? String) ?? "today"
+
+            // Be tolerant to different field names coming from the coach
+            // Prefer explicit "exercise", then common aliases
+            let exercise = (params["exercise"] as? String)
+                ?? (params["exerciseName"] as? String)
+                ?? (params["movement"] as? String)
+                ?? (params["name"] as? String)
+                ?? "Unknown"
+
+            // Accept alternate names for set and reps
+            let setStr = (params["set"] as? String)
+                ?? (params["set_number"] as? String)
+                ?? (params["setIndex"] as? String)
+
+            let repsStr = (params["reps"] as? String)
+                ?? (params["rep"] as? String)
+                ?? (params["repetitions"] as? String)
+
+            // Accept alternate names for weight units
+            let loadLb = (params["load_lb"] as? String)
+                ?? (params["weight_lb"] as? String)
+
+            let loadKg = (params["load_kg"] as? String)
+                ?? (params["weight_kg"] as? String)
+
+            let rirStr = (params["rir"] as? String)
+            let rpeStr = (params["rpe"] as? String)
+            let notes = params["notes"] as? String
+
+            let setNumber = setStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let reps = repsStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let rir = rirStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let rpe = rpeStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+
+            let targetDate = ToolUtilities.parseDate(dateParam)
+
+            let result = await MainActor.run { () -> (success: Bool, error: String?) in
+                do {
+                    let entry = try WorkoutSetResult(
+                        timestamp: Date.current,
+                        exerciseName: exercise,
+                        setNumber: setNumber,
+                        reps: reps,
+                        loadLb: loadLb,
+                        loadKg: loadKg,
+                        rir: rir,
+                        rpe: rpe,
+                        notes: notes
+                    )
+                    
+                    let success = try resultsManager.appendSetResult(for: targetDate, result: entry)
+                    return (success, nil)
+                } catch {
+                    return (false, error.localizedDescription)
+                }
+            }
+
+            let dateFmt = DateFormatter()
+            dateFmt.dateFormat = "yyyy-MM-dd"
+            let dateKey = dateFmt.string(from: targetDate)
+
+            let response: String
+            let success: Bool
+            
+            if result.success {
+                response = "[Set Logged] date=\(dateKey), exercise=\(exercise), set=\(setNumber ?? 0), reps=\(reps ?? 0), load_lb=\(loadLb ?? "-"), load_kg=\(loadKg ?? "-"), rir=\(rir ?? -1), rpe=\(rpe ?? -1)\(notes != nil ? ", notes=\(notes!)" : "")"
+                success = true
+            } else {
+                response = "[Error: \(result.error ?? "Failed to persist set result for \(dateParam)")]"
+                success = false
+            }
+
+            return ToolProcessor.ToolCallResult(
+                toolName: toolCall.name,
+                result: response,
+                success: success,
+                error: success ? nil : response
+            )
+
         default:
             throw ToolError.unknownTool(toolCall.name)
         }
@@ -78,8 +177,6 @@ class WorkoutToolExecutor: ToolExecutor {
         print("🔍 DEBUG WorkoutToolExecutor.executePlanStructuredWorkout: Raw JSON (first 300 chars) = \(String(workoutJson.prefix(300)))")
 
         return await MainActor.run {
-            let manager = TrainingScheduleManager.shared
-
             let targetDate = ToolUtilities.parseDate(date)
             print("🔍 DEBUG WorkoutToolExecutor.executePlanStructuredWorkout: Parsed target date = \(targetDate)")
             // Compute expected storage key (UTC yyyy-MM-dd) to validate persistence path
@@ -90,7 +187,7 @@ class WorkoutToolExecutor: ToolExecutor {
             print("🔑 DEBUG WorkoutToolExecutor.executePlanStructuredWorkout: Expected storage key = \(storageKey)")
 
             // Check if program exists
-            guard manager.programStartDate != nil else {
+            guard scheduleManager.programStartDate != nil else {
                 print("❌ DEBUG WorkoutToolExecutor.executePlanStructuredWorkout: No program - returning error")
                 return "[Error: No training program started. Use start_training_program first]"
             }
@@ -127,7 +224,7 @@ class WorkoutToolExecutor: ToolExecutor {
             }
 
             // Save the structured workout
-            let saveResult = manager.planStructuredWorkout(for: targetDate, structuredWorkout: structuredWorkout, notes: notes, icon: icon)
+            let saveResult = scheduleManager.planStructuredWorkout(for: targetDate, structuredWorkout: structuredWorkout, notes: notes, icon: icon)
             print("🔍 DEBUG WorkoutToolExecutor.executePlanStructuredWorkout: Save result = \(saveResult)")
             print("🔑 DEBUG WorkoutToolExecutor.executePlanStructuredWorkout: Persisted under key = \(storageKey)")
 
@@ -162,7 +259,6 @@ class WorkoutToolExecutor: ToolExecutor {
         print("✏️ WorkoutToolExecutor: Updating structured workout for \(date)")
 
         return await MainActor.run {
-            let manager = TrainingScheduleManager.shared
             let targetDate = ToolUtilities.parseDate(date)
 
             // Unescape the JSON string - remove backslash escapes
@@ -191,7 +287,7 @@ class WorkoutToolExecutor: ToolExecutor {
             }
 
             // Update the structured workout
-            if manager.updateStructuredWorkout(for: targetDate, structuredWorkout: structuredWorkout, notes: notes, icon: icon) {
+            if scheduleManager.updateStructuredWorkout(for: targetDate, structuredWorkout: structuredWorkout, notes: notes, icon: icon) {
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "EEEE, MMM d"
                 let dateStr = dateFormatter.string(from: targetDate)

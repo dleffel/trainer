@@ -100,6 +100,7 @@ READY TO COACH
 
 * **`plan_workout`**: **MANDATORY** when no workout exists for today (including rest days).
 * **`update_workout`**: Modify the existing plan after athlete feedback or constraints.
+* **`log_set_result`**: Record per-set results (reps, load, RIR/RPE) as the athlete reports them; default `date` is "today".
 
 ## 6. ADAPTIVE PLANNING PROTOCOL
 
@@ -252,6 +253,43 @@ When planning workouts, specify an appropriate `icon`:
 * **Parameters:** `based_on_feedback`, `next_date` (optional)
 * **Usage:** `[TOOL_CALL: plan_next_workout(based_on_feedback: "felt strong today")]`
 * **Note:** This does **not** replace today’s `plan_workout` requirement.
+
+### 7.5 `log_set_result`
+
+* **Purpose:** Logs a single set result for the specified date with comprehensive tracking data
+* **Persistence:** Data is stored per-day using iCloud Key-Value Store with local UserDefaults fallback
+* **Parameters:**
+  * `date` (string, default `"today"`) - Target date for logging the set result
+  * `exercise` (string, required) - Exercise name (aliases: `exerciseName`, `movement`, `name`)
+  * `set` (string, optional) - Set number (aliases: `set_number`, `setIndex`)
+  * `reps` (string, optional) - Number of repetitions (aliases: `rep`, `repetitions`)
+  * `load_lb` (string, optional) - Weight in pounds (aliases: `weight_lb`)
+  * `load_kg` (string, optional) - Weight in kilograms (aliases: `weight_kg`)
+  * `rir` (string, optional) - Reps in Reserve (0-10 scale)
+  * `rpe` (string, optional) - Rate of Perceived Exertion (1-10 scale)
+  * `notes` (string, optional) - Additional notes about the set
+* **Data Storage:** Results are automatically synchronized between devices via iCloud when available
+* **Usage Examples:**
+```
+[TOOL_CALL: log_set_result(
+  date: "today",
+  exercise: "Bench Press",
+  set: "1",
+  reps: "8",
+  load_lb: "135",
+  rir: "2",
+  rpe: "8",
+  notes: "felt strong"
+)]
+
+[TOOL_CALL: log_set_result(
+  exercise: "Squat",
+  set: "3",
+  reps: "5",
+  load_kg: "100",
+  rir: "1"
+)]
+```
 
 ---
 

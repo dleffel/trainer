@@ -19,6 +19,24 @@ class TrainingScheduleManager: ObservableObject {
         loadProgram()
     }
     
+    // MARK: - Results Logging (Delegated to WorkoutResultsManager)
+    
+    /// Load all logged set results for a given date
+    public func loadSetResults(for date: Date) -> [WorkoutSetResult] {
+        return WorkoutResultsManager.shared.loadSetResults(for: date)
+    }
+
+    /// Append a set result for a given date; persists to UserDefaults and iCloud (when available)
+    @discardableResult
+    public func appendSetResult(for date: Date, result: WorkoutSetResult) -> Bool {
+        do {
+            return try WorkoutResultsManager.shared.appendSetResult(for: date, result: result)
+        } catch {
+            print("❌ Failed to save workout set result: \(error.localizedDescription)")
+            return false
+        }
+    }
+    
     // MARK: - iCloud Setup
     
     private func setupICloudSync() {
@@ -448,9 +466,12 @@ class TrainingScheduleManager: ObservableObject {
             var clearedKeys: [String] = []
             for i in -365...365 {
                 if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
-                    let key = "workout_\(dateKey(for: date))"
-                    iCloudStore.removeObject(forKey: key)
-                    clearedKeys.append(key)
+                    let workoutKey = "workout_\(dateKey(for: date))"
+                    iCloudStore.removeObject(forKey: workoutKey)
+                    clearedKeys.append(workoutKey)
+                    
+                    // Clear results using WorkoutResultsManager
+                    WorkoutResultsManager.shared.clearResults(from: date, to: date)
                 }
             }
             print("🧹 DEBUG restartProgram: Cleared \(clearedKeys.count) iCloud keys")
@@ -464,9 +485,11 @@ class TrainingScheduleManager: ObservableObject {
         var clearedLocalKeys: [String] = []
         for i in -365...365 {
             if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
-                let key = "workout_\(dateKey(for: date))"
-                userDefaults.removeObject(forKey: key)
-                clearedLocalKeys.append(key)
+                let workoutKey = "workout_\(dateKey(for: date))"
+                userDefaults.removeObject(forKey: workoutKey)
+                clearedLocalKeys.append(workoutKey)
+                
+                // Results clearing is handled by WorkoutResultsManager above
             }
         }
         print("🧹 DEBUG restartProgram: Cleared \(clearedLocalKeys.count) UserDefaults keys")
