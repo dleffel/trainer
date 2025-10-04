@@ -604,6 +604,12 @@ enum LLMError: LocalizedError {
 }
 
 enum LLMClient {
+    /// API message structure for chat completions
+    private struct APIMessage: Codable {
+        let role: String
+        let content: String
+    }
+    
     /// Create temporal-enhanced system prompt with current time context
     private static func createTemporalSystemPrompt(
         _ systemPrompt: String, 
@@ -640,6 +646,33 @@ enum LLMClient {
         
         return enhancedPrompt
     }
+    /// Format a message timestamp in a human-readable format with day of week
+    private static func formatMessageTimestamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM d, yyyy 'at' h:mm a zzz"
+        formatter.timeZone = TimeZone.current
+        return formatter.string(from: date)
+    }
+    
+    /// Enhance a message with timestamp prefix for temporal context
+    private static func enhanceMessageWithTimestamp(_ message: ChatMessage) -> APIMessage {
+        let role = switch message.role {
+            case .user: "user"
+            case .assistant: "assistant"
+            case .system: "system"
+        }
+        
+        // Only add timestamps to user and assistant messages
+        // System messages should remain unmodified for tool results, etc.
+        if message.role == .user || message.role == .assistant {
+            let timestamp = formatMessageTimestamp(message.date)
+            let enhancedContent = "[\(timestamp)]\n\(message.content)"
+            return APIMessage(role: role, content: enhancedContent)
+        } else {
+            return APIMessage(role: role, content: message.content)
+        }
+    }
+    
     
     static func complete(
         apiKey: String,
@@ -647,7 +680,6 @@ enum LLMClient {
         systemPrompt: String,
         history: [ChatMessage]
     ) async throws -> String {
-        struct APIMessage: Codable { let role: String; let content: String }
         struct RequestBody: Codable { let model: String; let messages: [APIMessage] }
         struct ResponseBody: Codable {
             struct Choice: Codable {
@@ -671,15 +703,19 @@ enum LLMClient {
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
             msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
-            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in streamComplete() method")
+            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in complete() method")
         }
+        
+        // Add messages with timestamp enhancement
         for m in history {
-            let role = switch m.role {
-                case .user: "user"
-                case .assistant: "assistant"
-                case .system: "system"
-            }
-            msgs.append(APIMessage(role: role, content: m.content))
+            msgs.append(enhanceMessageWithTimestamp(m))
+        }
+        
+        // Debug logging for timestamp enhancement
+        print("📅 TEMPORAL_DEBUG: Enhanced \(history.count) messages with timestamps")
+        if let firstMessage = history.first {
+            let sample = formatMessageTimestamp(firstMessage.date)
+            print("📅 Sample timestamp format: \(sample)")
         }
 
         let body = try JSONEncoder().encode(RequestBody(model: model, messages: msgs))
@@ -719,7 +755,6 @@ enum LLMClient {
         history: [ChatMessage],
         onToken: @escaping (String) -> Void
     ) async throws -> String {
-        struct APIMessage: Codable { let role: String; let content: String }
         struct StreamRequestBody: Codable { let model: String; let messages: [APIMessage]; let stream: Bool }
         struct StreamDelta: Codable { let content: String? }
         struct StreamChoice: Codable { let delta: StreamDelta? }
@@ -741,13 +776,17 @@ enum LLMClient {
             msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
             print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in streamComplete() method")
         }
+        
+        // Add messages with timestamp enhancement
         for m in history {
-            let role = switch m.role {
-                case .user: "user"
-                case .assistant: "assistant"
-                case .system: "system"
-            }
-            msgs.append(APIMessage(role: role, content: m.content))
+            msgs.append(enhanceMessageWithTimestamp(m))
+        }
+        
+        // Debug logging for timestamp enhancement
+        print("📅 TEMPORAL_DEBUG: Enhanced \(history.count) messages with timestamps")
+        if let firstMessage = history.first {
+            let sample = formatMessageTimestamp(firstMessage.date)
+            print("📅 Sample timestamp format: \(sample)")
         }
         
         let reqBody = StreamRequestBody(model: model, messages: msgs, stream: true)
