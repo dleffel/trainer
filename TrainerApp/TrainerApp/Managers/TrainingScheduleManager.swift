@@ -218,14 +218,10 @@ class TrainingScheduleManager: ObservableObject {
                     days.append(savedDay)
                     print("📥 Loaded saved workout for \(workoutStore.dateKey(for: dayDate))")
                 } else {
-                    // Apply workout template if available
-                    let workoutDay = createWorkoutDayWithTemplate(date: dayDate, blockType: targetBlock.type)
+                    // Create blank workout day
+                    let workoutDay = WorkoutDay(date: dayDate, blockType: targetBlock.type)
                     days.append(workoutDay)
-                    if workoutDay.isTemplateGenerated {
-                        print("📝 DEBUG: Created workout day with template for \(workoutDay.dayOfWeek.name)")
-                    } else {
-                        print("📭 DEBUG: No template found, created blank day")
-                    }
+                    print("📭 Created blank workout day for \(workoutDay.dayOfWeek.name)")
                 }
             }
         }
@@ -254,14 +250,10 @@ class TrainingScheduleManager: ObservableObject {
                     days.append(savedDay)
                     print("✅ generateMonth - Preserved saved workout with icon: \(savedDay.workoutIcon ?? "none")")
                 } else {
-                    // Apply workout template if available
-                    let workoutDay = createWorkoutDayWithTemplate(date: currentDate, blockType: block.type)
+                    // Create blank workout day
+                    let workoutDay = WorkoutDay(date: currentDate, blockType: block.type)
                     days.append(workoutDay)
-                    if workoutDay.isTemplateGenerated {
-                        print("📝 generateMonth - Created workout day with template")
-                    } else {
-                        print("📭 generateMonth - Created blank workout day")
-                    }
+                    print("📭 generateMonth - Created blank workout day")
                 }
             }
             
@@ -270,26 +262,6 @@ class TrainingScheduleManager: ObservableObject {
         
         print("⚠️ DEBUG generateMonth - Returning \(days.count) days")
         return days
-    }
-    
-    // MARK: - Template Application
-    
-    /// Create a WorkoutDay with template applied if available
-    private func createWorkoutDayWithTemplate(date: Date, blockType: BlockType) -> WorkoutDay {
-        let dayOfWeek = DayOfWeek.from(date: date)
-        
-        // Get template for this block + day combination
-        guard let blockTemplate = TrainingBlockTemplate.template(for: blockType),
-              let workoutTemplate = blockTemplate.templateForDay(dayOfWeek) else {
-            // Fallback to blank workout day if no template available
-            print("📭 No template found for \(blockType.rawValue) on \(dayOfWeek.name)")
-            return WorkoutDay(date: date, blockType: blockType)
-        }
-        
-        // Create WorkoutDay with template applied
-        let workoutDay = WorkoutDay.withTemplate(date: date, blockType: blockType, template: workoutTemplate)
-        print("📝 Applied template '\(workoutTemplate.title)' for \(dayOfWeek.name)")
-        return workoutDay
     }
     
     // MARK: - Helper Methods
@@ -455,7 +427,7 @@ class TrainingScheduleManager: ObservableObject {
             weekNumber: 1
         )
         
-        return createWorkoutDayWithTemplate(date: date, blockType: targetBlock.type)
+        return WorkoutDay(date: date, blockType: targetBlock.type)
     }
     
     // MARK: - Single Workout APIs
