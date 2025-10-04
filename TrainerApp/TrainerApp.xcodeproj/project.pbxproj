@@ -9,6 +9,12 @@
 /* Begin PBXBuildFile section */
 		B70B93D12E88E17300B9BD7E /* WorkoutSetResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */; };
 		B70B93D42E88E51400B9BD7E /* WorkoutResultsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93D32E88E51400B9BD7E /* WorkoutResultsManager.swift */; };
+		B70B93E02E90E63E00B9BD7E /* FileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93D62E90E63E00B9BD7E /* FileStore.swift */; };
+		B70B93E12E90E63E00B9BD7E /* SimpleKeyValueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93D82E90E63E00B9BD7E /* SimpleKeyValueStore.swift */; };
+		B70B93E22E90E63E00B9BD7E /* PersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93DA2E90E63E00B9BD7E /* PersistenceStore.swift */; };
+		B70B93E32E90E63E00B9BD7E /* HybridCloudStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93D72E90E63E00B9BD7E /* HybridCloudStore.swift */; };
+		B70B93E42E90E63E00B9BD7E /* PersistenceKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93DD2E90E63E00B9BD7E /* PersistenceKey.swift */; };
+		B70B93E52E90E63E00B9BD7E /* PersistenceError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93DC2E90E63E00B9BD7E /* PersistenceError.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -52,6 +58,12 @@
 /* Begin PBXFileReference section */
 		B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSetResult.swift; sourceTree = "<group>"; };
 		B70B93D32E88E51400B9BD7E /* WorkoutResultsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutResultsManager.swift; sourceTree = "<group>"; };
+		B70B93D62E90E63E00B9BD7E /* FileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileStore.swift; sourceTree = "<group>"; };
+		B70B93D72E90E63E00B9BD7E /* HybridCloudStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridCloudStore.swift; sourceTree = "<group>"; };
+		B70B93D82E90E63E00B9BD7E /* SimpleKeyValueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleKeyValueStore.swift; sourceTree = "<group>"; };
+		B70B93DA2E90E63E00B9BD7E /* PersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceStore.swift; sourceTree = "<group>"; };
+		B70B93DC2E90E63E00B9BD7E /* PersistenceError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceError.swift; sourceTree = "<group>"; };
+		B70B93DD2E90E63E00B9BD7E /* PersistenceKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceKey.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -108,6 +120,43 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		B70B93D92E90E63E00B9BD7E /* Implementations */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93D62E90E63E00B9BD7E /* FileStore.swift */,
+				B70B93D72E90E63E00B9BD7E /* HybridCloudStore.swift */,
+				B70B93D82E90E63E00B9BD7E /* SimpleKeyValueStore.swift */,
+			);
+			path = Implementations;
+			sourceTree = "<group>";
+		};
+		B70B93DB2E90E63E00B9BD7E /* Protocols */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93DA2E90E63E00B9BD7E /* PersistenceStore.swift */,
+			);
+			path = Protocols;
+			sourceTree = "<group>";
+		};
+		B70B93DE2E90E63E00B9BD7E /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93DC2E90E63E00B9BD7E /* PersistenceError.swift */,
+				B70B93DD2E90E63E00B9BD7E /* PersistenceKey.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		B70B93DF2E90E63E00B9BD7E /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93D92E90E63E00B9BD7E /* Implementations */,
+				B70B93DB2E90E63E00B9BD7E /* Protocols */,
+				B70B93DE2E90E63E00B9BD7E /* Utilities */,
+			);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
 		B75947052E07006B00BE6537 = {
 			isa = PBXGroup;
 			children = (
@@ -129,6 +178,7 @@
 		B75947102E07006B00BE6537 /* TrainerApp */ = {
 			isa = PBXGroup;
 			children = (
+				B70B93DF2E90E63E00B9BD7E /* Persistence */,
 				B781C92B2E639CB300B866CE /* Debug */,
 				B781C91E2E60C1A400B866CE /* Utilities */,
 				B75A86682E5D884700CB5792 /* Views */,
@@ -345,6 +395,12 @@
 				B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */,
 				B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */,
 				B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */,
+				B70B93E02E90E63E00B9BD7E /* FileStore.swift in Sources */,
+				B70B93E12E90E63E00B9BD7E /* SimpleKeyValueStore.swift in Sources */,
+				B70B93E22E90E63E00B9BD7E /* PersistenceStore.swift in Sources */,
+				B70B93E32E90E63E00B9BD7E /* HybridCloudStore.swift in Sources */,
+				B70B93E42E90E63E00B9BD7E /* PersistenceKey.swift in Sources */,
+				B70B93E52E90E63E00B9BD7E /* PersistenceError.swift in Sources */,
 				B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */,
 				B781C9332E7007C100B866CE /* StructuredWorkout.swift in Sources */,
 				B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */,

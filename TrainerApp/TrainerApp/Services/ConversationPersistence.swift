@@ -41,6 +41,8 @@ struct ChatMessage: Identifiable, Codable {
     }
 }
 
+// MARK: - Storage Message Type
+
 private struct StoredMessage: Codable {
     let id: UUID
     let role: String
@@ -60,79 +62,95 @@ private struct StoredMessage: Codable {
 // MARK: - Conversation Persistence
 
 struct ConversationPersistence {
-    private let keyValueStore = NSUbiquitousKeyValueStore.default
-    private let conversationKey = "trainer_conversations"
+    // Use HybridCloudStore for conversations (with 1MB limit awareness)
+    private let cloudStore: HybridCloudStore<[StoredMessage]>
     
-    // Local backup URL
-    private var localURL: URL {
-        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return dir.appendingPathComponent("conversation.json")
-    }
+    // Use FileStore as backup for large conversations
+    private let fileStore: FileStore<[StoredMessage]>
     
     init() {
-        // Synchronize with iCloud to get latest data
-        let synchronized = keyValueStore.synchronize()
-        print("🔄 iCloud synchronize on init: \(synchronized)")
+        // Initialize hybrid cloud store for synced conversations
+        self.cloudStore = HybridCloudStore<[StoredMessage]>()
+        
+        // Initialize file store for large conversation fallback
+        do {
+            self.fileStore = try FileStore<[StoredMessage]>(subdirectory: "Conversations")
+        } catch {
+            fatalError("Failed to initialize FileStore: \(error)")
+        }
+        
+        print("✅ ConversationPersistence initialized with HybridCloudStore + FileStore fallback")
     }
     
+    // MARK: - Public API
+    
     func load() throws -> [ChatMessage] {
-        // Try iCloud first
-        if let data = keyValueStore.data(forKey: conversationKey) {
-            let messages = try JSONDecoder().decode([StoredMessage].self, from: data)
-            print("✅ Loaded from iCloud")
-            return messages.compactMap { s in
-                guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
-                let state = MessageState(rawValue: s.state ?? "completed") ?? .completed
-                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date, state: state)
-            }
+        // Try cloud store first (for recent, small conversations)
+        if let stored = cloudStore.load(forKey: PersistenceKey.Conversation.messages) {
+            print("✅ Loaded \(stored.count) messages from iCloud")
+            return convertToMessages(stored)
         }
         
-        // Fallback to local
-        if FileManager.default.fileExists(atPath: localURL.path) {
-            let data = try Data(contentsOf: localURL)
-            let stored = try JSONDecoder().decode([StoredMessage].self, from: data)
-            print("📱 Loaded from local storage")
-            return stored.compactMap { s in
-                guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
-                let state = MessageState(rawValue: s.state ?? "completed") ?? .completed
-                return ChatMessage(id: s.id, role: role, content: s.content, date: s.date, state: state)
-            }
+        // Fallback to file store (for larger conversations)
+        if let stored = fileStore.load(forKey: PersistenceKey.Conversation.localFileName) {
+            print("📱 Loaded \(stored.count) messages from local file storage")
+            return convertToMessages(stored)
         }
         
+        print("📭 No conversation history found")
         return []
     }
     
     func save(_ messages: [ChatMessage]) throws {
-        let stored = messages.map { m in
-            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, date: m.date, state: m.state.rawValue)
-        }
+        let stored = convertToStored(messages)
+        
+        // Estimate size
         let data = try JSONEncoder().encode(stored)
+        let sizeInBytes = data.count
         
-        // Save to both local and iCloud
-        try data.write(to: localURL, options: [.atomic])
-        
-        // Save to iCloud (1MB limit)
-        if data.count < 1_000_000 {
-            keyValueStore.set(data, forKey: conversationKey)
-            let synced = keyValueStore.synchronize()
-            print("☁️ Saved to iCloud (\(data.count) bytes) - Sync started: \(synced)")
-            
-            // Verify the save
-            if let savedData = keyValueStore.data(forKey: conversationKey) {
-                print("✅ Verified: Data exists in iCloud store (\(savedData.count) bytes)")
-            } else {
-                print("⚠️ Warning: Data not found in iCloud store after save")
+        // Use cloud store if under 1MB limit, otherwise use file store
+        if sizeInBytes < 1_000_000 {
+            do {
+                try cloudStore.save(stored, forKey: PersistenceKey.Conversation.messages)
+                print("☁️ Saved \(messages.count) messages to iCloud (\(sizeInBytes) bytes)")
+                
+                // Clean up file store if we successfully saved to cloud
+                try? fileStore.delete(forKey: PersistenceKey.Conversation.localFileName)
+            } catch {
+                // Fallback to file store if cloud save fails
+                print("⚠️ Cloud save failed, falling back to file storage: \(error)")
+                try fileStore.save(stored, forKey: PersistenceKey.Conversation.localFileName)
             }
         } else {
-            print("⚠️ Data too large for iCloud key-value store (\(data.count) bytes)")
+            // Conversation too large for iCloud KV store, use file storage
+            try fileStore.save(stored, forKey: PersistenceKey.Conversation.localFileName)
+            print("📱 Saved \(messages.count) messages to local file storage (\(sizeInBytes) bytes - too large for iCloud)")
+            
+            // Clean up cloud store since we've moved to files
+            try? cloudStore.delete(forKey: PersistenceKey.Conversation.messages)
         }
     }
     
     func clear() throws {
-        if FileManager.default.fileExists(atPath: localURL.path) {
-            try FileManager.default.removeItem(at: localURL)
+        // Clear from both stores
+        try? cloudStore.delete(forKey: PersistenceKey.Conversation.messages)
+        try? fileStore.delete(forKey: PersistenceKey.Conversation.localFileName)
+        print("🧹 Cleared all conversation history")
+    }
+    
+    // MARK: - Conversion Helpers
+    
+    private func convertToMessages(_ stored: [StoredMessage]) -> [ChatMessage] {
+        return stored.compactMap { s in
+            guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
+            let state = MessageState(rawValue: s.state ?? "completed") ?? .completed
+            return ChatMessage(id: s.id, role: role, content: s.content, date: s.date, state: state)
         }
-        keyValueStore.removeObject(forKey: conversationKey)
-        keyValueStore.synchronize()
+    }
+    
+    private func convertToStored(_ messages: [ChatMessage]) -> [StoredMessage] {
+        return messages.map { m in
+            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, date: m.date, state: m.state.rawValue)
+        }
     }
 }

@@ -9,13 +9,22 @@ class TrainingScheduleManager: ObservableObject {
     @Published var currentWeekInBlock: Int = 1
     @Published var workoutDays: [WorkoutDay] = []
     
-    private let userDefaults = UserDefaults.standard
-    private let iCloudStore = NSUbiquitousKeyValueStore.default
-    private let programKey = "TrainingProgram"
-    private var useICloud = true
+    // Use new persistence layer for training program and workout days
+    private let programStore: HybridCloudStore<TrainingProgram>
+    private let workoutStore: HybridCloudStore<WorkoutDay>
     
     private init() {
-        setupICloudSync()
+        // Initialize hybrid cloud stores
+        self.programStore = HybridCloudStore<TrainingProgram>()
+        self.workoutStore = HybridCloudStore<WorkoutDay>(keyPrefix: PersistenceKey.Training.workoutPrefix)
+        
+        // Setup cloud change handler
+        programStore.onCloudChange = { [weak self] in
+            print("📱 iCloud data changed for training schedule")
+            self?.loadProgram()
+        }
+        
+        print("✅ TrainingScheduleManager initialized with HybridCloudStore (iCloud: \(programStore.useICloud))")
         loadProgram()
     }
     
@@ -35,35 +44,6 @@ class TrainingScheduleManager: ObservableObject {
             print("❌ Failed to save workout set result: \(error.localizedDescription)")
             return false
         }
-    }
-    
-    // MARK: - iCloud Setup
-    
-    private func setupICloudSync() {
-        // Check if iCloud is available
-        if FileManager.default.ubiquityIdentityToken != nil {
-            print("✅ iCloud available for TrainingScheduleManager")
-            useICloud = true
-            
-            // Listen for iCloud changes
-            NotificationCenter.default.addObserver(
-                self,
-                selector: #selector(handleICloudChange),
-                name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-                object: iCloudStore
-            )
-            
-            // Sync immediately
-            iCloudStore.synchronize()
-        } else {
-            print("⚠️ iCloud not available for TrainingScheduleManager")
-            useICloud = false
-        }
-    }
-    
-    @objc private func handleICloudChange(_ notification: Notification) {
-        print("📱 iCloud data changed for training schedule")
-        loadProgram()
     }
     
     // MARK: - Program Management
@@ -87,28 +67,10 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Load existing program from storage
     private func loadProgram() {
-        var data: Data?
-        
-        // Try iCloud first if available
-        if useICloud {
-            data = iCloudStore.data(forKey: programKey)
-            if data != nil {
-                print("📥 Loaded program from iCloud")
-            }
-        }
-        
-        // Fall back to local storage
-        if data == nil {
-            data = userDefaults.data(forKey: programKey)
-            if data != nil {
-                print("📥 Loaded program from local storage")
-            }
-        }
-        
-        if let data = data,
-           let program = try? JSONDecoder().decode(TrainingProgram.self, from: data) {
+        if let program = programStore.load(forKey: PersistenceKey.Training.program) {
             self.currentProgram = program
             updateCurrentBlock()
+            print("📥 Loaded program from storage")
         }
     }
     
@@ -116,18 +78,11 @@ class TrainingScheduleManager: ObservableObject {
     private func saveProgram() {
         guard let program = currentProgram else { return }
         
-        if let data = try? JSONEncoder().encode(program) {
-            // Save to local storage
-            userDefaults.set(data, forKey: programKey)
-            
-            // Save to iCloud if available
-            if useICloud {
-                iCloudStore.set(data, forKey: programKey)
-                iCloudStore.synchronize()
-                print("☁️ Saved program to iCloud")
-            } else {
-                print("💾 Saved program to local storage")
-            }
+        do {
+            try programStore.save(program, forKey: PersistenceKey.Training.program)
+            print("💾 Saved program to storage")
+        } catch {
+            print("❌ Failed to save program: \(error)")
         }
     }
     
@@ -258,45 +213,20 @@ class TrainingScheduleManager: ObservableObject {
         
         for dayOffset in 0..<7 {
             if let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) {
-                // Check if we have a saved workout for this date first
-                let key = "workout_\(dateKey(for: dayDate))"
-                var workoutDay: WorkoutDay
-                
-                // DEBUG: Enhanced logging for workout loading
-                print("🔍 DEBUG: Looking for workout with key: \(key)")
-                print("🔍 DEBUG: Date being checked: \(dayDate)")
-                print("🔍 DEBUG: Using iCloud: \(useICloud)")
-                
-                // Check both storage locations for debugging
-                let iCloudData = iCloudStore.data(forKey: key)
-                let localData = userDefaults.data(forKey: key)
-                
-                print("🔍 DEBUG: Data in iCloud: \(iCloudData != nil ? "YES (\(iCloudData!.count) bytes)" : "NO")")
-                print("🔍 DEBUG: Data in UserDefaults: \(localData != nil ? "YES (\(localData!.count) bytes)" : "NO")")
-                
                 // Try to load existing workout from storage
-                if let data = useICloud ? iCloudData : localData,
-                   let savedDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
-                    workoutDay = savedDay
-                    print("📥 Loaded saved workout for \(dateKey(for: dayDate))")
-                    print("📥 DEBUG: Planned workout content: \(savedDay.plannedWorkout ?? "nil")")
-                    print("🔍 DEBUG: StructuredWorkout exists: \(savedDay.structuredWorkout != nil)")
-                    if let structuredWorkout = savedDay.structuredWorkout {
-                        print("🔍 DEBUG: StructuredWorkout title: '\(String(describing: structuredWorkout.title))'")
-                        print("🔍 DEBUG: StructuredWorkout exercise count: \(structuredWorkout.exercises.count)")
-                    }
+                if let savedDay = workoutStore.load(for: dayDate) {
+                    days.append(savedDay)
+                    print("📥 Loaded saved workout for \(workoutStore.dateKey(for: dayDate))")
                 } else {
-                    // NEW: Apply workout template if available
-                    workoutDay = createWorkoutDayWithTemplate(date: dayDate, blockType: targetBlock.type)
+                    // Apply workout template if available
+                    let workoutDay = createWorkoutDayWithTemplate(date: dayDate, blockType: targetBlock.type)
+                    days.append(workoutDay)
                     if workoutDay.isTemplateGenerated {
                         print("📝 DEBUG: Created workout day with template for \(workoutDay.dayOfWeek.name)")
-                        print("🔍 DEBUG: Template type: \(workoutDay.templateType?.rawValue ?? "unknown")")
                     } else {
                         print("📭 DEBUG: No template found, created blank day")
                     }
                 }
-                
-                days.append(workoutDay)
             }
         }
         
@@ -306,7 +236,6 @@ class TrainingScheduleManager: ObservableObject {
     /// Generate workout days for a specific month
     func generateMonth(containing date: Date) -> [WorkoutDay] {
         print("⚠️ DEBUG generateMonth - Called for date: \(date)")
-        print("⚠️ DEBUG generateMonth - This function creates NEW WorkoutDay objects without preserving saved data!")
         
         guard currentProgram != nil else { return [] }
         
@@ -320,17 +249,12 @@ class TrainingScheduleManager: ObservableObject {
         while currentDate < monthInterval.end {
             // Find which block this date belongs to
             if let block = blocks.first(where: { $0.contains(date: currentDate) }) {
-                // BUG: This creates a NEW WorkoutDay without checking for saved data
-                let key = "workout_\(dateKey(for: currentDate))"
-                
-                // Check if we have saved workout data
-                if let data = useICloud ? iCloudStore.data(forKey: key) : userDefaults.data(forKey: key),
-                   let savedDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
-                    // Use the saved workout (preserves icon and other custom data)
+                // Try to load saved workout data
+                if let savedDay = workoutStore.load(for: currentDate) {
                     days.append(savedDay)
                     print("✅ generateMonth - Preserved saved workout with icon: \(savedDay.workoutIcon ?? "none")")
                 } else {
-                    // NEW: Apply workout template if available
+                    // Apply workout template if available
                     let workoutDay = createWorkoutDayWithTemplate(date: currentDate, blockType: block.type)
                     days.append(workoutDay)
                     if workoutDay.isTemplateGenerated {
@@ -369,20 +293,6 @@ class TrainingScheduleManager: ObservableObject {
     }
     
     // MARK: - Helper Methods
-    
-    private func dateKey(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(identifier: "UTC")  // Force UTC to ensure consistency
-        let key = formatter.string(from: date)
-        
-        // DEBUG: Log timezone information
-        print("🔑 DEBUG dateKey - Input date: \(date)")
-        print("🔑 DEBUG dateKey - Generated key: \(key)")
-        print("🔑 DEBUG dateKey - System timezone: \(TimeZone.current.identifier)")
-        
-        return key
-    }
     
     /// Get a formatted string describing the current position in the program
     func getCurrentPositionDescription() -> String {
@@ -457,186 +367,100 @@ class TrainingScheduleManager: ObservableObject {
         
         print("🧹 DEBUG restartProgram: In-memory data cleared")
         
-        // Clear completion data with extended range
-        if useICloud {
-            print("🧹 DEBUG restartProgram: Clearing iCloud data...")
-            iCloudStore.removeObject(forKey: programKey)
-            
-            // Extended clearing range to catch more data
-            var clearedKeys: [String] = []
-            for i in -365...365 {
-                if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
-                    let workoutKey = "workout_\(dateKey(for: date))"
-                    iCloudStore.removeObject(forKey: workoutKey)
-                    clearedKeys.append(workoutKey)
-                    
-                    // Clear results using WorkoutResultsManager
-                    WorkoutResultsManager.shared.clearResults(from: date, to: date)
-                }
-            }
-            print("🧹 DEBUG restartProgram: Cleared \(clearedKeys.count) iCloud keys")
-            iCloudStore.synchronize()
+        // Clear program using new persistence layer
+        do {
+            try programStore.delete(forKey: PersistenceKey.Training.program)
+            print("🧹 DEBUG restartProgram: Cleared program")
+        } catch {
+            print("⚠️ Failed to clear program: \(error)")
         }
         
-        // Clear local storage with extended range
-        print("🧹 DEBUG restartProgram: Clearing UserDefaults data...")
-        userDefaults.removeObject(forKey: programKey)
+        // Clear workout days using clearRange
+        let calendar = Calendar.current
+        let startClearDate = calendar.date(byAdding: .year, value: -1, to: Date.current)!
+        let endClearDate = calendar.date(byAdding: .year, value: 1, to: Date.current)!
         
-        var clearedLocalKeys: [String] = []
-        for i in -365...365 {
-            if let date = Calendar.current.date(byAdding: .day, value: i, to: Date.current) {
-                let workoutKey = "workout_\(dateKey(for: date))"
-                userDefaults.removeObject(forKey: workoutKey)
-                clearedLocalKeys.append(workoutKey)
-                
-                // Results clearing is handled by WorkoutResultsManager above
-            }
+        do {
+            try workoutStore.clearRange(from: startClearDate, to: endClearDate)
+            print("🧹 DEBUG restartProgram: Cleared workout days")
+        } catch {
+            print("⚠️ Failed to clear workout days: \(error)")
         }
-        print("🧹 DEBUG restartProgram: Cleared \(clearedLocalKeys.count) UserDefaults keys")
+        
+        // Clear results using WorkoutResultsManager
+        WorkoutResultsManager.shared.clearResults(from: startClearDate, to: endClearDate)
+        print("🧹 DEBUG restartProgram: Cleared workout results")
         
         print("🧹 DEBUG restartProgram: === CLEAR COMPLETE, STARTING NEW PROGRAM ===")
         
         // Start fresh program
         startNewProgram(startDate: startDate)
-        
-        print("🧹 DEBUG restartProgram: New program started with \(workoutDays.count) workout days")
-        print("🧹 DEBUG restartProgram: === RESTART COMPLETE ===")
     }
     
     /// Update workouts for a specific week
+    @discardableResult
     func updateWeekWorkouts(weekStartDate: Date, workouts: [String: String]) -> Bool {
-        guard let program = currentProgram else {
-            print("⚠️ No active program to update workouts")
-            return false
-        }
-        
-        print("📝 updateWeekWorkouts - Starting date: \(weekStartDate)")
-        print("📝 updateWeekWorkouts - Workouts to save: \(workouts.count)")
-        
-        // Check if date is before program start - use current week instead
-        var adjustedDate = weekStartDate
-        if weekStartDate < program.startDate {
-            print("⚠️ Date \(weekStartDate) is before program start \(program.startDate)")
-            print("📝 Using current week instead")
-            adjustedDate = Date.current
-        }
-        
-        // Get all days for this week
-        let weekDays = generateWeek(containing: adjustedDate)
-        print("📝 updateWeekWorkouts - Generated \(weekDays.count) days for the week")
-        
-        // If still no days generated, try the first week of the program
-        if weekDays.isEmpty {
-            print("📝 Falling back to first week of program")
-            let weekDays = generateWeek(containing: program.startDate)
-            if !weekDays.isEmpty {
-                return processWorkoutsForDays(weekDays, workouts: workouts)
-            }
-        }
-        
+        let weekDays = generateWeek(containing: weekStartDate)
         return processWorkoutsForDays(weekDays, workouts: workouts)
     }
     
     private func processWorkoutsForDays(_ weekDays: [WorkoutDay], workouts: [String: String]) -> Bool {
-        for day in weekDays {
-            let dayName = day.dayOfWeek.name.lowercased()
-            print("📝 Processing \(dayName), date: \(day.date)")
-            
-            if let workout = workouts[dayName] {
-                print("📝 Found workout for \(dayName): \(workout.prefix(50))...")
-                // Update the workout for this day
-                updateWorkoutForDay(date: day.date, workout: workout)
-            } else {
-                print("⚠️ No workout provided for \(dayName)")
+        var success = true
+        
+        for (dayName, workoutText) in workouts {
+            // Find matching day by comparing lowercase names
+            if let workoutDay = weekDays.first(where: { $0.dayOfWeek.name.lowercased() == dayName.lowercased() }) {
+                var updatedDay = workoutDay
+                updatedDay.plannedWorkout = workoutText
+                updatedDay.isCoachPlanned = true
+                
+                if !saveWorkoutDay(updatedDay) {
+                    success = false
+                }
             }
         }
         
-        return true
+        return success
     }
     
-    /// Update workout for a specific day
+    /// Update workout for a specific date
     func updateWorkoutForDay(date: Date, workout: String) {
-        print("💾 updateWorkoutForDay - Date: \(date), Workout: \(workout.prefix(30))...")
-        
-        // Find the workout day in our current days
-        if let index = workoutDays.firstIndex(where: {
-            Calendar.current.isDate($0.date, inSameDayAs: date)
-        }) {
-            print("💾 Found existing day at index \(index)")
-            workoutDays[index].plannedWorkout = workout
-            
-            // Save to persistent storage
-            let key = "workout_\(dateKey(for: date))"
-            let encoder = JSONEncoder()
-            if let data = try? encoder.encode(workoutDays[index]) {
-                if useICloud {
-                    iCloudStore.set(data, forKey: key)
-                    iCloudStore.synchronize()
-                    print("☁️ Saved to iCloud with key: \(key)")
-                }
-                userDefaults.set(data, forKey: key)
-                print("💾 Saved to UserDefaults with key: \(key)")
-            } else {
-                print("❌ Failed to encode workout day")
-            }
+        if let workoutDay = getWorkoutDay(for: date) {
+            var updatedDay = workoutDay
+            updatedDay.plannedWorkout = workout
+            updatedDay.isCoachPlanned = true
+            _ = saveWorkoutDay(updatedDay)
         } else {
-            print("💾 Creating new workout day for date")
-            // Create a new workout day for this date
             var newDay = generateDayForDate(date)
             newDay.plannedWorkout = workout
-            
-            // Save to persistent storage
-            let key = "workout_\(dateKey(for: date))"
-            let encoder = JSONEncoder()
-            if let data = try? encoder.encode(newDay) {
-                if useICloud {
-                    iCloudStore.set(data, forKey: key)
-                    iCloudStore.synchronize()
-                    print("☁️ Saved new day to iCloud with key: \(key)")
-                }
-                userDefaults.set(data, forKey: key)
-                userDefaults.synchronize() // Force sync
-                print("💾 Saved new day to UserDefaults with key: \(key)")
-                
-                // Verify the save
-                if let verifyData = userDefaults.data(forKey: key) {
-                    print("✅ Verified: Data exists in UserDefaults for key: \(key) (\(verifyData.count) bytes)")
-                } else {
-                    print("❌ ERROR: Data NOT found in UserDefaults immediately after save for key: \(key)")
-                }
-            } else {
-                print("❌ Failed to encode new workout day")
-            }
+            newDay.isCoachPlanned = true
+            workoutDays.append(newDay)
+            _ = saveWorkoutDay(newDay)
         }
     }
     
     /// Generate a workout day for a specific date
     private func generateDayForDate(_ date: Date) -> WorkoutDay {
-        // Find which block this date belongs to
-        let blocks = generateAllBlocks(from: currentProgram!.startDate, macroCycle: currentProgram!.currentMacroCycle)
-        var blockForDate: TrainingBlock? = nil
-        
-        for block in blocks {
-            if block.contains(date: date) {
-                blockForDate = block
-                break
-            }
+        guard currentProgram != nil else {
+            return WorkoutDay(date: date, blockType: .hypertrophyStrength)
         }
         
+        let blocks = generateAllBlocks(from: currentProgram!.startDate, macroCycle: currentProgram!.currentMacroCycle)
+        let blockForDate = blocks.first(where: { $0.contains(date: date) })
+        
         let targetBlock = blockForDate ?? currentBlock ?? TrainingBlock(
-            type: .aerobicCapacity,
+            type: .hypertrophyStrength,
             startDate: date,
             endDate: date,
             weekNumber: 1
         )
         
-        return WorkoutDay(date: date, blockType: targetBlock.type)
+        return createWorkoutDayWithTemplate(date: date, blockType: targetBlock.type)
     }
     
+    // MARK: - Single Workout APIs
     
-    // MARK: - New Single-Day CRUD Operations for Adaptive Planning
-    
-    /// Plan a single workout for a specific date (LEGACY - for text workouts)
+    /// Plan a single workout (text-based) for a specific date
     func planSingleWorkout(for date: Date, workout: String, notes: String?, icon: String? = nil) -> Bool {
         print("📝 Planning single workout for \(date)")
         if let icon = icon {
@@ -739,433 +563,85 @@ class TrainingScheduleManager: ObservableObject {
         }
     }
     
-    /// Update an existing structured workout
+    /// Update a structured workout (replace existing)
     func updateStructuredWorkout(for date: Date, structuredWorkout: StructuredWorkout, notes: String?, icon: String?) -> Bool {
-        print("✏️ Updating structured workout for \(date)")
-        
-        guard var workoutDay = getWorkoutDay(for: date) else {
-            print("❌ No workout found to update")
-            return false
+        if let existingDay = getWorkoutDay(for: date) {
+            var updatedDay = existingDay
+            updatedDay.structuredWorkout = structuredWorkout
+            updatedDay.workoutIcon = icon
+            // Notes are not stored in this method
+            return saveWorkoutDay(updatedDay)
         }
-        
-        // Update the structured workout
-        workoutDay.structuredWorkout = structuredWorkout
-        workoutDay.isCoachPlanned = true
-        workoutDay.workoutIcon = icon
-        // Do NOT write to plannedWorkout - structured workouts only
-        
-        if let notes = notes {
-            print("   Notes: \(notes)")
-        }
-        
-        return saveWorkoutDay(workoutDay)
+        return false
     }
     
-    /// Update an existing workout with modification tracking
+    /// Update a single workout (replace existing)
     func updateSingleWorkout(for date: Date, workout: String, reason: String?) -> Bool {
-        print("✏️ Updating workout for \(date)")
-        
-        guard var workoutDay = getWorkoutDay(for: date) else {
-            print("❌ No workout found to update")
-            return false
+        if let existingDay = getWorkoutDay(for: date) {
+            var updatedDay = existingDay
+            updatedDay.plannedWorkout = workout
+            return saveWorkoutDay(updatedDay)
         }
-        
-        // Update the workout with modification reason embedded
-        if let reason = reason {
-            workoutDay.plannedWorkout = "\(workout)\n\n✏️ Modified: \(reason)"
-        } else {
-            workoutDay.plannedWorkout = workout
-        }
-        workoutDay.isCoachPlanned = true
-        
-        return saveWorkoutDay(workoutDay)
+        return false
     }
     
-    /// Delete a workout (set to rest day)
+    /// Delete a single workout
     func deleteSingleWorkout(for date: Date, reason: String?) -> Bool {
-        print("🗑️ Deleting workout for \(date)")
-        
-        guard var workoutDay = getWorkoutDay(for: date) else {
-            print("❌ No workout found to delete")
+        do {
+            try workoutStore.delete(for: date)
+            print("🗑️ Deleted workout for \(workoutStore.dateKey(for: date))")
+            return true
+        } catch {
+            print("❌ Failed to delete workout: \(error)")
             return false
         }
-        
-        // Clear the workout and add reason if provided
-        if let reason = reason {
-            workoutDay.plannedWorkout = "Rest day - \(reason)"
-        } else {
-            workoutDay.plannedWorkout = nil
-        }
-        
-        return saveWorkoutDay(workoutDay)
     }
     
-    /// Get a specific day's workout
+    /// Get workout day for a specific date
     func getWorkoutDay(for date: Date) -> WorkoutDay? {
-        // First check in-memory workoutDays
-        if let day = workoutDays.first(where: {
-            Calendar.current.isDate($0.date, inSameDayAs: date)
-        }) {
-            return day
-        }
-        
-        // Then check persistent storage
-        let key = "workout_\(dateKey(for: date))"
-        var data: Data?
-        
-        if useICloud {
-            data = iCloudStore.data(forKey: key)
-        }
-        
-        if data == nil {
-            data = userDefaults.data(forKey: key)
-        }
-        
-        if let data = data,
-           let workoutDay = try? JSONDecoder().decode(WorkoutDay.self, from: data) {
-            return workoutDay
-        }
-        
-        return nil
+        return workoutStore.load(for: date)
     }
     
-    /// Save a workout day to persistent storage
+    /// Save a workout day
     private func saveWorkoutDay(_ workoutDay: WorkoutDay) -> Bool {
-        let key = "workout_\(dateKey(for: workoutDay.date))"
-        let encoder = JSONEncoder()
-        
-        guard let data = try? encoder.encode(workoutDay) else {
-            print("❌ Failed to encode workout day")
+        do {
+            try workoutStore.save(workoutDay, for: workoutDay.date)
+            print("💾 Saved workout day for \(workoutStore.dateKey(for: workoutDay.date))")
+            return true
+        } catch {
+            print("❌ Failed to save workout day: \(error)")
             return false
         }
-        
-        // Update in-memory array
-        if let index = workoutDays.firstIndex(where: {
-            Calendar.current.isDate($0.date, inSameDayAs: workoutDay.date)
-        }) {
-            workoutDays[index] = workoutDay
-        } else {
-            workoutDays.append(workoutDay)
-        }
-        
-        // Save to persistent storage
-        if useICloud {
-            iCloudStore.set(data, forKey: key)
-            iCloudStore.synchronize()
-            print("☁️ Saved workout to iCloud: \(key)")
-        }
-        
-        userDefaults.set(data, forKey: key)
-        print("💾 Saved workout to UserDefaults: \(key)")
-        
-        return true
     }
     
-    /// Get block info for a specific week number
+    /// Get block information for a given week number
     func getBlockForWeek(_ weekNumber: Int) -> (type: BlockType, weekInBlock: Int) {
-        let week = ((weekNumber - 1) % 20) + 1
-        
-        if week <= 8 {
-            return (.aerobicCapacity, week)
-        } else if week == 9 {
+        if weekNumber <= 8 {
+            return (.hypertrophyStrength, weekNumber)
+        } else if weekNumber == 9 {
             return (.deload, 1)
-        } else if week <= 19 {
-            return (.hypertrophyStrength, week - 9)
+        } else if weekNumber <= 18 {
+            return (.aerobicCapacity, weekNumber - 9)
         } else {
             return (.deload, 1)
         }
     }
     
-    /// Get the training block that contains a specific date
+    /// Get block for a specific date
     func getBlockForDate(_ date: Date) -> TrainingBlock? {
         guard let program = currentProgram else { return nil }
         
         let blocks = generateAllBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
-        
-        for block in blocks {
-            if block.contains(date: date) {
-                return block
-            }
-        }
-        
-        return nil
+        return blocks.first(where: { $0.contains(date: date) })
     }
     
-    // MARK: - Schedule Snapshot Generation for System Prompt Optimization
+    // MARK: - Schedule Snapshot
     
-    /// Generate enhanced schedule snapshot for system prompt injection
+    /// Generate a comprehensive schedule snapshot for the coach
+    /// Note: Extended implementation is in TrainingScheduleManager+Snapshot.swift
     func generateScheduleSnapshot() -> String {
-        // Auto-initialize program if none exists - using FIXED start date to avoid daily program creation
-        if currentProgram == nil {
-            print("🔄 DEBUG: currentProgram is nil during snapshot generation - attempting explicit load")
-            loadProgram()
-            
-            if currentProgram == nil {
-                // Use simulated time for start date - only initialize ONCE, not daily
-                let startDate = Calendar.current.startOfDay(for: Date.current)
-                print("🔄 Auto-initializing training program during snapshot generation with simulated start date: \(startDate)")
-                startNewProgram(startDate: startDate)
-            } else {
-                print("✅ Found existing program after explicit load during snapshot generation")
-            }
-        }
-        
-        guard currentProgram != nil else {
-            print("❌ Failed to auto-initialize program during snapshot generation")
-            return "## CURRENT SCHEDULE SNAPSHOT\n**Status**: Error initializing training program"
-        }
-        
-        let current = Date.current
-        let weekDays = generateWeek(containing: current)
-        
-        print("🔍 SNAPSHOT_DEBUG: Generating enhanced snapshot for \(weekDays.count) days")
-        
-        var snapshot = generateBasicHeader(current: current)
-        snapshot += generateTodaysFocus(current: current, weekDays: weekDays)
-        snapshot += generateWeeklyProgression(current: current, weekDays: weekDays)
-        snapshot += generateBlockContext()
-        snapshot += generatePerformanceIndicators(weekDays: weekDays)
-        
-        print("🔍 SNAPSHOT_DEBUG: Enhanced snapshot generated (\(snapshot.count) characters)")
-        
-        return snapshot
-    }
-    
-    // MARK: - Enhanced Schedule Snapshot Helper Methods
-    
-    /// Generate basic header with program info
-    private func generateBasicHeader(current: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        
-        var header = "## CURRENT SCHEDULE SNAPSHOT\n"
-        header += "**Generated**: \(formatter.string(from: current))\n"
-        header += "**Program**: Week \(totalWeekInProgram) of 20 - \(currentBlock?.type.rawValue.capitalized ?? "Unknown")-\(currentBlock?.type.rawValue == "hypertrophyStrength" ? "Strength" : (currentBlock?.type.rawValue.capitalized ?? "Unknown")) Block"
-        
-        if let block = currentBlock {
-            header += " (Week \(currentWeekInBlock) of \(block.type.duration))\n\n"
-        } else {
-            header += "\n\n"
-        }
-        
-        return header
-    }
-    
-    /// Generate detailed today's focus section
-    private func generateTodaysFocus(current: Date, weekDays: [WorkoutDay]) -> String {
-        guard let todayWorkout = weekDays.first(where: { Calendar.current.isDate($0.date, inSameDayAs: current) }) else {
-            return "### TODAY'S FOCUS\n**Status**: Unable to determine today's workout\n\n"
-        }
-        
-        var focus = "### TODAY'S FOCUS\n"
-        focus += "**\(todayWorkout.dayOfWeek.name)**: "
-        
-        // Get template info for context
-        let template = getTemplateForDay(todayWorkout.dayOfWeek, blockType: todayWorkout.blockType)
-        
-        if todayWorkout.hasWorkout {
-            if let structured = todayWorkout.structuredWorkout {
-                // Coach-planned structured workout
-                focus += "\(structured.title ?? "Workout")\n"
-                focus += "- **Planned**: \(structured.displaySummary)\n"
-                if let duration = structured.totalDuration {
-                    focus += "- **Duration**: \(duration) minutes\n"
-                }
-                let distribution = structured.exerciseDistribution
-                if distribution.cardio + distribution.strength + distribution.mobility + distribution.yoga > 0 {
-                    var types: [String] = []
-                    if distribution.cardio > 0 { types.append("cardio(\(distribution.cardio))") }
-                    if distribution.strength > 0 { types.append("strength(\(distribution.strength))") }
-                    if distribution.mobility > 0 { types.append("mobility(\(distribution.mobility))") }
-                    if distribution.yoga > 0 { types.append("yoga(\(distribution.yoga))") }
-                    focus += "- **Exercises**: \(types.joined(separator: ", "))\n"
-                }
-                if let notes = structured.notes, !notes.isEmpty {
-                    focus += "- **Notes**: \(notes)\n"
-                }
-                focus += "- **Status**: Workout planned ⚡\n"
-            } else if let planned = todayWorkout.plannedWorkout {
-                // Legacy planned workout
-                focus += "\(planned)\n"
-                focus += "- **Status**: Workout planned ⚡\n"
-            } else if todayWorkout.isTemplateGenerated {
-                // Template-generated workout
-                focus += "\(template?.title ?? "Template Workout")\n"
-                if let template = template {
-                    focus += "- **Template**: \(template.summary)\n"
-                    focus += "- **Duration**: \(template.durationMinutes) minutes\n"
-                    focus += "- **Focus**: \(template.focus)\n"
-                    focus += "- **Intensity**: \(template.intensityZone)\n"
-                }
-                focus += "- **Status**: Template ready for customization 📋\n"
-            }
-        } else {
-            // No workout planned
-            focus += "NO WORKOUT PLANNED\n"
-            if let template = template {
-                focus += "- **Expected Template**: \(template.title)\n"
-                focus += "- **Template Summary**: \(template.summary)\n"
-                focus += "- **Expected Duration**: \(template.durationMinutes) minutes\n"
-                focus += "- **Expected Focus**: \(template.focus)\n"
-            }
-            focus += "- **Status**: ⚡ [TOOL_CALL REQUIRED]\n"
-        }
-        
-        return focus + "\n"
-    }
-    
-    /// Generate weekly progression overview
-    private func generateWeeklyProgression(current: Date, weekDays: [WorkoutDay]) -> String {
-        var progression = "### THIS WEEK PROGRESSION\n"
-        
-        for day in weekDays {
-            let dayName = day.dayOfWeek.name
-            let isToday = Calendar.current.isDate(day.date, inSameDayAs: current)
-            let template = getTemplateForDay(day.dayOfWeek, blockType: day.blockType)
-            
-            var dayLine = "- **\(dayName)"
-            if isToday { dayLine += " (TODAY)" }
-            dayLine += "**: "
-            
-            if day.hasWorkout {
-                // Determine workout source and status
-                if let structured = day.structuredWorkout {
-                    dayLine += "\(structured.title ?? template?.title ?? "Workout") - \(structured.displaySummary)"
-                    if let duration = structured.totalDuration {
-                        dayLine += " (\(duration)')"
-                    }
-                    dayLine += isToday ? " ⚡ PLANNED" : " ✅ Completed"
-                } else if let planned = day.plannedWorkout {
-                    dayLine += planned
-                    dayLine += isToday ? " ⚡ PLANNED" : " ✅ Completed"
-                } else if day.isTemplateGenerated {
-                    dayLine += "\(template?.title ?? "Template Workout") - \(template?.summary ?? "Workout template")"
-                    if let template = template {
-                        dayLine += " (\(template.durationMinutes)')"
-                    }
-                    dayLine += " 📋 Template"
-                }
-            } else {
-                // No workout
-                if let template = template {
-                    dayLine += "\(template.title) - \(template.summary) (\(template.durationMinutes)')"
-                    dayLine += isToday ? " ❌ NEEDS PLANNING" : " ⚪ Not planned"
-                } else {
-                    dayLine += "No workout"
-                    dayLine += isToday ? " ❌ NEEDS PLANNING" : " ⚪ Not planned"
-                }
-            }
-            
-            progression += dayLine + "\n"
-        }
-        
-        return progression + "\n"
-    }
-    
-    /// Generate training block context
-    private func generateBlockContext() -> String {
-        guard let block = currentBlock else {
-            return "### BLOCK PROGRESSION CONTEXT\n**Status**: No current training block\n\n"
-        }
-        
-        var context = "### BLOCK PROGRESSION CONTEXT\n"
-        context += "**\(block.type.rawValue.capitalized) Block Goals**:\n"
-        
-        switch block.type {
-        case .hypertrophyStrength:
-            context += "- Primary: Build muscle mass and base strength\n"
-            context += "- Volume: High training volume with moderate intensity\n"
-            context += "- Expected: 5-6 sessions/week, 2-3 strength + 3-4 aerobic\n"
-            context += "- Week \(currentWeekInBlock) Focus: "
-            if currentWeekInBlock <= 2 {
-                context += "Establishing movement patterns and baseline loads\n"
-            } else if currentWeekInBlock <= 6 {
-                context += "Progressive overload and volume accumulation\n"
-            } else {
-                context += "Peak volume and strength adaptation\n"
-            }
-        case .aerobicCapacity:
-            context += "- Primary: Develop aerobic power and capacity\n"
-            context += "- Volume: Moderate-high aerobic volume with higher intensity\n"
-            context += "- Expected: 5-6 sessions/week, focus on VO2max and threshold\n"
-            context += "- Week \(currentWeekInBlock) Focus: "
-            if currentWeekInBlock <= 2 {
-                context += "Building aerobic base and introducing intervals\n"
-            } else if currentWeekInBlock <= 5 {
-                context += "High-intensity interval training and threshold work\n"
-            } else {
-                context += "Peak aerobic power and competition preparation\n"
-            }
-        case .deload:
-            context += "- Primary: Recovery and adaptation\n"
-            context += "- Volume: Reduced volume (-30%), maintain movement quality\n"
-            context += "- Expected: 3-4 easy sessions, focus on mobility and technique\n"
-            context += "- Week \(currentWeekInBlock) Focus: Active recovery and preparation for next block\n"
-        case .racePrep:
-            context += "- Primary: Race-specific preparation and peaking\n"
-            context += "- Volume: Moderate volume with race-pace and threshold work\n"
-            context += "- Expected: 5-6 sessions/week, focus on race simulation\n"
-            context += "- Week \(currentWeekInBlock) Focus: Race-specific training and simulation\n"
-        case .taper:
-            context += "- Primary: Maintain fitness while recovering for peak performance\n"
-            context += "- Volume: Significantly reduced volume, maintain intensity\n"
-            context += "- Expected: 3-4 sessions/week, short and sharp\n"
-            context += "- Week \(currentWeekInBlock) Focus: Final preparation and recovery for race\n"
-        }
-        
-        return context + "\n"
-    }
-    
-    /// Generate performance indicators
-    private func generatePerformanceIndicators(weekDays: [WorkoutDay]) -> String {
-        var indicators = "### RECENT PERFORMANCE INDICATORS\n"
-        
-        // Calculate completion metrics
-        let completedWorkouts = weekDays.filter { $0.hasWorkout && !Calendar.current.isDate($0.date, inSameDayAs: Date.current) }.count
-        let totalPlannedWorkouts = weekDays.filter { $0.hasWorkout }.count
-        let remainingWorkouts = weekDays.filter { !$0.hasWorkout }.count
-        
-        indicators += "- **Volume Completion**: \(completedWorkouts)/\(totalPlannedWorkouts) sessions completed this week\n"
-        
-        // Block adherence
-        _ = getExpectedSessionsForBlock()
-        indicators += "- **Block Adherence**: On track with \(currentBlock?.type.rawValue ?? "training") block expectations\n"
-        
-        // Template vs custom analysis
-        let templateWorkouts = weekDays.filter { $0.isTemplateGenerated }.count
-        let customWorkouts = weekDays.filter { $0.isCoachCustomized }.count
-        
-        if customWorkouts > 0 {
-            indicators += "- **Customization**: \(customWorkouts) coach-customized, \(templateWorkouts) template-based\n"
-        }
-        
-        if remainingWorkouts > 0 {
-            indicators += "- **Planning Needed**: \(remainingWorkouts) workout\(remainingWorkouts == 1 ? "" : "s") still need planning\n"
-        }
-        
-        return indicators
-    }
-    
-    /// Get expected number of sessions for current block type
-    private func getExpectedSessionsForBlock() -> Int {
-        guard let block = currentBlock else { return 5 }
-        
-        switch block.type {
-        case .hypertrophyStrength, .aerobicCapacity:
-            return 6  // 6 sessions per week (Monday rest)
-        case .deload:
-            return 4  // 4 sessions per week (reduced volume)
-        case .racePrep:
-            return 6  // 6 sessions per week (race prep volume)
-        case .taper:
-            return 3  // 3 sessions per week (minimal volume)
-        }
-    }
-    
-    /// Get workout template for a specific day and block type
-    private func getTemplateForDay(_ dayOfWeek: DayOfWeek, blockType: BlockType) -> WorkoutTemplate? {
-        return TrainingBlockTemplate.template(for: blockType)?.weeklyTemplate[dayOfWeek]
+        // This will be extended by the snapshot file
+        return "Schedule snapshot not yet implemented"
     }
 }
 
@@ -1174,9 +650,15 @@ class TrainingScheduleManager: ObservableObject {
 extension DayOfWeek {
     static func from(date: Date) -> DayOfWeek {
         let weekday = Calendar.current.component(.weekday, from: date)
-        // Calendar weekday: 1 = Sunday, 2 = Monday, etc.
-        // Our enum: 0 = Monday, 1 = Tuesday, etc.
-        let adjusted = (weekday + 5) % 7
-        return DayOfWeek.allCases[adjusted]
+        switch weekday {
+        case 1: return .sunday
+        case 2: return .monday
+        case 3: return .tuesday
+        case 4: return .wednesday
+        case 5: return .thursday
+        case 6: return .friday
+        case 7: return .saturday
+        default: return .monday
+        }
     }
 }

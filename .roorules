@@ -24,6 +24,63 @@
 - When adding new fields to WorkoutDay, StructuredWorkout, or other persisted models, ALWAYS update TrainingScheduleManager's clearProgram() method to ensure the new fields are properly cleared
 - When adding new storage keys or persistence mechanisms, ensure they are included in all clear data operations
 - Test that "Clear Workout Data" completely removes all traces of enhanced data structures
+## Data Persistence
+
+### Storage Architecture
+
+The TrainerApp uses a three-tier storage architecture. Choose the appropriate tier based on your data characteristics:
+
+#### Tier 1: Simple Key-Value (UserDefaults)
+- Use For: Application settings, feature flags, API keys, simple primitive values
+- Characteristics: Local storage only, <1KB per value, fast synchronous access
+- Key Pattern: Direct descriptive names (e.g., `OPENROUTER_API_KEY`, `DeveloperModeEnabled`)
+
+#### Tier 2: Synced Objects (Hybrid iCloud + UserDefaults)
+- Use For: User data that syncs across devices (training programs, workout plans, results)
+- Characteristics: Dual storage (iCloud KV + UserDefaults fallback), <1MB per object, JSON encoding
+- Key Pattern: Domain prefixed (e.g., `TrainingProgram`, `workout_yyyy-MM-dd`, `workout_results_yyyy-MM-dd`)
+- ALWAYS use HybridCloudStore or follow the standard iCloud+UserDefaults pattern
+
+#### Tier 3: File-Based Storage
+- Use For: Large datasets (>1MB), logs, archives, data with rotation/retention policies
+- Characteristics: JSON files in Documents directory, supports archiving
+- Examples: `Documents/APILogs/`, `Documents/conversation.json`
+
+### Storage Key Conventions
+
+**Date-Based Keys:**
+- Pattern: `prefix_yyyy-MM-dd` (ISO 8601 date only, UTC timezone)
+- MUST use UTC timezone to prevent DST/timezone issues
+- Example date key formatter:
+  ```swift
+  let formatter = DateFormatter()
+  formatter.dateFormat = "yyyy-MM-dd"
+  formatter.timeZone = TimeZone(identifier: "UTC")  // REQUIRED
+  ```
+
+**Key Registry:**
+- All storage keys MUST be defined in PersistenceKey enum (once implemented)
+- Prevents collisions and improves maintainability
+- Centralizes all storage locations
+
+### iCloud Sync Pattern
+
+When implementing iCloud sync (Tier 2), follow this pattern:
+1. Check iCloud availability: `FileManager.default.ubiquityIdentityToken != nil`
+2. Setup change observer for `NSUbiquitousKeyValueStore.didChangeExternallyNotification`
+3. ALWAYS save locally first, then sync to iCloud
+4. ALWAYS try iCloud first when loading, fallback to local
+5. Call `synchronize()` after iCloud operations
+
+### Data Clearing Rules
+
+When clearing data (e.g., "Clear Workout Data"):
+- Clear from ALL storage locations (iCloud + UserDefaults)
+- Use extended date range (-365...365 days) to catch all data
+- Call `synchronize()` after iCloud removals
+- Update ALL related managers
+- When adding new persisted fields, ALWAYS update clear methods
+
 
 ## Reminders
 - Test builds without changing directories
