@@ -11,7 +11,6 @@ struct ContentView: View {
     @State private var input: String = ""
     @State private var showSettings: Bool = false
     @State private var showCalendar: Bool = false
-    @State private var apiKey: String = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY") ?? ""
     @State private var errorMessage: String?
     @State private var isLoadingHealthData: Bool = false
     @State private var iCloudAvailable = false
@@ -20,13 +19,8 @@ struct ContentView: View {
     // Navigation state for deep linking
     @EnvironmentObject var navigationState: NavigationState
 
-    private let model = "openai/gpt-5-mini" // GPT-5 via OpenRouter with 128k context window
     private let healthKitManager = HealthKitManager.shared
-    
-    // Load system prompt from file
-    private var systemPrompt: String {
-        SystemPromptLoader.loadSystemPromptWithSchedule()
-    }
+    private let config = AppConfiguration.shared
     
     // Computed properties for UI state
     private var messages: [ChatMessage] {
@@ -133,14 +127,10 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(
-                apiKey: $apiKey,
                 onClearChat: {
                     Task {
                         await conversationManager.clearConversation()
                     }
-                },
-                onSave: {
-                    UserDefaults.standard.set(apiKey, forKey: "OPENROUTER_API_KEY")
                 }
             )
             .presentationDetents([.medium, .large])
@@ -300,20 +290,11 @@ struct ContentView: View {
     private func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        guard !apiKey.isEmpty else {
-            errorMessage = "Set your OpenRouter API key in Settings."
-            return
-        }
         
         input = ""
         
         do {
-            try await conversationManager.sendMessage(
-                text,
-                apiKey: apiKey,
-                model: model,
-                systemPrompt: systemPrompt
-            )
+            try await conversationManager.sendMessage(text)
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
@@ -467,10 +448,10 @@ private struct LinkDetectingText: View {
 }
 
 private struct SettingsSheet: View {
-    @Binding var apiKey: String
     var onClearChat: () -> Void
-    var onSave: () -> Void
     
+    private let config = AppConfiguration.shared
+    @State private var apiKey: String = AppConfiguration.shared.apiKey
     @State private var developerModeEnabled = UserDefaults.standard.bool(forKey: "DeveloperModeEnabled")
     @State private var apiLoggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
     @State private var showDebugMenu = false
@@ -567,7 +548,9 @@ private struct SettingsSheet: View {
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { onSave() }
+                    Button("Save") {
+                        config.apiKey = apiKey
+                    }
                 }
             }
         }
@@ -585,294 +568,6 @@ private struct SettingsSheet: View {
 }
 
 // MARK: - Models & Persistence
-
-
-// MARK: - LLM Client
-
-enum LLMError: LocalizedError {
-    case missingContent
-    case invalidResponse
-    case httpError(Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .missingContent: return "No content returned by the model."
-        case .invalidResponse: return "Unexpected response from the model."
-        case .httpError(let code): return "Network error: HTTP \(code)."
-        }
-    }
-}
-
-enum LLMClient {
-    /// API message structure for chat completions
-    private struct APIMessage: Codable {
-        let role: String
-        let content: String
-    }
-    
-    /// Create temporal-enhanced system prompt with current time context
-    private static func createTemporalSystemPrompt(
-        _ systemPrompt: String, 
-        conversationHistory: [ChatMessage]
-    ) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss zzz"
-        formatter.timeZone = TimeZone.current
-        
-        let currentTime = DateProvider.shared.currentDate
-        let currentTimeString = formatter.string(from: currentTime)
-        let sessionStartTime = conversationHistory.first?.date ?? currentTime
-        let sessionStartString = formatter.string(from: sessionStartTime)
-        
-        let sessionDuration = currentTime.timeIntervalSince(sessionStartTime)
-        let durationMinutes = Int(sessionDuration / 60)
-        
-        let temporalContext = """
-        
-        [TEMPORAL_CONTEXT]
-        Current time: \(currentTimeString)
-        User timezone: \(TimeZone.current.identifier)
-        Conversation started: \(sessionStartString)
-        Session duration: \(durationMinutes) minutes
-        """
-        
-        let enhancedPrompt = systemPrompt + temporalContext
-        
-        // Debug logging
-        print("🕒 TEMPORAL_DEBUG: Enhanced system prompt with temporal context")
-        print("🕒 Current time: \(currentTimeString)")
-        print("🕒 Session duration: \(durationMinutes) minutes")
-        print("🕒 Enhanced prompt length: \(enhancedPrompt.count) characters")
-        
-        return enhancedPrompt
-    }
-    /// Reusable DateFormatter for message timestamps to avoid allocation overhead
-    private static let messageTimestampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMMM d, yyyy 'at' h:mm a zzz"
-        formatter.timeZone = TimeZone.current
-        return formatter
-    }()
-    
-    /// Format a message timestamp in a human-readable format with day of week
-    private static func formatMessageTimestamp(_ date: Date) -> String {
-        return messageTimestampFormatter.string(from: date)
-    }
-    
-    /// Enhance a message with timestamp prefix for temporal context
-    private static func enhanceMessageWithTimestamp(_ message: ChatMessage) -> APIMessage {
-        let role: String
-        switch message.role {
-        case .user:
-            role = "user"
-        case .assistant:
-            role = "assistant"
-        case .system:
-            role = "system"
-        }
-        
-        // Only add timestamps to user and assistant messages
-        // System messages should remain unmodified for tool results, etc.
-        if message.role == .user || message.role == .assistant {
-            let timestamp = formatMessageTimestamp(message.date)
-            let enhancedContent = "[\(timestamp)]\n\(message.content)"
-            return APIMessage(role: role, content: enhancedContent)
-        } else {
-            return APIMessage(role: role, content: message.content)
-        }
-    }
-    
-    
-    static func complete(
-        apiKey: String,
-        model: String,
-        systemPrompt: String,
-        history: [ChatMessage]
-    ) async throws -> String {
-        struct RequestBody: Codable { let model: String; let messages: [APIMessage] }
-        struct ResponseBody: Codable {
-            struct Choice: Codable {
-                struct Msg: Codable { let role: String; let content: String }
-                let index: Int
-                let message: Msg
-            }
-            let choices: [Choice]
-        }
-
-        let url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue("com.yourcompany.TrainerApp", forHTTPHeaderField: "HTTP-Referer")
-        request.addValue("TrainerApp", forHTTPHeaderField: "X-Title")
-        request.timeoutInterval = 120.0 // 2 minutes timeout for GPT-5 responses
-
-        var msgs: [APIMessage] = []
-        if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
-            msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
-            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in complete() method")
-        }
-        
-        // Add messages with timestamp enhancement
-        for m in history {
-            msgs.append(enhanceMessageWithTimestamp(m))
-        }
-        
-        // Debug logging for timestamp enhancement
-        print("📅 TEMPORAL_DEBUG: Enhanced \(history.count) messages with timestamps")
-        if let firstMessage = history.first {
-            let sample = formatMessageTimestamp(firstMessage.date)
-            print("📅 Sample timestamp format: \(sample)")
-        }
-
-        let body = try JSONEncoder().encode(RequestBody(model: model, messages: msgs))
-        request.httpBody = body
-
-        // Log the request if enabled
-        let startTime = Date()
-        // Use EnhancedAPILogger with delegate-based streaming awareness
-        let (data, resp) = try await URLSession.shared.enhancedLoggingDataTask(with: request)
-        
-        // Log the API call if logging is enabled
-        if UserDefaults.standard.bool(forKey: "APILoggingEnabled") {
-            APILogger.shared.log(
-                request: request,
-                response: resp,
-                data: data,
-                error: nil,
-                startTime: startTime
-            )
-        }
-        if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            throw LLMError.httpError(http.statusCode)
-        }
-
-        let decoded = try JSONDecoder().decode(ResponseBody.self, from: data)
-        guard let content = decoded.choices.first?.message.content, !content.isEmpty else {
-            throw LLMError.missingContent
-        }
-        return content
-    }
-    
-    /// Streaming chat completion using SSE; streams tokens via onToken and returns the full text.
-    static func streamComplete(
-        apiKey: String,
-        model: String,
-        systemPrompt: String,
-        history: [ChatMessage],
-        onToken: @escaping (String) -> Void
-    ) async throws -> String {
-        struct StreamRequestBody: Codable { let model: String; let messages: [APIMessage]; let stream: Bool }
-        struct StreamDelta: Codable { let content: String? }
-        struct StreamChoice: Codable { let delta: StreamDelta? }
-        struct StreamChunk: Codable { let choices: [StreamChoice] }
-        
-        let url = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.addValue("text/event-stream", forHTTPHeaderField: "Accept")
-        request.addValue("com.yourcompany.TrainerApp", forHTTPHeaderField: "HTTP-Referer")
-        request.addValue("TrainerApp", forHTTPHeaderField: "X-Title")
-        request.timeoutInterval = 120.0 // Keep consistent with non-streaming
-        
-        var msgs: [APIMessage] = []
-        if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
-            msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
-            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in streamComplete() method")
-        }
-        
-        // Add messages with timestamp enhancement
-        for m in history {
-            msgs.append(enhanceMessageWithTimestamp(m))
-        }
-        
-        // Debug logging for timestamp enhancement
-        print("📅 TEMPORAL_DEBUG: Enhanced \(history.count) messages with timestamps")
-        if let firstMessage = history.first {
-            let sample = formatMessageTimestamp(firstMessage.date)
-            print("📅 Sample timestamp format: \(sample)")
-        }
-        
-        let reqBody = StreamRequestBody(model: model, messages: msgs, stream: true)
-        request.httpBody = try JSONEncoder().encode(reqBody)
-        
-        // Stream response lines
-        let (bytes, resp, logId) = try await URLSession.shared.streamingLoggingDataTask(for: request)
-        
-        // If server returns an error status, consume the body to surface details, then throw
-        if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            var errorData = Data()
-            // Accumulate any error payload (likely JSON) to help diagnose
-            for try await chunk in bytes {
-                errorData.append(contentsOf: [chunk])
-            }
-            if let json = try? JSONSerialization.jsonObject(with: errorData) as? [String: Any],
-               let err = (json["error"] as? [String: Any])?["message"] as? String {
-                print("❌ Streaming error \(http.statusCode): \(err)")
-            } else if let s = String(data: errorData, encoding: .utf8) {
-                print("❌ Streaming error \(http.statusCode): \(s)")
-            } else {
-                print("❌ Streaming error \(http.statusCode): <no body>")
-            }
-            
-            // Complete logging with error
-            let errorMessage = (try? JSONSerialization.jsonObject(with: errorData) as? [String: Any])
-                .flatMap { ($0["error"] as? [String: Any])?["message"] as? String }
-                ?? String(data: errorData, encoding: .utf8) ?? "<no body>"
-            
-            URLSession.shared.completeStreamingLog(
-                id: logId,
-                response: http,
-                responseBody: errorMessage,
-                error: LLMError.httpError(http.statusCode)
-            )
-            throw LLMError.httpError(http.statusCode)
-        }
-        
-        var fullText = ""
-        for try await line in bytes.lines {
-            guard line.hasPrefix("data: ") else { continue }
-            let payload = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
-            if payload == "[DONE]" { break }
-            
-            guard let data = payload.data(using: .utf8),
-                  let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data),
-                  let delta = chunk.choices.first?.delta?.content,
-                  !delta.isEmpty else { continue }
-            
-            fullText += delta
-            onToken(delta)
-        }
-        
-        guard !fullText.isEmpty else {
-            // Complete logging with error
-            URLSession.shared.completeStreamingLog(
-                id: logId,
-                response: resp,
-                responseBody: "",
-                error: LLMError.missingContent
-            )
-            throw LLMError.missingContent
-        }
-        
-        // Complete logging with successful response
-        URLSession.shared.completeStreamingLog(
-            id: logId,
-            response: resp,
-            responseBody: fullText,
-            error: nil
-        )
-        
-        return fullText
-    }
-}
-
-// MARK: - API Logging Components removed (use centralized Logging/ implementations)
 
 
 // MARK: - Preview

@@ -11,7 +11,19 @@ class ConversationManager: ObservableObject {
     // MARK: - Private Properties
     private let persistence = ConversationPersistence()
     private let toolProcessor = ToolProcessor.shared
+    private let llmService: LLMServiceProtocol
+    private let config: AppConfiguration
     private let maxConversationTurns = 5
+    
+    // MARK: - Initialization
+    
+    init(
+        config: AppConfiguration = .shared,
+        llmService: LLMServiceProtocol = LLMService.shared
+    ) {
+        self.config = config
+        self.llmService = llmService
+    }
     
     // MARK: - Public Interface
     
@@ -20,8 +32,22 @@ class ConversationManager: ObservableObject {
         await loadConversation()
     }
     
-    /// Send a message and handle the complete conversation flow
-    func sendMessage(_ text: String, apiKey: String, model: String, systemPrompt: String) async throws {
+    /// Send a message - configuration handled internally
+    func sendMessage(_ text: String) async throws {
+        guard config.hasValidApiKey else {
+            throw ConfigurationError.missingApiKey
+        }
+        
+        try await sendMessageWithConfig(
+            text,
+            apiKey: config.apiKey,
+            model: config.model,
+            systemPrompt: config.systemPrompt
+        )
+    }
+    
+    /// Internal implementation with explicit configuration (for testing/flexibility)
+    private func sendMessageWithConfig(_ text: String, apiKey: String, model: String, systemPrompt: String) async throws {
         // Create and add user message
         let userMessage = ChatMessage(role: .user, content: text)
         messages.append(userMessage)
@@ -217,7 +243,7 @@ class ConversationManager: ObservableObject {
         let assistantText: String
         
         do {
-            assistantText = try await LLMClient.streamComplete(
+            assistantText = try await llmService.streamComplete(
                 apiKey: apiKey,
                 model: model,
                 systemPrompt: systemPrompt,
@@ -282,7 +308,7 @@ class ConversationManager: ObservableObject {
         } catch {
             // Fallback to non-streaming
             print("⚠️ Streaming failed: \(error). Falling back to non-streaming.")
-            let fallbackText = try await LLMClient.complete(
+            let fallbackText = try await llmService.complete(
                 apiKey: apiKey,
                 model: model,
                 systemPrompt: systemPrompt,
@@ -328,7 +354,7 @@ class ConversationManager: ObservableObject {
         updateState(.preparingResponse)
         
         do {
-            let assistantText = try await LLMClient.complete(
+            let assistantText = try await llmService.complete(
                 apiKey: apiKey,
                 model: model,
                 systemPrompt: systemPrompt,
