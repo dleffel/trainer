@@ -646,20 +646,29 @@ enum LLMClient {
         
         return enhancedPrompt
     }
-    /// Format a message timestamp in a human-readable format with day of week
-    private static func formatMessageTimestamp(_ date: Date) -> String {
+    /// Reusable DateFormatter for message timestamps to avoid allocation overhead
+    private static let messageTimestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d, yyyy 'at' h:mm a zzz"
         formatter.timeZone = TimeZone.current
-        return formatter.string(from: date)
+        return formatter
+    }()
+    
+    /// Format a message timestamp in a human-readable format with day of week
+    private static func formatMessageTimestamp(_ date: Date) -> String {
+        return messageTimestampFormatter.string(from: date)
     }
     
     /// Enhance a message with timestamp prefix for temporal context
     private static func enhanceMessageWithTimestamp(_ message: ChatMessage) -> APIMessage {
-        let role = switch message.role {
-            case .user: "user"
-            case .assistant: "assistant"
-            case .system: "system"
+        let role: String
+        switch message.role {
+        case .user:
+            role = "user"
+        case .assistant:
+            role = "assistant"
+        case .system:
+            role = "system"
         }
         
         // Only add timestamps to user and assistant messages
