@@ -20,7 +20,7 @@ struct ContentView: View {
     // Navigation state for deep linking
     @EnvironmentObject var navigationState: NavigationState
 
-    private let model = "anthropic/claude-sonnet-4" // GPT-5 via OpenRouter with 128k context window
+    private let model = "openai/gpt-5" // GPT-5 via OpenRouter with 128k context window
     private let healthKitManager = HealthKitManager.shared
     
     // Load system prompt from file
