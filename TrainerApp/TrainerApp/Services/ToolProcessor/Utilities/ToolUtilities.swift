@@ -6,25 +6,31 @@ enum ToolUtilities {
     /// CRITICAL: Uses UTC timezone to match storage layer (prevents DST/timezone issues)
     static func parseDate(_ dateString: String) -> Date {
         if dateString.lowercased() == "today" {
-            // Get the user's LOCAL date components (e.g., Nov 2 PST)
-            let localCalendar = Calendar.current
-            let localComponents = localCalendar.dateComponents([.year, .month, .day], from: Date.current)
+            // Get local start of day (e.g., Nov 2 00:00 PST)
+            let localStartOfDay = Calendar.current.startOfDay(for: Date.current)
             
-            // Create a UTC midnight date for that local date
-            var utcCalendar = Calendar(identifier: .gregorian)
-            utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+            // Convert to UTC by getting the date that represents the same moment in UTC
+            // This preserves the calendar day: Saturday in PST → Saturday in UTC storage
+            let utcCalendar = Calendar(identifier: .gregorian)
+            let utcComponents = utcCalendar.dateComponents(in: TimeZone(identifier: "UTC")!, from: localStartOfDay)
             
-            return utcCalendar.date(from: localComponents) ?? Date.current
+            var utcCalendarForConstruction = Calendar(identifier: .gregorian)
+            utcCalendarForConstruction.timeZone = TimeZone(identifier: "UTC")!
+            
+            return utcCalendarForConstruction.date(from: utcComponents) ?? localStartOfDay
         } else if dateString.lowercased() == "tomorrow" {
-            // Same logic but add 1 day
-            let localCalendar = Calendar.current
-            let tomorrow = localCalendar.date(byAdding: .day, value: 1, to: Date.current)!
-            let localComponents = localCalendar.dateComponents([.year, .month, .day], from: tomorrow)
+            // Get local start of tomorrow (local time)
+            let localTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date.current)!
+            let localStartOfTomorrow = Calendar.current.startOfDay(for: localTomorrow)
             
-            var utcCalendar = Calendar(identifier: .gregorian)
-            utcCalendar.timeZone = TimeZone(identifier: "UTC")!
+            // Convert to UTC preserving the calendar day
+            let utcCalendar = Calendar(identifier: .gregorian)
+            let utcComponents = utcCalendar.dateComponents(in: TimeZone(identifier: "UTC")!, from: localStartOfTomorrow)
             
-            return utcCalendar.date(from: localComponents) ?? tomorrow
+            var utcCalendarForConstruction = Calendar(identifier: .gregorian)
+            utcCalendarForConstruction.timeZone = TimeZone(identifier: "UTC")!
+            
+            return utcCalendarForConstruction.date(from: utcComponents) ?? localStartOfTomorrow
         } else {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
