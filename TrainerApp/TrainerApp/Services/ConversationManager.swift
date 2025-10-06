@@ -288,14 +288,14 @@ class ConversationManager: ObservableObject {
                         Task { @MainActor in
                             // Create message on first content token
                             if !messageCreated && !streamedFullText.isEmpty {
-                                let newMessage = ChatMessage(role: .assistant, content: streamedFullText, state: .streaming)
+                                let newMessage = ChatMessage(role: .assistant, content: streamedFullText, reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning, state: .streaming)
                                 self.messages.append(newMessage)
                                 assistantIndex = self.messages.count - 1
                                 messageCreated = true
                                 print("🔍 STREAM_DEBUG: Created streaming message")
                             } else if let idx = assistantIndex, idx < self.messages.count, self.messages[idx].state == .streaming {
                                 // Only update if message is still in streaming state
-                                if let updatedMessage = self.messages[idx].updatedContent(streamedFullText) {
+                                if let updatedMessage = self.messages[idx].updatedContent(streamedFullText, reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning) {
                                     self.messages[idx] = updatedMessage
                                 }
                             }
@@ -312,6 +312,15 @@ class ConversationManager: ObservableObject {
                     guard let self = self else { return }
                     streamedReasoning += reasoning
                     print("🧠 Reasoning token: '\(reasoning)'")
+                    
+                    // Update message with reasoning in real-time
+                    Task { @MainActor in
+                        if let idx = assistantIndex, idx < self.messages.count, self.messages[idx].state == .streaming {
+                            if let updatedMessage = self.messages[idx].updatedContent(streamedFullText, reasoning: streamedReasoning) {
+                                self.messages[idx] = updatedMessage
+                            }
+                        }
+                    }
                 }
             )
             assistantText = result.content
