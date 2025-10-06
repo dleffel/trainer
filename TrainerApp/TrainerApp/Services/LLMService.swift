@@ -24,15 +24,16 @@ protocol LLMServiceProtocol {
         model: String,
         systemPrompt: String,
         history: [ChatMessage]
-    ) async throws -> String
+    ) async throws -> (content: String, reasoning: String?)
     
     func streamComplete(
         apiKey: String,
         model: String,
         systemPrompt: String,
         history: [ChatMessage],
-        onToken: @escaping (String) -> Void
-    ) async throws -> String
+        onToken: @escaping (String) -> Void,
+        onReasoning: @escaping (String) -> Void
+    ) async throws -> (content: String, reasoning: String?)
 }
 
 // MARK: - LLM Service Implementation
@@ -68,11 +69,19 @@ class LLMService: LLMServiceProtocol {
         model: String,
         systemPrompt: String,
         history: [ChatMessage]
-    ) async throws -> String {
-        struct RequestBody: Codable { let model: String; let messages: [APIMessage] }
+    ) async throws -> (content: String, reasoning: String?) {
+        struct RequestBody: Codable {
+            let model: String
+            let messages: [APIMessage]
+            let include_reasoning: Bool?
+        }
         struct ResponseBody: Codable {
             struct Choice: Codable {
-                struct Msg: Codable { let role: String; let content: String }
+                struct Msg: Codable {
+                    let role: String
+                    let content: String
+                    let reasoning_content: String?
+                }
                 let index: Int
                 let message: Msg
             }
@@ -107,7 +116,13 @@ class LLMService: LLMServiceProtocol {
             print("📅 Sample timestamp format: \(sample)")
         }
 
-        let body = try JSONEncoder().encode(RequestBody(model: model, messages: msgs))
+        // Check if model supports reasoning
+        let includeReasoning = supportsReasoning(model: model)
+        let body = try JSONEncoder().encode(RequestBody(
+            model: model,
+            messages: msgs,
+            include_reasoning: includeReasoning ? true : nil
+        ))
         request.httpBody = body
 
         // Log the request if enabled
@@ -133,7 +148,13 @@ class LLMService: LLMServiceProtocol {
         guard let content = decoded.choices.first?.message.content, !content.isEmpty else {
             throw LLMError.missingContent
         }
-        return content
+        let reasoning = decoded.choices.first?.message.reasoning_content
+        
+        if let reasoning = reasoning, !reasoning.isEmpty {
+            print("🧠 Captured reasoning content (\(reasoning.count) chars)")
+        }
+        
+        return (content: content, reasoning: reasoning)
     }
     
     /// Streaming chat completion using SSE; streams tokens via onToken and returns the full text.
@@ -142,10 +163,19 @@ class LLMService: LLMServiceProtocol {
         model: String,
         systemPrompt: String,
         history: [ChatMessage],
-        onToken: @escaping (String) -> Void
-    ) async throws -> String {
-        struct StreamRequestBody: Codable { let model: String; let messages: [APIMessage]; let stream: Bool }
-        struct StreamDelta: Codable { let content: String? }
+        onToken: @escaping (String) -> Void,
+        onReasoning: @escaping (String) -> Void = { _ in }
+    ) async throws -> (content: String, reasoning: String?) {
+        struct StreamRequestBody: Codable {
+            let model: String
+            let messages: [APIMessage]
+            let stream: Bool
+            let include_reasoning: Bool?
+        }
+        struct StreamDelta: Codable {
+            let content: String?
+            let reasoning: String?
+        }
         struct StreamChoice: Codable { let delta: StreamDelta? }
         struct StreamChunk: Codable { let choices: [StreamChoice] }
         
@@ -178,7 +208,14 @@ class LLMService: LLMServiceProtocol {
             print("📅 Sample timestamp format: \(sample)")
         }
         
-        let reqBody = StreamRequestBody(model: model, messages: msgs, stream: true)
+        // Check if model supports reasoning
+        let includeReasoning = supportsReasoning(model: model)
+        let reqBody = StreamRequestBody(
+            model: model,
+            messages: msgs,
+            stream: true,
+            include_reasoning: includeReasoning ? true : nil
+        )
         request.httpBody = try JSONEncoder().encode(reqBody)
         
         // Stream response lines
@@ -215,6 +252,7 @@ class LLMService: LLMServiceProtocol {
         }
         
         var fullText = ""
+        var fullReasoning = ""
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
             let payload = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
@@ -222,11 +260,19 @@ class LLMService: LLMServiceProtocol {
             
             guard let data = payload.data(using: .utf8),
                   let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data),
-                  let delta = chunk.choices.first?.delta?.content,
-                  !delta.isEmpty else { continue }
+                  let delta = chunk.choices.first?.delta else { continue }
             
-            fullText += delta
-            onToken(delta)
+            // Handle reasoning tokens
+            if let reasoning = delta.reasoning, !reasoning.isEmpty {
+                fullReasoning += reasoning
+                onReasoning(reasoning)
+            }
+            
+            // Handle content tokens
+            if let content = delta.content, !content.isEmpty {
+                fullText += content
+                onToken(content)
+            }
         }
         
         guard !fullText.isEmpty else {
@@ -248,7 +294,33 @@ class LLMService: LLMServiceProtocol {
             error: nil
         )
         
-        return fullText
+        if !fullReasoning.isEmpty {
+            print("🧠 Captured streaming reasoning content (\(fullReasoning.count) chars)")
+        }
+        
+        return (content: fullText, reasoning: fullReasoning.isEmpty ? nil : fullReasoning)
+    }
+    
+    // MARK: - Model Detection
+    
+    /// Check if a model supports reasoning tokens
+    private func supportsReasoning(model: String) -> Bool {
+        let reasoningModels = [
+            "openai/o1",
+            "openai/o1-preview",
+            "openai/o1-mini",
+            "openai/o3-mini",
+            "openai/gpt-5"
+        ]
+        
+        let modelLower = model.lowercased()
+        let supports = reasoningModels.contains { modelLower.contains($0.lowercased()) }
+        
+        if supports {
+            print("🧠 Model '\(model)' supports reasoning tokens")
+        }
+        
+        return supports
     }
     
     // MARK: - Private Helpers
