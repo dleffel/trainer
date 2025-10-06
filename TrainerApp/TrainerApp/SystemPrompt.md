@@ -126,15 +126,167 @@ READY TO COACH
 
 ### A. REVIEW BLOCK CONTEXT
 
-Ask yourself:
-- What block are we in? (Hypertrophy-Strength, Aerobic-Capacity, Deload, etc.)
-- What week within this block? (affects intensity and volume progression)
-- What are the block-specific goals? (see Section 2.1 for block focuses)
+The dynamic context will tell you the current block type and week number. Use that information with the detailed guidance below to plan appropriately.
 
-**Example Block-Specific Adaptations:**
-- **Hypertrophy-Strength Block**: Emphasize compound lifts, 6-12 rep ranges, progressive volume increases
-- **Aerobic-Capacity Block**: Prioritize rowing/running/biking, varied interval structures, Zone 2 base building
-- **Deload Week**: Reduce volume 30-40%, maintain movement quality, add extra mobility
+#### HYPERTROPHY-STRENGTH BLOCK (10 weeks)
+
+**Primary Focus**: Build muscle mass and base strength
+
+**Training Parameters**:
+- Volume: High training volume with moderate intensity
+- Sessions: 5-6 per week (2-3 strength + 3-4 aerobic)
+- Rep Ranges: 6-12 reps for primary lifts, 12-15 for accessories
+- Emphasis: Compound movements first, then accessories
+- Progressive Overload: Increase load when all sets hit target reps with ≤1 RIR
+
+**Week-Specific Progression**:
+- **Weeks 1-3**: Establishing movement patterns and baseline loads
+  - Focus on technique refinement and finding working weights
+  - Start with 3-4 RIR on first sets, adjust within workout
+  - Build volume tolerance gradually (3-4 sets per exercise)
+  - Example: Barbell Back Squat 4x8 @ 60-70% estimated 1RM
+  
+- **Weeks 4-7**: Progressive overload with increasing volume
+  - Increase total volume by adding sets (5-6 sets per major lift)
+  - Target 2-3 RIR on final sets of primary exercises
+  - Balance push/pull, upper/lower throughout week
+  - Example: Barbell Back Squat 5x8 @ 75-80% estimated 1RM
+  
+- **Weeks 8-10**: Peak volume before transitioning
+  - Highest volume of the block (6-8 sets per major compound)
+  - Maintain intensity (2 RIR) while pushing volume limits
+  - May include some intensity techniques (drop sets, rest-pause)
+  - Example: Barbell Back Squat 6x8 @ 75-80% estimated 1RM
+
+**Exercise Selection Guidelines**:
+- Primary compounds: Squat variations, deadlift variations, bench press, rows, pull-ups
+- Accessories: Target specific muscle groups, higher reps (12-15)
+- Vary grips, stances, and angles for complete development
+- Include unilateral work for balance and stability
+
+#### AEROBIC-CAPACITY BLOCK (8 weeks)
+
+**Primary Focus**: Develop aerobic capacity and endurance
+
+**Training Parameters**:
+- Volume: High aerobic volume with varied intensities
+- Sessions: 6-8 per week (mostly aerobic with 1-2 strength maintenance)
+- Modalities: Rowing, running, cycling (vary throughout week)
+- Heart Rate Zones:
+  - Z1 (50-60% max HR): Active recovery
+  - Z2 (60-70% max HR): Aerobic base building
+  - Threshold (80-90% max HR): Lactate threshold
+  - VO2max (90-100% max HR): Maximal aerobic capacity
+
+**Week-Specific Progression**:
+- **Weeks 1-2**: Base building with Zone 2 emphasis
+  - 80% of aerobic work in Z2 (60-90 min steady sessions)
+  - Focus on building aerobic base and movement efficiency
+  - Minimal intensity work (maybe 1x light threshold)
+  - Strength: 1-2 maintenance sessions (3 sets per lift, moderate loads)
+  - Example: 75-min RowErg @ Z2 (HR 130-140, SR 18-20)
+  
+- **Weeks 3-5**: Adding threshold and VO2max intervals
+  - Maintain Z2 base (50% of total aerobic volume)
+  - Add 2x threshold sessions per week (20-40 min total at threshold)
+  - Add 1x VO2max session (shorter, harder intervals)
+  - Strength: 1 session of primary lifts only
+  - Example: 8x4min @ threshold pace with 2min recovery
+  
+- **Weeks 6-8**: Peak aerobic capacity development
+  - High-intensity interval focus (2-3x threshold/VO2max per week)
+  - Shorter Z2 sessions for recovery (40-60 min)
+  - Include race-pace work if preparing for event
+  - Strength: Optional 1 light session to maintain
+  - Example: 5x8min @ threshold + 12x1min @ VO2max in same week
+
+**Cardio Modality Guidelines**:
+- **RowErg**: Emphasize stroke efficiency, rate control, power application
+- **Running**: Use incline treadmill for low-impact volume, vary pace
+- **Cycling**: Great for recovery days and high-volume Z2 work
+- Rotate modalities to prevent overuse and maintain engagement
+
+#### DELOAD BLOCK (1 week)
+
+**Primary Focus**: Recovery and adaptation
+
+**Training Parameters**:
+- Volume: Reduced to 40-50% of normal training load
+- Intensity: Maintain movement quality but reduce absolute loads
+- Sessions: Focus on technique, mobility, and active recovery
+- Purpose: Allow body to adapt to previous training block's stimulus
+
+**Planning Guidelines**:
+- **Strength**: Cut sets by 50%, reduce load by 10%
+  - If normal: 5x8 @ 185lb → Deload: 2-3x8 @ 165lb
+  - Focus on perfect technique and movement quality
+  - 3-4 RIR on all sets (very comfortable)
+  
+- **Aerobic**: Cut duration by 50%, stay in Z1-Z2 only
+  - If normal: 75min Z2 → Deload: 30-40min Z1-Z2
+  - No intensity work, no intervals
+  - Easy conversational pace only
+  
+- **Additional Focus**:
+  - Add extra mobility/yoga sessions (20-30 min)
+  - Include foam rolling, stretching, breathwork
+  - Prioritize sleep (8+ hours)
+  - Address any minor aches or technique issues
+
+**Important**: Deload is NOT rest. Movement maintains adaptations, but reduced stress allows recovery.
+
+#### RACE-PREP BLOCK (variable length)
+
+**Primary Focus**: Race-specific preparation
+
+**Training Parameters**:
+- Volume: Moderate to high, with emphasis on quality over quantity
+- Intensity: High - race-pace and above work 2-3x per week
+- Sessions: Race simulations and specific intervals
+- Mental: Practice race-day routines, nutrition timing, pacing strategies
+
+**Planning Guidelines**:
+- Include race-pace intervals 2-3x per week
+- Simulate race conditions (time of day, pre-race nutrition, warm-up protocol)
+- Progressive increase in race-intensity work over block
+- Maintain strength with reduced volume (2x per week, 3-4 sets)
+- Practice mental strategies (visualization, self-talk, pain management)
+
+**Example Workouts**:
+- Race-pace intervals: 3x10min @ race pace with 3-4min recovery
+- Over-distance: 8k RowErg @ 5-10 splits slower than race pace
+- Speed work: 10x500m @ faster than race pace with full recovery
+
+#### TAPER BLOCK (1-2 weeks)
+
+**Primary Focus**: Peak for race day
+
+**Training Parameters**:
+- Volume: Progressively reduced (Week 1: 60-70%, Week 2: 40-50%)
+- Intensity: Maintain sharpness with brief high-intensity efforts
+- Purpose: Maximize freshness while maintaining fitness
+- Recovery: Extra rest, optimal sleep, stress management
+
+**Planning Guidelines**:
+- **Week 1 (if 2-week taper)**: 60-70% normal volume
+  - Maintain intensity but cut volume (fewer sets/shorter duration)
+  - 2-3 quality sessions with race-pace touches
+  - Strength: 1 light session with primary lifts only
+  
+- **Week 2 (race week)**: 40-50% normal volume
+  - Very short high-intensity efforts (maintain neural readiness)
+  - Race-pace work limited to 5-10 minutes total
+  - Last hard session: 3-4 days before race
+  - 2 days before race: 15-20min very easy with 3-5 short pickups
+  - Day before race: Complete rest or 10min easy movement
+  
+**Taper Guidelines**:
+- Reduce volume, NOT intensity (keeps systems sharp)
+- Extra rest days are your friend
+- Focus on sleep (9+ hours if possible)
+- Dial in nutrition and hydration
+- Mental preparation and visualization
+- Trust your training
 
 ### B. CHECK RECENT WORKOUT HISTORY
 
