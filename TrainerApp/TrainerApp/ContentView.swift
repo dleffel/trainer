@@ -248,12 +248,12 @@ struct ContentView: View {
         return AnyView(
             HStack {
                 if message.role == .assistant {
-                    Bubble(text: message.content, isUser: false)
+                    Bubble(text: message.content, reasoning: message.reasoning, isUser: false)
                         .environmentObject(navigationState)
                     Spacer(minLength: 40)
                 } else {
                     Spacer(minLength: 40)
-                    Bubble(text: message.content, isUser: true)
+                    Bubble(text: message.content, reasoning: nil, isUser: true)
                         .environmentObject(navigationState)
                 }
             }
@@ -305,15 +305,55 @@ struct ContentView: View {
 
 private struct Bubble: View {
     let text: String
+    let reasoning: String?
     let isUser: Bool
     @EnvironmentObject var navigationState: NavigationState
     @State private var showCalendar = false
+    @State private var showReasoning = false
+    @AppStorage("ShowAIReasoning") private var showReasoningSetting = false
 
     var body: some View {
-        LinkDetectingText(text: text, isUser: isUser) { url in
-            handleURL(url)
+        VStack(alignment: .leading, spacing: 8) {
+            // Show reasoning section if available and enabled
+            if let reasoning = reasoning, !reasoning.isEmpty, showReasoningSetting {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showReasoning.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "brain")
+                            .font(.caption)
+                        Text("Coach's Thinking")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Image(systemName: showReasoning ? "chevron.up" : "chevron.down")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                
+                if showReasoning {
+                    Text(reasoning)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .italic()
+                        .padding(.leading, 20)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+                
+                Divider()
+                    .padding(.vertical, 4)
+            }
+            
+            // Main message content
+            LinkDetectingText(text: text, isUser: isUser) { url in
+                handleURL(url)
+            }
+            .font(.body)
         }
-        .font(.body)
         .foregroundStyle(isUser ? .white : .primary)
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
@@ -454,6 +494,7 @@ private struct SettingsSheet: View {
     @State private var apiKey: String = AppConfiguration.shared.apiKey
     @State private var developerModeEnabled = UserDefaults.standard.bool(forKey: "DeveloperModeEnabled")
     @State private var apiLoggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
+    @AppStorage("ShowAIReasoning") private var showAIReasoning = false
     @State private var showDebugMenu = false
     @State private var showTimeControl = false
 
@@ -469,6 +510,13 @@ private struct SettingsSheet: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                Section("AI Features") {
+                    Toggle("Show AI Reasoning", isOn: $showAIReasoning)
+                    Text("Display the coach's internal reasoning process when planning workouts (requires GPT-5 or other reasoning models)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
                 
                 Section("Developer Options") {
                     Group {

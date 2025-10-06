@@ -14,26 +14,28 @@ struct ChatMessage: Identifiable, Codable {
     let id: UUID
     let role: Role
     let content: String
+    let reasoning: String?
     let date: Date
     var state: MessageState
     
-    init(id: UUID = UUID(), role: Role, content: String, date: Date = Date.current, state: MessageState = .completed) {
+    init(id: UUID = UUID(), role: Role, content: String, reasoning: String? = nil, date: Date = Date.current, state: MessageState = .completed) {
         self.id = id
         self.role = role
         self.content = content
+        self.reasoning = reasoning
         self.date = date
         self.state = state
     }
     
     /// Create a mutable copy of this message with new content (only if currently streaming)
-    func updatedContent(_ newContent: String) -> ChatMessage? {
+    func updatedContent(_ newContent: String, reasoning: String? = nil) -> ChatMessage? {
         guard state == .streaming else { return nil }
-        return ChatMessage(id: id, role: role, content: newContent, date: date, state: state)
+        return ChatMessage(id: id, role: role, content: newContent, reasoning: reasoning ?? self.reasoning, date: date, state: state)
     }
     
     /// Mark message as completed (no longer modifiable)
     func markCompleted() -> ChatMessage {
-        return ChatMessage(id: id, role: role, content: content, date: date, state: .completed)
+        return ChatMessage(id: id, role: role, content: content, reasoning: reasoning, date: date, state: .completed)
     }
 
     enum Role: String, Codable {
@@ -47,13 +49,15 @@ private struct StoredMessage: Codable {
     let id: UUID
     let role: String
     let content: String
+    let reasoning: String?  // Optional for reasoning models
     let date: Date
     let state: String?  // Optional for backwards compatibility
     
-    init(id: UUID, role: String, content: String, date: Date, state: String? = nil) {
+    init(id: UUID, role: String, content: String, reasoning: String? = nil, date: Date, state: String? = nil) {
         self.id = id
         self.role = role
         self.content = content
+        self.reasoning = reasoning
         self.date = date
         self.state = state
     }
@@ -144,13 +148,13 @@ struct ConversationPersistence {
         return stored.compactMap { s in
             guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
             let state = MessageState(rawValue: s.state ?? "completed") ?? .completed
-            return ChatMessage(id: s.id, role: role, content: s.content, date: s.date, state: state)
+            return ChatMessage(id: s.id, role: role, content: s.content, reasoning: s.reasoning, date: s.date, state: state)
         }
     }
     
     private func convertToStored(_ messages: [ChatMessage]) -> [StoredMessage] {
         return messages.map { m in
-            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, date: m.date, state: m.state.rawValue)
+            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, reasoning: m.reasoning, date: m.date, state: m.state.rawValue)
         }
     }
 }

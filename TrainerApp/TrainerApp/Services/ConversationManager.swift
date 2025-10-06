@@ -142,6 +142,7 @@ class ConversationManager: ObservableObject {
                             id: messages[idx].id,
                             role: .assistant,
                             content: cleanContent,
+                            reasoning: messages[idx].reasoning, // Preserve reasoning
                             date: messages[idx].date,
                             state: .completed
                         )
@@ -201,13 +202,14 @@ class ConversationManager: ObservableObject {
                             id: messages[idx].id,
                             role: .assistant,
                             content: finalResponse,
+                            reasoning: messages[idx].reasoning, // Preserve reasoning
                             date: messages[idx].date,
                             state: .completed
                         )
                     }
                 } else {
                     // Fallback: append new message if no streaming message exists
-                    messages.append(ChatMessage(role: .assistant, content: finalResponse, state: .completed))
+                    messages.append(ChatMessage(role: .assistant, content: finalResponse, reasoning: nil, state: .completed))
                 }
                 updateState(.finalizing)
                 break
@@ -235,15 +237,17 @@ class ConversationManager: ObservableObject {
         print("⏱️ request_start: \(requestStart.timeIntervalSince1970)")
         
         var streamedFullText = ""
+        var streamedReasoning = ""
         var tokenBuffer = ""
         var isBufferingTool = false
         var messageCreated = false
         var assistantIndex: Int? = nil
         
         let assistantText: String
+        let assistantReasoning: String?
         
         do {
-            assistantText = try await llmService.streamComplete(
+            let result = try await llmService.streamComplete(
                 apiKey: apiKey,
                 model: model,
                 systemPrompt: systemPrompt,
@@ -303,12 +307,19 @@ class ConversationManager: ObservableObject {
                         streamedFullText = tokenBuffer
                         print("🔍 STREAM_DEBUG: Updated streamedFullText length: \(streamedFullText.count)")
                     }
+                },
+                onReasoning: { [weak self] reasoning in
+                    guard let self = self else { return }
+                    streamedReasoning += reasoning
+                    print("🧠 Reasoning token: '\(reasoning)'")
                 }
             )
+            assistantText = result.content
+            assistantReasoning = result.reasoning
         } catch {
             // Fallback to non-streaming
             print("⚠️ Streaming failed: \(error). Falling back to non-streaming.")
-            let fallbackText = try await llmService.complete(
+            let result = try await llmService.complete(
                 apiKey: apiKey,
                 model: model,
                 systemPrompt: systemPrompt,
@@ -322,17 +333,19 @@ class ConversationManager: ObservableObject {
                     messages[idx] = ChatMessage(
                         id: messages[idx].id,
                         role: .assistant,
-                        content: fallbackText,
+                        content: result.content,
+                        reasoning: result.reasoning,
                         date: messages[idx].date,
                         state: .completed
                     )
                 }
             } else {
-                messages.append(ChatMessage(role: .assistant, content: fallbackText, state: .completed))
+                messages.append(ChatMessage(role: .assistant, content: result.content, reasoning: result.reasoning, state: .completed))
                 assistantIndex = messages.count - 1
             }
-            streamedFullText = fallbackText
-            assistantText = fallbackText
+            streamedFullText = result.content
+            assistantText = result.content
+            assistantReasoning = result.reasoning
         }
         
         print("⏱️ response_complete (streamed): \(Date().timeIntervalSince1970)")
@@ -354,7 +367,7 @@ class ConversationManager: ObservableObject {
         updateState(.preparingResponse)
         
         do {
-            let assistantText = try await llmService.complete(
+            let result = try await llmService.complete(
                 apiKey: apiKey,
                 model: model,
                 systemPrompt: systemPrompt,
@@ -362,9 +375,12 @@ class ConversationManager: ObservableObject {
             )
             
             // DEBUG: Log the full response before processing
-            print("🔍 DEBUG handleFollowUpResponse: Raw AI response: '\(assistantText)'")
+            print("🔍 DEBUG handleFollowUpResponse: Raw AI response: '\(result.content)'")
+            if let reasoning = result.reasoning {
+                print("🧠 DEBUG handleFollowUpResponse: Reasoning: '\(reasoning)'")
+            }
             
-            let processedResponse = try await toolProcessor.processResponseWithToolCalls(assistantText)
+            let processedResponse = try await toolProcessor.processResponseWithToolCalls(result.content)
             let finalResponse = processedResponse.cleanedResponse
             
             print("🔍 DEBUG handleFollowUpResponse: Cleaned response: '\(finalResponse)'")
@@ -372,14 +388,14 @@ class ConversationManager: ObservableObject {
             
             // For follow-up responses, always append a new message instead of replacing
             if !finalResponse.isEmpty {
-                messages.append(ChatMessage(role: .assistant, content: finalResponse, state: .completed))
+                messages.append(ChatMessage(role: .assistant, content: finalResponse, reasoning: result.reasoning, state: .completed))
                 print("📝 Follow-up response: Appended new assistant message with content: '\(finalResponse)'")
             } else {
                 print("⚠️ WARNING: Follow-up response is empty after processing!")
                 
                 // Try to generate meaningful response from tool results instead of showing raw tool calls
                 let meaningfulResponse = try await generateMeaningfulResponse(from: conversationHistory)
-                messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, state: .completed))
+                messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, reasoning: result.reasoning, state: .completed))
                 print("✅ RECOVERY: Generated meaningful response from tool results: '\(meaningfulResponse)'")
             }
             
@@ -424,7 +440,7 @@ class ConversationManager: ObservableObject {
             : "Perfect! I've completed the setup:\n\n" + responseComponents.joined(separator: "\n")
         
         // Append new message with meaningful content
-        messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, state: .completed))
+        messages.append(ChatMessage(role: .assistant, content: meaningfulResponse, reasoning: nil, state: .completed))
         print("✅ Generated meaningful response from tool results: '\(meaningfulResponse)'")
         
         updateState(.finalizing)
