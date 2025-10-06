@@ -228,20 +228,29 @@ struct WeeklyCalendarView: View {
         // Calculate block info for selected week
         if let program = scheduleManager.currentProgram {
             let calendar = Calendar.current
+            
+            // DIAGNOSTIC LOGGING
+            print("🔍 DIAGNOSTIC - Program start date: \(program.startDate)")
+            print("🔍 DIAGNOSTIC - Selected week date: \(selectedWeek)")
+            print("🔍 DIAGNOSTIC - Start of selected week: \(calendar.dateInterval(of: .weekOfYear, for: selectedWeek)?.start ?? selectedWeek)")
+            
             let weeksSinceStart = calendar.dateComponents([.weekOfYear],
                                                          from: program.startDate,
                                                          to: selectedWeek).weekOfYear ?? 0
             let totalWeek = weeksSinceStart + 1
-            print("🔍 DEBUG - Weeks since program start: \(totalWeek)")
+            print("🔍 DEBUG - weeksSinceStart: \(weeksSinceStart), totalWeek: \(totalWeek)")
             
             // Get block info for this week
             let blockInfo = scheduleManager.getBlockForWeek(totalWeek)
             selectedWeekNumber = blockInfo.weekInBlock
+            print("🔍 DIAGNOSTIC - getBlockForWeek(\(totalWeek)) returned: \(blockInfo.type.rawValue), week \(blockInfo.weekInBlock)")
             
             // Get the actual block for this date
             if let block = scheduleManager.getBlockForDate(selectedWeek) {
                 selectedWeekBlock = block
                 print("🔍 DEBUG - Selected week is: \(block.type.rawValue) - Week \(selectedWeekNumber)")
+            } else {
+                print("🔍 DIAGNOSTIC - WARNING: getBlockForDate(\(selectedWeek)) returned nil!")
             }
         }
     }

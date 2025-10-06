@@ -188,43 +188,50 @@ class TrainingScheduleManager: ObservableObject {
             return []
         }
         
-        let blocks = generateAllBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
-        var blockForDate: TrainingBlock? = nil
-        
-        // Find which block contains this date
-        for block in blocks {
-            if block.contains(date: date) {
-                blockForDate = block
-                break
-            }
-        }
-        
-        guard let targetBlock = blockForDate else {
-            print("⚠️ DEBUG generateWeek - No block found for date \(date)")
-            return []
-        }
-        
-        print("🔍 DEBUG generateWeek - Block for requested week: \(targetBlock.type.rawValue)")
+        print("🔍 DIAGNOSTIC generateWeek - Program start date: \(program.startDate)")
         
         let calendar = Calendar.current
         let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? date
+        let blocks = generateAllBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
         
         var days: [WorkoutDay] = []
         
         for dayOffset in 0..<7 {
             if let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: startOfWeek) {
+                let dateKey = workoutStore.dateKey(for: dayDate)
+                print("🔍 DIAGNOSTIC generateWeek - Processing day \(dayOffset): \(dateKey)")
+                
+                // Check if this date is before the program starts
+                if dayDate < program.startDate {
+                    print("📭 DIAGNOSTIC generateWeek - Date \(dateKey) is BEFORE program start, creating pre-program rest day")
+                    // Create a pre-program rest day (no workout)
+                    let preProgram = WorkoutDay(date: dayDate, blockType: .hypertrophyStrength)
+                    days.append(preProgram)
+                    continue
+                }
+                
+                // Find which block contains this date
+                guard let block = blocks.first(where: { $0.contains(date: dayDate) }) else {
+                    print("⚠️ DIAGNOSTIC generateWeek - No block found for \(dateKey), creating blank day")
+                    let blankDay = WorkoutDay(date: dayDate, blockType: .hypertrophyStrength)
+                    days.append(blankDay)
+                    continue
+                }
+                
                 // Try to load existing workout from storage
                 if let savedDay = workoutStore.load(for: dayDate) {
                     days.append(savedDay)
-                    print("📥 Loaded saved workout for \(workoutStore.dateKey(for: dayDate))")
+                    print("✅ DIAGNOSTIC generateWeek - Loaded saved workout for \(dateKey) with icon: \(savedDay.workoutIcon ?? "none"), hasWorkout: \(savedDay.hasWorkout)")
                 } else {
-                    // Create blank workout day
-                    let workoutDay = WorkoutDay(date: dayDate, blockType: targetBlock.type)
+                    // Create blank workout day for this block
+                    let workoutDay = WorkoutDay(date: dayDate, blockType: block.type)
                     days.append(workoutDay)
-                    print("📭 Created blank workout day for \(workoutDay.dayOfWeek.name)")
+                    print("📭 DIAGNOSTIC generateWeek - Created blank workout day for \(workoutDay.dayOfWeek.name) in \(block.type.rawValue)")
                 }
             }
         }
+        
+        print("🔍 DIAGNOSTIC generateWeek - Returning \(days.count) days total")
         
         return days
     }
