@@ -251,28 +251,6 @@ class LLMService: LLMServiceProtocol {
             throw LLMError.httpError(http.statusCode)
         }
         
-    
-    // MARK: - Model Detection
-    
-    /// Check if a model supports reasoning tokens
-    private func supportsReasoning(model: String) -> Bool {
-        let reasoningModels = [
-            "openai/o1",
-            "openai/o1-preview",
-            "openai/o1-mini",
-            "openai/o3-mini",
-            "openai/gpt-5"
-        ]
-        
-        let modelLower = model.lowercased()
-        let supports = reasoningModels.contains { modelLower.contains($0.lowercased()) }
-        
-        if supports {
-            print("🧠 Model '\(model)' supports reasoning tokens")
-        }
-        
-        return supports
-    }
         var fullText = ""
         var fullReasoning = ""
         for try await line in bytes.lines {
@@ -321,6 +299,28 @@ class LLMService: LLMServiceProtocol {
         }
         
         return (content: fullText, reasoning: fullReasoning.isEmpty ? nil : fullReasoning)
+    }
+    
+    // MARK: - Model Detection
+    
+    /// Check if a model supports reasoning tokens
+    private func supportsReasoning(model: String) -> Bool {
+        let reasoningModels = [
+            "openai/o1",
+            "openai/o1-preview",
+            "openai/o1-mini",
+            "openai/o3-mini",
+            "openai/gpt-5"
+        ]
+        
+        let modelLower = model.lowercased()
+        let supports = reasoningModels.contains { modelLower.contains($0.lowercased()) }
+        
+        if supports {
+            print("🧠 Model '\(model)' supports reasoning tokens")
+        }
+        
+        return supports
     }
     
     // MARK: - Private Helpers
