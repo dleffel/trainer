@@ -446,8 +446,19 @@ class ConversationManager: ObservableObject {
                 
                 // Update message with reasoning in real-time
                 Task { @MainActor in
-                    if let idx = state.messageIndex, idx < self.messages.count,
-                       self.messages[idx].state == .streaming {
+                    if !messageCreated && !streamedReasoning.isEmpty {
+                        // Create streaming message with reasoning (even if no content yet)
+                        let message = MessageFactory.assistantStreaming(
+                            content: streamedContent,
+                            reasoning: streamedReasoning
+                        )
+                        self.messages.append(message)
+                        state.setMessageIndex(self.messages.count - 1)
+                        messageCreated = true
+                        print("🔍 STREAM_DEBUG: Created streaming message from reasoning")
+                    } else if let idx = state.messageIndex, idx < self.messages.count,
+                              self.messages[idx].state == .streaming {
+                        // Update existing streaming message with new reasoning
                         if let updated = self.messages[idx].updatedContent(
                             streamedContent,
                             reasoning: streamedReasoning
