@@ -609,11 +609,337 @@ class TrainingScheduleManager: ObservableObject {
     
     // MARK: - Schedule Snapshot
     
-    /// Generate a comprehensive schedule snapshot for the coach
-    /// Note: Extended implementation is in TrainingScheduleManager+Snapshot.swift
+    /// Generate a comprehensive schedule snapshot for the coach showing exercises from last 30 days with results
     func generateScheduleSnapshot() -> String {
-        // This will be extended by the snapshot file
-        return "Schedule snapshot not yet implemented"
+        let calendar = Calendar.current
+        let today = Date.current  // Use Date.current for simulated time support
+        
+        // Calculate 30 days ago
+        guard let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: today) else {
+            return "Unable to calculate date range for schedule snapshot"
+        }
+        
+        // Start building the snapshot
+        var snapshot = "## SCHEDULE SNAPSHOT (Last 30 Days)\n"
+        snapshot += "Generated: \(formatDateTime(today))\n\n"
+        
+        // Iterate through each date from 30 days ago to today
+        var currentDate = thirtyDaysAgo
+        var daysProcessed = 0
+        
+        while currentDate <= today {
+            // Load workout for this date
+            if let workoutDay = workoutStore.load(for: currentDate) {
+                // Load results for this date
+                let results = loadSetResults(for: currentDate)
+                
+                // Format this day's entry
+                let dayEntry = formatDayEntry(workoutDay: workoutDay, results: results)
+                if !dayEntry.isEmpty {
+                    snapshot += dayEntry
+                    daysProcessed += 1
+                }
+            }
+            
+            // Move to next day
+            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) else {
+                break
+            }
+            currentDate = nextDate
+        }
+        
+        if daysProcessed == 0 {
+            snapshot += "No workouts scheduled or completed in this period.\n"
+        }
+        
+        return snapshot
+    }
+    
+    // MARK: - Snapshot Helper Methods
+    
+    /// Format a single day's entry with workout and results
+    private func formatDayEntry(workoutDay: WorkoutDay, results: [WorkoutSetResult]) -> String {
+        var entry = ""
+        
+        // Only show days that have a workout
+        guard workoutDay.hasWorkout else {
+            return entry
+        }
+        
+        // Date header
+        entry += "### \(formatDate(workoutDay.date)) - \(workoutDay.dayOfWeek.name)\n"
+        
+        // Check if we have structured workout
+        if let workout = workoutDay.structuredWorkout {
+            entry += "**Scheduled Exercises:**\n"
+            
+            for (index, exercise) in workout.exercises.enumerated() {
+                entry += "\(index + 1). \(formatExerciseName(exercise))\n"
+                entry += "   - Planned: \(formatExerciseDetails(exercise))\n"
+                
+                // Match and format results for this exercise
+                let exerciseResults = matchResultsToExercise(exerciseName: formatExerciseName(exercise), results: results)
+                if !exerciseResults.isEmpty {
+                    entry += "   - Results:\n"
+                    entry += formatResultsForExercise(exerciseResults)
+                } else {
+                    entry += "   - Results: Not yet logged\n"
+                }
+                entry += "\n"
+            }
+        } else if let legacyWorkout = workoutDay.plannedWorkout {
+            // Legacy workout format
+            entry += "**Workout:** \(legacyWorkout)\n"
+            if !results.isEmpty {
+                entry += "**Results:**\n"
+                entry += formatAllResults(results)
+            }
+            entry += "\n"
+        }
+        
+        return entry
+    }
+    
+    /// Format exercise name from Exercise object
+    private func formatExerciseName(_ exercise: Exercise) -> String {
+        if let name = exercise.name, !name.isEmpty {
+            return name
+        }
+        
+        // Fallback to kind with cleaned up formatting
+        let cleanKind = exercise.kind
+            .replacingOccurrences(of: "cardio", with: "Cardio - ", options: .caseInsensitive)
+            .replacingOccurrences(of: "strength", with: "Strength")
+        return cleanKind.isEmpty ? "Exercise" : cleanKind
+    }
+    
+    /// Format exercise details based on type
+    private func formatExerciseDetails(_ exercise: Exercise) -> String {
+        switch exercise.detail {
+        case .strength(let detail):
+            return formatStrengthDetails(detail)
+        case .cardio(let detail):
+            return formatCardioDetails(detail)
+        case .mobility(let detail):
+            return formatMobilityDetails(detail)
+        case .yoga(let detail):
+            return formatYogaDetails(detail)
+        case .generic(let detail):
+            return formatGenericDetails(detail)
+        }
+    }
+    
+    /// Format strength exercise details
+    private func formatStrengthDetails(_ detail: StrengthDetail) -> String {
+        var parts: [String] = []
+        
+        if let movement = detail.movement {
+            parts.append(movement)
+        }
+        
+        if let sets = detail.sets, !sets.isEmpty {
+            parts.append("\(sets.count) sets")
+            
+            // Show rep scheme if consistent
+            let reps = sets.compactMap { $0.reps?.displayValue }
+            if !reps.isEmpty {
+                let uniqueReps = Set(reps)
+                if uniqueReps.count == 1, let rep = uniqueReps.first {
+                    parts.append("\(rep) reps")
+                } else {
+                    parts.append("varied reps")
+                }
+            }
+            
+            // Show weight if specified
+            if let weight = sets.first?.weight {
+                parts.append("@ \(weight)")
+            }
+            
+            // Show tempo if specified
+            if let tempo = sets.first?.tempo {
+                parts.append("tempo: \(tempo)")
+            }
+        }
+        
+        if let superset = detail.superset {
+            parts.append("(superset: \(superset))")
+        }
+        
+        return parts.joined(separator: ", ")
+    }
+    
+    /// Format cardio exercise details
+    private func formatCardioDetails(_ detail: CardioDetail) -> String {
+        var parts: [String] = []
+        
+        if let modality = detail.modality {
+            parts.append(modality)
+        }
+        
+        if let total = detail.total ?? detail.effectiveTotal {
+            if let duration = total.durationMinutes {
+                parts.append("\(duration) min")
+            }
+            if let distance = total.distanceMeters {
+                parts.append("\(distance)m")
+            }
+        }
+        
+        if let segments = detail.segments, !segments.isEmpty {
+            parts.append("\(segments.count) intervals")
+        }
+        
+        return parts.isEmpty ? "Cardio workout" : parts.joined(separator: ", ")
+    }
+    
+    /// Format mobility exercise details
+    private func formatMobilityDetails(_ detail: MobilityDetail) -> String {
+        guard let blocks = detail.blocks, !blocks.isEmpty else {
+            return "Mobility work"
+        }
+        
+        let blockNames = blocks.map { $0.name }.joined(separator: ", ")
+        return "\(blocks.count) movements: \(blockNames)"
+    }
+    
+    /// Format yoga exercise details
+    private func formatYogaDetails(_ detail: YogaDetail) -> String {
+        guard let blocks = detail.blocks, !blocks.isEmpty else {
+            return "Yoga session"
+        }
+        
+        let totalMinutes = blocks.compactMap { $0.durationMinutes }.reduce(0, +)
+        return "\(blocks.count) segments, \(totalMinutes) min total"
+    }
+    
+    /// Format generic exercise details
+    private func formatGenericDetails(_ detail: GenericDetail) -> String {
+        var parts: [String] = []
+        
+        if let items = detail.items, !items.isEmpty {
+            parts.append(items.joined(separator: ", "))
+        }
+        
+        if let notes = detail.notes {
+            parts.append(notes)
+        }
+        
+        return parts.isEmpty ? "Workout" : parts.joined(separator: " - ")
+    }
+    
+    /// Match results to a specific exercise by name (case-insensitive)
+    private func matchResultsToExercise(exerciseName: String, results: [WorkoutSetResult]) -> [WorkoutSetResult] {
+        let cleanName = exerciseName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return results.filter { result in
+            let resultName = result.exerciseName.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            return resultName == cleanName || resultName.contains(cleanName) || cleanName.contains(resultName)
+        }
+    }
+    
+    /// Format results for a specific exercise, grouped by set
+    private func formatResultsForExercise(_ results: [WorkoutSetResult]) -> String {
+        // Sort by set number, then by timestamp
+        let sortedResults = results.sorted { r1, r2 in
+            if let s1 = r1.setNumber, let s2 = r2.setNumber {
+                return s1 < s2
+            }
+            return r1.timestamp < r2.timestamp
+        }
+        
+        var formatted = ""
+        for result in sortedResults {
+            formatted += "     * "
+            
+            if let setNum = result.setNumber {
+                formatted += "Set \(setNum): "
+            }
+            
+            var parts: [String] = []
+            
+            if let reps = result.reps {
+                parts.append("\(reps) reps")
+            }
+            
+            if let loadLb = result.loadLb {
+                parts.append("@ \(loadLb) lb")
+            } else if let loadKg = result.loadKg {
+                parts.append("@ \(loadKg) kg")
+            }
+            
+            if let rir = result.rir {
+                parts.append("RIR: \(rir)")
+            }
+            
+            if let rpe = result.rpe {
+                parts.append("RPE: \(rpe)")
+            }
+            
+            formatted += parts.joined(separator: ", ")
+            
+            if let notes = result.notes, !notes.isEmpty {
+                formatted += " - \(notes)"
+            }
+            
+            formatted += "\n"
+        }
+        
+        return formatted
+    }
+    
+    /// Format all results without exercise grouping (for legacy workouts)
+    private func formatAllResults(_ results: [WorkoutSetResult]) -> String {
+        let sortedResults = results.sorted { $0.timestamp < $1.timestamp }
+        
+        var formatted = ""
+        for result in sortedResults {
+            formatted += "  - \(result.exerciseName): "
+            
+            var parts: [String] = []
+            
+            if let setNum = result.setNumber {
+                parts.append("Set \(setNum)")
+            }
+            
+            if let reps = result.reps {
+                parts.append("\(reps) reps")
+            }
+            
+            if let loadLb = result.loadLb {
+                parts.append("@ \(loadLb) lb")
+            } else if let loadKg = result.loadKg {
+                parts.append("@ \(loadKg) kg")
+            }
+            
+            if let rir = result.rir {
+                parts.append("RIR: \(rir)")
+            }
+            
+            if let rpe = result.rpe {
+                parts.append("RPE: \(rpe)")
+            }
+            
+            formatted += parts.joined(separator: ", ")
+            formatted += "\n"
+        }
+        
+        return formatted
+    }
+    
+    /// Format date for display (e.g., "Oct 5, 2025")
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy"
+        formatter.timeZone = TimeZone(identifier: "UTC")  // Required per .roorules
+        return formatter.string(from: date)
+    }
+    
+    /// Format date and time for display (e.g., "Oct 5, 2025 at 2:57 PM")
+    private func formatDateTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy 'at' h:mm a"
+        formatter.timeZone = TimeZone.current  // Use local time for display
+        return formatter.string(from: date)
     }
 }
 
