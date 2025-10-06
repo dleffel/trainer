@@ -609,6 +609,72 @@ class TrainingScheduleManager: ObservableObject {
     
     // MARK: - Schedule Snapshot
     
+    /// Generate current training block context for the coach
+    func generateBlockContext() -> String {
+        guard let block = currentBlock, let program = currentProgram else {
+            return "## CURRENT TRAINING BLOCK\n\nNo active training program.\n"
+        }
+        
+        var context = "## CURRENT TRAINING BLOCK\n\n"
+        
+        // Block type and week information
+        context += "**Block**: \(block.type.rawValue)\n"
+        context += "**Week in Block**: \(currentWeekInBlock) of \(block.type.duration)\n"
+        context += "**Total Week in Program**: \(totalWeekInProgram) of 20\n"
+        context += "**Program Started**: \(formatDate(program.startDate))\n\n"
+        
+        // Block-specific focus and goals
+        context += "**Block Focus**:\n"
+        switch block.type {
+        case .hypertrophyStrength:
+            context += "- Primary: Build muscle mass and base strength\n"
+            context += "- Volume: High training volume with moderate intensity\n"
+            context += "- Sessions: 5-6 per week (2-3 strength + 3-4 aerobic)\n"
+            context += "- Week \(currentWeekInBlock) Focus: "
+            if currentWeekInBlock <= 3 {
+                context += "Establishing movement patterns and baseline loads\n"
+            } else if currentWeekInBlock <= 7 {
+                context += "Progressive overload with increasing volume\n"
+            } else {
+                context += "Peak volume before transitioning to next block\n"
+            }
+            
+        case .aerobicCapacity:
+            context += "- Primary: Develop aerobic capacity and endurance\n"
+            context += "- Volume: High aerobic volume with varied intensities\n"
+            context += "- Sessions: 6-8 per week (mostly aerobic with 1-2 strength maintenance)\n"
+            context += "- Week \(currentWeekInBlock) Focus: "
+            if currentWeekInBlock <= 2 {
+                context += "Base building with Zone 2 emphasis\n"
+            } else if currentWeekInBlock <= 5 {
+                context += "Adding threshold and VO2max intervals\n"
+            } else {
+                context += "Peak aerobic capacity development\n"
+            }
+            
+        case .deload:
+            context += "- Primary: Recovery and adaptation\n"
+            context += "- Volume: Reduced to 40-50% of normal training load\n"
+            context += "- Sessions: Focus on technique, mobility, and active recovery\n"
+            context += "- Purpose: Allow body to adapt to previous training block\n"
+            
+        case .racePrep:
+            context += "- Primary: Race-specific preparation\n"
+            context += "- Volume: High intensity with race-pace work\n"
+            context += "- Sessions: Race simulations and specific intervals\n"
+            context += "- Week \(currentWeekInBlock) Focus: Race-specific intensity and pacing\n"
+            
+        case .taper:
+            context += "- Primary: Peak for race day\n"
+            context += "- Volume: Progressively reduced while maintaining intensity\n"
+            context += "- Sessions: Short, sharp workouts with full recovery\n"
+            context += "- Purpose: Maximize freshness while maintaining fitness\n"
+        }
+        
+        context += "\n"
+        return context
+    }
+    
     /// Generate a comprehensive schedule snapshot for the coach showing exercises from last 30 days with results
     func generateScheduleSnapshot() -> String {
         let calendar = Calendar.current
