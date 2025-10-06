@@ -13,22 +13,26 @@ struct SystemPromptLoader {
         return loadBaseSystemPrompt()
     }
     
-    /// Load system prompt with embedded schedule snapshot for optimization
+    /// Load system prompt with embedded block context and schedule snapshot for optimization
     static func loadSystemPromptWithSchedule() -> String {
         let basePrompt = loadBaseSystemPrompt()
+        let blockContext = TrainingScheduleManager.shared.generateBlockContext()
         let scheduleSnapshot = TrainingScheduleManager.shared.generateScheduleSnapshot()
         
-        // Insert schedule snapshot after the main prompt but before tool definitions
+        // Combine block context and schedule snapshot
+        let contextSection = blockContext + "\n" + scheduleSnapshot
+        
+        // Insert after the main prompt but before tool definitions
         let insertionMarker = "## 14 │ AVAILABLE TOOLS"
         
         if let insertionPoint = basePrompt.range(of: insertionMarker) {
             let beforeTools = String(basePrompt[..<insertionPoint.lowerBound])
             let fromTools = String(basePrompt[insertionPoint.lowerBound...])
             
-            return beforeTools + "\n" + scheduleSnapshot + "\n\n" + fromTools
+            return beforeTools + "\n" + contextSection + "\n\n" + fromTools
         } else {
             // Fallback: append at end if marker not found
-            return basePrompt + "\n\n" + scheduleSnapshot
+            return basePrompt + "\n\n" + contextSection
         }
     }
     
