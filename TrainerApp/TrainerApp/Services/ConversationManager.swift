@@ -8,6 +8,10 @@ class ConversationManager: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var conversationState: ConversationState = .idle
     
+    // Reasoning preview state for UI
+    @Published private(set) var isStreamingReasoning: Bool = false
+    @Published private(set) var latestReasoningChunk: String? = nil
+    
     // MARK: - Private Properties
     private let persistence = ConversationPersistence()
     private let toolProcessor = ToolProcessor.shared
@@ -446,6 +450,10 @@ class ConversationManager: ObservableObject {
                 
                 // Update message with reasoning in real-time
                 Task { @MainActor in
+                    // Publish reasoning chunk for preview UI
+                    self.isStreamingReasoning = true
+                    self.latestReasoningChunk = reasoning
+                    
                     if !messageCreated && !streamedReasoning.isEmpty {
                         // Create streaming message with reasoning (even if no content yet)
                         let message = MessageFactory.assistantStreaming(
@@ -473,6 +481,10 @@ class ConversationManager: ObservableObject {
         // Store final content
         state.setContent(result.content)
         state.setReasoning(result.reasoning)
+        
+        // Clear reasoning streaming state
+        isStreamingReasoning = false
+        latestReasoningChunk = nil
         
         return state
     }
