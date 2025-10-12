@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 /// Manages conversation flow, message handling, and coordination between streaming, tools, and persistence
 @MainActor
@@ -48,13 +49,14 @@ class ConversationManager: ObservableObject {
     }
     
     /// Send a message - configuration handled internally
-    func sendMessage(_ text: String) async throws {
+    func sendMessage(_ text: String, images: [UIImage] = []) async throws {
         guard config.hasValidApiKey else {
             throw ConfigurationError.missingApiKey
         }
         
         try await sendMessageWithConfig(
             text,
+            images: images,
             apiKey: config.apiKey,
             model: config.model,
             systemPrompt: config.systemPrompt
@@ -62,9 +64,12 @@ class ConversationManager: ObservableObject {
     }
     
     /// Internal implementation with explicit configuration (for testing/flexibility)
-    private func sendMessageWithConfig(_ text: String, apiKey: String, model: String, systemPrompt: String) async throws {
+    private func sendMessageWithConfig(_ text: String, images: [UIImage], apiKey: String, model: String, systemPrompt: String) async throws {
         // Create and add user message using MessageFactory
-        let userMessage = MessageFactory.user(content: text)
+        let userMessage = images.isEmpty
+            ? MessageFactory.user(content: text)
+            : MessageFactory.userWithImages(content: text, images: images)
+        
         messages.append(userMessage)
         await persistMessages()
         

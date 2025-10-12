@@ -47,6 +47,10 @@
 	<string>Trainer updates your health data to log workouts and track fitness metrics.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Trainer sends notifications for workout reminders, metric tracking, and coaching updates.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Trainer needs camera access to take photos for workout form analysis and progress tracking.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Trainer needs photo library access to select images for workout analysis and progress tracking.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

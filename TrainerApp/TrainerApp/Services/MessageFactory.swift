@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Factory for creating ChatMessage instances with consistent patterns
 ///
@@ -74,6 +75,25 @@ enum MessageFactory {
         ChatMessage(role: .user, content: content)
     }
     
+    /// Create a user message with photo attachments
+    /// - Parameters:
+    ///   - content: The user's message content
+    ///   - images: Array of UIImages to attach (will be compressed to JPEG)
+    /// - Returns: A ChatMessage from the user with compressed image attachments
+    static func userWithImages(content: String, images: [UIImage]) -> ChatMessage {
+        let attachments = images.compactMap { image -> MessageAttachment? in
+            // Compress image to JPEG with 0.8 quality
+            guard let jpegData = image.jpegData(compressionQuality: 0.8) else { return nil }
+            return MessageAttachment(type: .image, data: jpegData, mimeType: "image/jpeg")
+        }
+        
+        return ChatMessage(
+            role: .user,
+            content: content,
+            attachments: attachments.isEmpty ? nil : attachments
+        )
+    }
+    
     // MARK: - Message Updates
     
     /// Update an existing message preserving its identity
@@ -95,7 +115,8 @@ enum MessageFactory {
             content: content ?? message.content,
             reasoning: reasoning ?? message.reasoning,
             date: message.date,
-            state: state ?? message.state
+            state: state ?? message.state,
+            attachments: message.attachments
         )
     }
     
@@ -114,7 +135,8 @@ enum MessageFactory {
             content: content,
             reasoning: message.reasoning,
             date: message.date,
-            state: message.state
+            state: message.state,
+            attachments: message.attachments
         )
     }
     
@@ -128,7 +150,8 @@ enum MessageFactory {
             content: message.content,
             reasoning: message.reasoning,
             date: message.date,
-            state: .completed
+            state: .completed,
+            attachments: message.attachments
         )
     }
 }
