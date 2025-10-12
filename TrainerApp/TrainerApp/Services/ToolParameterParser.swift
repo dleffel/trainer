@@ -223,16 +223,20 @@ class ToolParameterParser {
                 var braceCount = 0
                 var endIndex = currentIndex
                 
-                for i in paramsStr[currentIndex...] {
-                    if i == "{" {
+                // Use explicit index to track position during iteration
+                var idx = currentIndex
+                while idx < paramsStr.endIndex {
+                    let ch = paramsStr[idx]
+                    if ch == "{" {
                         braceCount += 1
-                    } else if i == "}" {
+                    } else if ch == "}" {
                         braceCount -= 1
                         if braceCount == 0 {
-                            endIndex = paramsStr.index(after: paramsStr.firstIndex(of: i)!)
+                            endIndex = paramsStr.index(after: idx)
                             break
                         }
                     }
+                    idx = paramsStr.index(after: idx)
                 }
                 
                 let workoutsJSON = String(paramsStr[currentIndex..<endIndex])
