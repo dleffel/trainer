@@ -49,7 +49,48 @@ class LLMService: LLMServiceProtocol {
     /// API message structure for chat completions
     private struct APIMessage: Codable {
         let role: String
-        let content: String
+        let content: Content
+        
+        enum Content: Codable {
+            case text(String)
+            case multipart([ContentPart])
+            
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.singleValueContainer()
+                switch self {
+                case .text(let string):
+                    try container.encode(string)
+                case .multipart(let parts):
+                    try container.encode(parts)
+                }
+            }
+            
+            init(from decoder: Decoder) throws {
+                let container = try decoder.singleValueContainer()
+                if let string = try? container.decode(String.self) {
+                    self = .text(string)
+                } else if let parts = try? container.decode([ContentPart].self) {
+                    self = .multipart(parts)
+                } else {
+                    throw DecodingError.dataCorrupted(
+                        DecodingError.Context(
+                            codingPath: decoder.codingPath,
+                            debugDescription: "Content must be string or array"
+                        )
+                    )
+                }
+            }
+        }
+        
+        struct ContentPart: Codable {
+            let type: String
+            let text: String?
+            let image_url: ImageURL?
+            
+            struct ImageURL: Codable {
+                let url: String  // base64 data URL
+            }
+        }
     }
     
     // MARK: - Private Properties
@@ -100,7 +141,7 @@ class LLMService: LLMServiceProtocol {
         var msgs: [APIMessage] = []
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
-            msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
+            msgs.append(APIMessage(role: "system", content: .text(enhancedSystemPrompt)))
             print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in complete() method")
         }
         
@@ -192,7 +233,7 @@ class LLMService: LLMServiceProtocol {
         var msgs: [APIMessage] = []
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
-            msgs.append(APIMessage(role: "system", content: enhancedSystemPrompt))
+            msgs.append(APIMessage(role: "system", content: .text(enhancedSystemPrompt)))
             print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in streamComplete() method")
         }
         
@@ -379,14 +420,46 @@ class LLMService: LLMServiceProtocol {
             role = "system"
         }
         
-        // Only add timestamps to user and assistant messages
-        // System messages should remain unmodified for tool results, etc.
-        if message.role == .user || message.role == .assistant {
-            let timestamp = formatMessageTimestamp(message.date)
-            let enhancedContent = "[\(timestamp)]\n\(message.content)"
-            return APIMessage(role: role, content: enhancedContent)
+        // If message has attachments, use multipart content
+        if let attachments = message.attachments, !attachments.isEmpty {
+            var parts: [APIMessage.ContentPart] = []
+            
+            // Add text content if present
+            if !message.content.isEmpty {
+                let timestamp = formatMessageTimestamp(message.date)
+                let enhancedContent = message.role == .user || message.role == .assistant
+                    ? "[\(timestamp)]\n\(message.content)"
+                    : message.content
+                
+                parts.append(APIMessage.ContentPart(
+                    type: "text",
+                    text: enhancedContent,
+                    image_url: nil
+                ))
+            }
+            
+            // Add image attachments
+            for attachment in attachments where attachment.type == .image {
+                let base64 = attachment.data.base64EncodedString()
+                let dataUrl = "data:\(attachment.mimeType);base64,\(base64)"
+                
+                parts.append(APIMessage.ContentPart(
+                    type: "image_url",
+                    text: nil,
+                    image_url: APIMessage.ContentPart.ImageURL(url: dataUrl)
+                ))
+            }
+            
+            return APIMessage(role: role, content: .multipart(parts))
         } else {
-            return APIMessage(role: role, content: message.content)
+            // Text-only message
+            if message.role == .user || message.role == .assistant {
+                let timestamp = formatMessageTimestamp(message.date)
+                let enhancedContent = "[\(timestamp)]\n\(message.content)"
+                return APIMessage(role: role, content: .text(enhancedContent))
+            } else {
+                return APIMessage(role: role, content: .text(message.content))
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Factory for creating ChatMessage instances with consistent patterns
 ///
@@ -72,6 +73,25 @@ enum MessageFactory {
     /// - Returns: A ChatMessage from the user
     static func user(content: String) -> ChatMessage {
         ChatMessage(role: .user, content: content)
+    }
+    
+    /// Create a user message with photo attachments
+    /// - Parameters:
+    ///   - content: The user's message content
+    ///   - images: Array of UIImages to attach (will be compressed to JPEG)
+    /// - Returns: A ChatMessage from the user with compressed image attachments
+    static func userWithImages(content: String, images: [UIImage]) -> ChatMessage {
+        let attachments = images.compactMap { image -> MessageAttachment? in
+            // Compress image to JPEG with 0.8 quality
+            guard let jpegData = image.jpegData(compressionQuality: 0.8) else { return nil }
+            return MessageAttachment(type: .image, data: jpegData)
+        }
+        
+        return ChatMessage(
+            role: .user,
+            content: content,
+            attachments: attachments.isEmpty ? nil : attachments
+        )
     }
     
     // MARK: - Message Updates

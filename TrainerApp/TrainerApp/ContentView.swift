@@ -3,6 +3,7 @@ import Foundation
 import UniformTypeIdentifiers
 import HealthKit
 import CloudKit
+import PhotosUI
 
 // MARK: - Main App View with Tab Navigation
 
@@ -149,6 +150,7 @@ private struct ChatTab: View {
     @EnvironmentObject var navigationState: NavigationState
     @State private var input: String = ""
     @State private var errorMessage: String?
+    @State private var selectedImages: [UIImage] = []
     
     // Computed properties for UI state
     private var messages: [ChatMessage] {
@@ -285,7 +287,8 @@ private struct ChatTab: View {
                         reasoning: message.reasoning,
                         isUser: false,
                         isLastMessage: isLastMessage,
-                        conversationManager: conversationManager
+                        conversationManager: conversationManager,
+                        attachments: message.attachments
                     )
                     .environmentObject(navigationState)
                     Spacer(minLength: 40)
@@ -297,7 +300,8 @@ private struct ChatTab: View {
                         reasoning: nil,
                         isUser: true,
                         isLastMessage: isLastMessage,
-                        conversationManager: conversationManager
+                        conversationManager: conversationManager,
+                        attachments: message.attachments
                     )
                     .environmentObject(navigationState)
                 }
@@ -307,39 +311,80 @@ private struct ChatTab: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 10) {
-            TextField("Message…", text: $input, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(1...5)
-                .disabled(chatState != .idle)
-
-            Button {
-                Task { await send() }
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(canSend ? Color.blue : Color.gray)
+        VStack(spacing: 0) {
+            // Image preview row (if images selected)
+            if !selectedImages.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 80, height: 80)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                
+                                // Remove button
+                                Button {
+                                    selectedImages.remove(at: index)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.white)
+                                        .background(Circle().fill(Color.black.opacity(0.6)))
+                                }
+                                .padding(4)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                }
+                .background(Color(.systemGray6))
             }
-            .disabled(!canSend)
+            
+            // Input controls
+            HStack(spacing: 10) {
+                PhotoAttachmentButton(selectedImages: $selectedImages)
+                
+                TextField("Message…", text: $input, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(1...5)
+                    .disabled(chatState != .idle)
+
+                Button {
+                    Task { await send() }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(canSend ? Color.blue : Color.gray)
+                }
+                .disabled(!canSend)
+            }
+            .padding(.all, 10)
+            .background(.ultraThinMaterial)
         }
-        .padding(.all, 10)
-        .background(.ultraThinMaterial)
     }
 
     private var canSend: Bool {
-        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && conversationManager.conversationState == .idle
+        let hasText = !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasImages = !selectedImages.isEmpty
+        return (hasText || hasImages) && conversationManager.conversationState == .idle
     }
 
     // MARK: - Actions
 
     private func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        let images = selectedImages
+        
+        // Must have either text or images
+        guard !text.isEmpty || !images.isEmpty else { return }
         
         input = ""
+        selectedImages = []
         
         do {
-            try await conversationManager.sendMessage(text)
+            try await conversationManager.sendMessage(text, images: images)
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
@@ -405,6 +450,7 @@ private struct Bubble: View, Equatable {
     let isUser: Bool
     let isLastMessage: Bool  // ✅ New parameter - computed once in parent
     @ObservedObject var conversationManager: ConversationManager
+    let attachments: [MessageAttachment]?
     
     // MARK: - Equatable Conformance
     static func == (lhs: Bubble, rhs: Bubble) -> Bool {
@@ -414,7 +460,8 @@ private struct Bubble: View, Equatable {
         lhs.text == rhs.text &&
         lhs.reasoning == rhs.reasoning &&
         lhs.isUser == rhs.isUser &&
-        lhs.isLastMessage == rhs.isLastMessage
+        lhs.isLastMessage == rhs.isLastMessage &&
+        lhs.attachments?.count == rhs.attachments?.count
     }
     
     @EnvironmentObject var navigationState: NavigationState
@@ -505,11 +552,27 @@ private struct Bubble: View, Equatable {
                     .padding(.vertical, 4)
             }
             
-            // Main message content
-            LinkDetectingText(text: text, isUser: isUser) { url in
-                handleURL(url)
+            // Show images if present
+            if let attachments = attachments, !attachments.isEmpty {
+                ForEach(attachments) { attachment in
+                    if attachment.type == .image,
+                       let image = UIImage(data: attachment.data) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 250)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                }
             }
-            .font(.body)
+            
+            // Main message content (only show if there's text)
+            if !text.isEmpty {
+                LinkDetectingText(text: text, isUser: isUser) { url in
+                    handleURL(url)
+                }
+                .font(.body)
+            }
         }
         .foregroundStyle(isUser ? .white : .primary)
         .padding(.vertical, 10)
@@ -823,4 +886,106 @@ private struct SettingsSheet: View {
 
 #Preview {
     ContentView()
+}
+
+// MARK: - Photo Attachment Button
+
+private struct PhotoAttachmentButton: View {
+    @Binding var selectedImages: [UIImage]
+    @State private var showCamera = false
+    @State private var showPhotoPicker = false
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    
+    var body: some View {
+        Menu {
+            Button {
+                showCamera = true
+            } label: {
+                Label("Take Photo", systemImage: "camera")
+            }
+            
+            Button {
+                showPhotoPicker = true
+            } label: {
+                Label("Choose from Library", systemImage: "photo.on.rectangle")
+            }
+        } label: {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 22))
+                .foregroundColor(.blue)
+        }
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $selectedPhotoItems,
+            maxSelectionCount: 5,
+            matching: .images
+        )
+        .onChange(of: selectedPhotoItems) { _, newItems in
+            Task {
+                await loadSelectedPhotos(from: newItems)
+            }
+        }
+        .sheet(isPresented: $showCamera) {
+            ImagePicker(
+                sourceType: .camera,
+                onImageSelected: { image in
+                    selectedImages.append(image)
+                }
+            )
+        }
+    }
+    
+    @MainActor
+    private func loadSelectedPhotos(from items: [PhotosPickerItem]) async {
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self),
+               let image = UIImage(data: data) {
+                selectedImages.append(image)
+            }
+        }
+        selectedPhotoItems = []
+    }
+}
+
+// MARK: - Image Picker (Camera Wrapper)
+
+private struct ImagePicker: UIViewControllerRepresentable {
+    @Environment(\.dismiss) var dismiss
+    var sourceType: UIImagePickerController.SourceType
+    var onImageSelected: (UIImage) -> Void
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = sourceType
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePicker
+        
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImageSelected(image)
+            }
+            parent.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
 }
