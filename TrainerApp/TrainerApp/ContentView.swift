@@ -4,23 +4,94 @@ import UniformTypeIdentifiers
 import HealthKit
 import CloudKit
 
-// MARK: - Original ContentView with Logging Integration
+// MARK: - Main App View with Tab Navigation
 
 struct ContentView: View {
     @StateObject private var conversationManager = ConversationManager()
-    @State private var input: String = ""
     @State private var showSettings: Bool = false
-    @State private var showCalendar: Bool = false
     @State private var errorMessage: String?
-    @State private var isLoadingHealthData: Bool = false
     @State private var iCloudAvailable = false
     @State private var showMigrationAlert: Bool = false
     
-    // Navigation state for deep linking
+    // Navigation state for deep linking and tab selection
     @EnvironmentObject var navigationState: NavigationState
 
     private let healthKitManager = HealthKitManager.shared
     private let config = AppConfiguration.shared
+
+    var body: some View {
+        TabView(selection: $navigationState.selectedTab) {
+            ChatTab(
+                conversationManager: conversationManager,
+                showSettings: $showSettings,
+                iCloudAvailable: iCloudAvailable
+            )
+            .tabItem {
+                Label("Chat", systemImage: "message.fill")
+            }
+            .tag(0)
+            
+            LogTab(showSettings: $showSettings)
+                .tabItem {
+                    Label("Log", systemImage: "calendar")
+                }
+                .tag(1)
+        }
+        .onAppear {
+            setupOnAppear()
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet(
+                onClearChat: {
+                    Task {
+                        await conversationManager.clearConversation()
+                    }
+                }
+            )
+            .presentationDetents([.medium, .large])
+        }
+        .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
+            Button("OK") { errorMessage = nil }
+        }, message: {
+            Text(errorMessage ?? "")
+        })
+        .alert("API Key Migration Required", isPresented: $showMigrationAlert, actions: {
+            Button("Open Settings") {
+                showSettings = true
+            }
+            Button("Later", role: .cancel) { }
+        }, message: {
+            Text("OpenRouter is now required for this app. Please update your API key in Settings. You can get an OpenRouter API key at openrouter.ai")
+        })
+    }
+    
+    // MARK: - Setup & Helpers
+    
+    private func checkForMigration() {
+        // Check if user has old OpenAI key but no OpenRouter key
+        let oldKey = UserDefaults.standard.string(forKey: "OPENAI_API_KEY")
+        let newKey = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY")
+        
+        if let oldKey = oldKey, !oldKey.isEmpty, (newKey == nil || newKey!.isEmpty) {
+            // User has old key but no new key - show migration alert
+            showMigrationAlert = true
+            
+            // Clear the old key to avoid confusion
+            UserDefaults.standard.removeObject(forKey: "OPENAI_API_KEY")
+        }
+    }
+}
+
+// MARK: - Chat Tab
+
+private struct ChatTab: View {
+    @ObservedObject var conversationManager: ConversationManager
+    @Binding var showSettings: Bool
+    let iCloudAvailable: Bool
+    
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var input: String = ""
+    @State private var errorMessage: String?
     
     // Computed properties for UI state
     private var messages: [ChatMessage] {
@@ -30,7 +101,7 @@ struct ContentView: View {
     private var chatState: ChatState {
         conversationManager.conversationState.chatState
     }
-
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -46,103 +117,77 @@ struct ContentView: View {
                             .foregroundColor(.green)
                             .font(.caption)
                     } else {
+    
+    private func setupOnAppear() {
+        // Initialize conversation manager
+        Task {
+            await conversationManager.initialize()
+        }
+        
+        // Check iCloud availability
+        CKContainer.default().accountStatus { status, _ in
+            DispatchQueue.main.async {
+                iCloudAvailable = status == .available
+                if !iCloudAvailable {
+                    print("⚠️ iCloud not available")
+                } else {
+                    print("✅ iCloud is available")
+                }
+            }
+        }
+        
+        // Listen for iCloud changes
+        NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: NSUbiquitousKeyValueStore.default,
+            queue: .main
+        ) { _ in
+            print("📲 iCloud data changed")
+            Task {
+                await conversationManager.loadConversation()
+            }
+        }
+        
+        // Listen for proactive messages
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("ProactiveMessageAdded"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            print("🤖 Proactive message received")
+            Task {
+                await conversationManager.loadConversation()
+            }
+        }
+        
+        // Request HealthKit authorization on app launch
+        Task {
+            if healthKitManager.isHealthKitAvailable {
+                do {
+                    _ = try await healthKitManager.requestAuthorization()
+                } catch {
+                    print("HealthKit authorization failed: \(error)")
+                }
+            }
+        }
+        
+        // Check for API key migration
+        checkForMigration()
+    }
                         Image(systemName: "icloud.slash")
                             .foregroundColor(.orange)
                             .font(.caption)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
-                        Button {
-                            showCalendar = true
-                        } label: {
-                            Image(systemName: "calendar")
-                                .font(.body)
-                        }
-                        .accessibilityLabel("Training Calendar")
-                        
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.body)
-                        }
-                        .accessibilityLabel("Settings")
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.body)
                     }
+                    .accessibilityLabel("Settings")
                 }
-            }
-        }
-        .onAppear {
-            // Initialize conversation manager
-            Task {
-                await conversationManager.initialize()
-            }
-            
-            // Check iCloud availability
-            CKContainer.default().accountStatus { status, _ in
-                DispatchQueue.main.async {
-                    iCloudAvailable = status == .available
-                    if !iCloudAvailable {
-                        print("⚠️ iCloud not available")
-                    } else {
-                        print("✅ iCloud is available")
-                    }
-                }
-            }
-            
-            // Listen for iCloud changes
-            NotificationCenter.default.addObserver(
-                forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-                object: NSUbiquitousKeyValueStore.default,
-                queue: .main
-            ) { _ in
-                print("📲 iCloud data changed")
-                Task {
-                    await conversationManager.loadConversation()
-                }
-            }
-            
-            // Listen for proactive messages
-            NotificationCenter.default.addObserver(
-                forName: Notification.Name("ProactiveMessageAdded"),
-                object: nil,
-                queue: .main
-            ) { notification in
-                print("🤖 Proactive message received")
-                Task {
-                    await conversationManager.loadConversation()
-                }
-            }
-            
-            // Request HealthKit authorization on app launch
-            Task {
-                if healthKitManager.isHealthKitAvailable {
-                    do {
-                        _ = try await healthKitManager.requestAuthorization()
-                    } catch {
-                        print("HealthKit authorization failed: \(error)")
-                    }
-                }
-            }
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsSheet(
-                onClearChat: {
-                    Task {
-                        await conversationManager.clearConversation()
-                    }
-                }
-            )
-            .presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: $showCalendar) {
-            CalendarView()
-                .environmentObject(navigationState)
-        }
-        .onChange(of: navigationState.showCalendar) { _, newValue in
-            if newValue {
-                showCalendar = true
-                navigationState.showCalendar = false
             }
         }
         .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
@@ -150,33 +195,6 @@ struct ContentView: View {
         }, message: {
             Text(errorMessage ?? "")
         })
-        .alert("API Key Migration Required", isPresented: $showMigrationAlert, actions: {
-            Button("Open Settings") {
-                showSettings = true
-            }
-            Button("Later", role: .cancel) { }
-        }, message: {
-            Text("OpenRouter is now required for this app. Please update your API key in Settings. You can get an OpenRouter API key at openrouter.ai")
-        })
-        .onAppear {
-            checkForMigration()
-        }
-    }
-    
-    // MARK: - Migration Helper
-    
-    private func checkForMigration() {
-        // Check if user has old OpenAI key but no OpenRouter key
-        let oldKey = UserDefaults.standard.string(forKey: "OPENAI_API_KEY")
-        let newKey = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY")
-        
-        if let oldKey = oldKey, !oldKey.isEmpty, (newKey == nil || newKey!.isEmpty) {
-            // User has old key but no new key - show migration alert
-            showMigrationAlert = true
-            
-            // Clear the old key to avoid confusion
-            UserDefaults.standard.removeObject(forKey: "OPENAI_API_KEY")
-        }
     }
 
     // MARK: - Views
@@ -313,6 +331,56 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Log Tab
+
+private struct LogTab: View {
+    @Binding var showSettings: Bool
+    @EnvironmentObject var navigationState: NavigationState
+    
+    var body: some View {
+        NavigationStack {
+            CalendarContentView()
+                .navigationTitle("Log")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.body)
+                        }
+                        .accessibilityLabel("Settings")
+                    }
+                }
+        }
+    }
+}
+
+// MARK: - Calendar Content View (extracted from CalendarView)
+
+private struct CalendarContentView: View {
+    @StateObject private var scheduleManager = TrainingScheduleManager.shared
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var navigatedToWorkout = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            WeeklyCalendarView(scheduleManager: scheduleManager)
+            Spacer()
+        }
+        .onAppear {
+            // Handle deep link navigation
+            if let targetDate = navigationState.targetWorkoutDate, !navigatedToWorkout {
+                print("🧭 LogTab detected deep link target: \(targetDate)")
+                navigatedToWorkout = true
+                // Pass navigation handling to WeeklyCalendarView
+                print("🧭 LogTab passing navigation to WeeklyCalendarView via navigationState")
+            }
+        }
+    }
+}
+
 // MARK: - Components
 
 private struct Bubble: View {
@@ -334,7 +402,6 @@ private struct Bubble: View {
     private var latestReasoningChunk: String? {
         isStreamingReasoning ? conversationManager.latestReasoningChunk : nil
     }
-    @State private var showCalendar = false
     @State private var showReasoning = false
     @State private var previewLines: [String] = []
     @State private var lastReasoningLength: Int = 0
@@ -424,10 +491,6 @@ private struct Bubble: View {
         .background(isUser ? Color.blue : Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
-        .sheet(isPresented: $showCalendar) {
-            CalendarView()
-                .environmentObject(navigationState)
-        }
         .onChange(of: conversationManager.isStreamingReasoning) { _, newValue in
             // Only process if this is the last message
             let isLastMessage = conversationManager.messages.last?.id == messageId
@@ -490,8 +553,12 @@ private struct Bubble: View {
                 
                 if let date = dateFormatter.date(from: dateString) {
                     print("✅ Parsed deep link date: \(date)")
+                    // Set target date first, then switch tab with slight delay
+                    // This ensures WeeklyCalendarView receives the target date
                     navigationState.targetWorkoutDate = date
-                    showCalendar = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        navigationState.selectedTab = 1
+                    }
                 } else {
                     print("❌ Failed to parse deep link date: \(dateString)")
                 }
