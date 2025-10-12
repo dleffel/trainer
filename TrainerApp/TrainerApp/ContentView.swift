@@ -211,6 +211,7 @@ private struct ChatTab: View {
                     // Use the new unified status view
                     if chatState != .idle {
                         ChatStatusView(state: chatState)
+                            .id("status-indicator")
                             .padding(.horizontal, 4)
                     }
                     
@@ -224,36 +225,46 @@ private struct ChatTab: View {
                 .padding(.bottom, 8)
             }
             .onChange(of: messages.count) { _, _ in
-                withAnimation(.easeOut(duration: 0.25)) {
-                    if chatState != .idle {
-                        // When processing, scroll to show status indicator
-                        proxy.scrollTo("status-indicator", anchor: .bottom)
-                    } else {
-                        // When idle, scroll to bottom spacer to ensure last message is fully visible
-                        proxy.scrollTo("bottom-spacer", anchor: .bottom)
-                    }
-                }
+                scrollToBottom(proxy: proxy, animated: true)
             }
-            .onChange(of: chatState) { _, _ in
-                // Smooth scroll when state changes
-                withAnimation(.easeOut(duration: 0.25)) {
-                    if chatState != .idle {
-                        proxy.scrollTo("status-indicator", anchor: .bottom)
-                    }
+            .onChange(of: chatState) { _, newValue in
+                // Only scroll when transitioning to non-idle state
+                if newValue != .idle {
+                    scrollToBottom(proxy: proxy, animated: true)
                 }
             }
             .onAppear {
-                // Scroll to bottom when view appears
+                // Scroll to bottom when view appears (delayed for layout)
                 if messages.count > 0 {
-                    // Use DispatchQueue to ensure the scroll happens after the view is laid out
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            // Scroll to the bottom spacer to ensure last message is fully visible
-                            proxy.scrollTo("bottom-spacer", anchor: .bottom)
-                        }
+                        scrollToBottom(proxy: proxy, animated: true)
                     }
                 }
             }
+        }
+    }
+    
+    /// Centralized scroll-to-bottom logic
+    /// - Parameters:
+    ///   - proxy: The ScrollViewProxy for controlling scroll position
+    ///   - animated: Whether to animate the scroll
+    private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
+        let scrollAction = {
+            if chatState != .idle {
+                // When processing, scroll to show status indicator
+                proxy.scrollTo("status-indicator", anchor: .bottom)
+            } else {
+                // When idle, scroll to bottom spacer to ensure last message is fully visible
+                proxy.scrollTo("bottom-spacer", anchor: .bottom)
+            }
+        }
+        
+        if animated {
+            withAnimation(.easeOut(duration: 0.25)) {
+                scrollAction()
+            }
+        } else {
+            scrollAction()
         }
     }
 
