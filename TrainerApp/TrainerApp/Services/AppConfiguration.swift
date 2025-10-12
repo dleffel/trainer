@@ -25,7 +25,7 @@ class AppConfiguration {
     
     /// The LLM model to use for chat completions
     var model: String {
-        "openai/gpt-5" // GPT-5 via OpenRouter with 128k context window
+        "openai/gpt-5:online" // GPT-5 via OpenRouter with 128k context window
     }
     
     /// Load the system prompt with current schedule context
