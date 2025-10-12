@@ -115,7 +115,8 @@ enum MessageFactory {
             content: content ?? message.content,
             reasoning: reasoning ?? message.reasoning,
             date: message.date,
-            state: state ?? message.state
+            state: state ?? message.state,
+            attachments: message.attachments
         )
     }
     
@@ -134,7 +135,8 @@ enum MessageFactory {
             content: content,
             reasoning: message.reasoning,
             date: message.date,
-            state: message.state
+            state: message.state,
+            attachments: message.attachments
         )
     }
     
@@ -148,7 +150,8 @@ enum MessageFactory {
             content: message.content,
             reasoning: message.reasoning,
             date: message.date,
-            state: .completed
+            state: .completed,
+            attachments: message.attachments
         )
     }
 }

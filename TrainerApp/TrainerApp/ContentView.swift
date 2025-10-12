@@ -879,15 +879,6 @@ private struct SettingsSheet: View {
     }
 }
 
-// MARK: - Models & Persistence
-
-
-// MARK: - Preview
-
-#Preview {
-    ContentView()
-}
-
 // MARK: - Photo Attachment Button
 
 private struct PhotoAttachmentButton: View {
@@ -988,4 +979,13 @@ private struct ImagePicker: UIViewControllerRepresentable {
             parent.dismiss()
         }
     }
+}
+
+// MARK: - Models & Persistence
+
+
+// MARK: - Preview
+
+#Preview {
+    ContentView()
 }
