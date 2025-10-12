@@ -8,7 +8,7 @@ class NavigationState: ObservableObject {
     
     func navigateToWorkoutDay(date: Date) {
         targetWorkoutDate = date
-        selectedTab = 1 // Calendar tab (assuming tab order: 0=Chat, 1=Calendar, 2=Settings)
+        selectedTab = 1 // Log tab (tab order: 0=Chat, 1=Log)
         showCalendar = true
     }
 }

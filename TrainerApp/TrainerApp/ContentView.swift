@@ -4,73 +4,38 @@ import UniformTypeIdentifiers
 import HealthKit
 import CloudKit
 
-// MARK: - Original ContentView with Logging Integration
+// MARK: - Main App View with Tab Navigation
 
 struct ContentView: View {
     @StateObject private var conversationManager = ConversationManager()
-    @State private var input: String = ""
     @State private var showSettings: Bool = false
-    @State private var showCalendar: Bool = false
     @State private var errorMessage: String?
-    @State private var isLoadingHealthData: Bool = false
     @State private var iCloudAvailable = false
     @State private var showMigrationAlert: Bool = false
     
-    // Navigation state for deep linking
+    // Navigation state for deep linking and tab selection
     @EnvironmentObject var navigationState: NavigationState
 
     private let healthKitManager = HealthKitManager.shared
     private let config = AppConfiguration.shared
-    
-    // Computed properties for UI state
-    private var messages: [ChatMessage] {
-        conversationManager.messages
-    }
-    
-    private var chatState: ChatState {
-        conversationManager.conversationState.chatState
-    }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                messagesList
-                inputBar
+        TabView(selection: $navigationState.selectedTab) {
+            ChatTab(
+                conversationManager: conversationManager,
+                showSettings: $showSettings,
+                iCloudAvailable: iCloudAvailable
+            )
+            .tabItem {
+                Label("Chat", systemImage: "message.fill")
             }
-            .navigationTitle("Chat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if iCloudAvailable {
-                        Image(systemName: "icloud.fill")
-                            .foregroundColor(.green)
-                            .font(.caption)
-                    } else {
-                        Image(systemName: "icloud.slash")
-                            .foregroundColor(.orange)
-                            .font(.caption)
-                    }
+            .tag(0)
+            
+            LogTab(showSettings: $showSettings)
+                .tabItem {
+                    Label("Log", systemImage: "calendar")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
-                        Button {
-                            showCalendar = true
-                        } label: {
-                            Image(systemName: "calendar")
-                                .font(.body)
-                        }
-                        .accessibilityLabel("Training Calendar")
-                        
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.body)
-                        }
-                        .accessibilityLabel("Settings")
-                    }
-                }
-            }
+                .tag(1)
         }
         .onAppear {
             // Initialize conversation manager
@@ -135,16 +100,6 @@ struct ContentView: View {
             )
             .presentationDetents([.medium, .large])
         }
-        .sheet(isPresented: $showCalendar) {
-            CalendarView()
-                .environmentObject(navigationState)
-        }
-        .onChange(of: navigationState.showCalendar) { _, newValue in
-            if newValue {
-                showCalendar = true
-                navigationState.showCalendar = false
-            }
-        }
         .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
             Button("OK") { errorMessage = nil }
         }, message: {
@@ -158,6 +113,12 @@ struct ContentView: View {
         }, message: {
             Text("OpenRouter is now required for this app. Please update your API key in Settings. You can get an OpenRouter API key at openrouter.ai")
         })
+        .onChange(of: navigationState.showCalendar) { _, newValue in
+            if newValue {
+                navigationState.selectedTab = 1
+                navigationState.showCalendar = false
+            }
+        }
         .onAppear {
             checkForMigration()
         }
@@ -176,6 +137,59 @@ struct ContentView: View {
             
             // Clear the old key to avoid confusion
             UserDefaults.standard.removeObject(forKey: "OPENAI_API_KEY")
+        }
+    }
+}
+
+// MARK: - Chat Tab
+
+private struct ChatTab: View {
+    @ObservedObject var conversationManager: ConversationManager
+    @Binding var showSettings: Bool
+    let iCloudAvailable: Bool
+    
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var input: String = ""
+    
+    // Computed properties for UI state
+    private var messages: [ChatMessage] {
+        conversationManager.messages
+    }
+    
+    private var chatState: ChatState {
+        conversationManager.conversationState.chatState
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                messagesList
+                inputBar
+            }
+            .navigationTitle("Chat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if iCloudAvailable {
+                        Image(systemName: "icloud.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    } else {
+                        Image(systemName: "icloud.slash")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.body)
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
         }
     }
 
@@ -308,7 +322,58 @@ struct ContentView: View {
         do {
             try await conversationManager.sendMessage(text)
         } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            // Handle error silently or show alert if needed
+            print("Error sending message: \(error)")
+        }
+    }
+}
+
+// MARK: - Log Tab
+
+private struct LogTab: View {
+    @Binding var showSettings: Bool
+    @EnvironmentObject var navigationState: NavigationState
+    
+    var body: some View {
+        NavigationStack {
+            CalendarContentView()
+                .navigationTitle("Log")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.body)
+                        }
+                        .accessibilityLabel("Settings")
+                    }
+                }
+        }
+    }
+}
+
+// MARK: - Calendar Content View (extracted from CalendarView)
+
+private struct CalendarContentView: View {
+    @StateObject private var scheduleManager = TrainingScheduleManager.shared
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var navigatedToWorkout = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            WeeklyCalendarView(scheduleManager: scheduleManager)
+            Spacer()
+        }
+        .onAppear {
+            // Handle deep link navigation
+            if let targetDate = navigationState.targetWorkoutDate, !navigatedToWorkout {
+                print("🧭 LogTab detected deep link target: \(targetDate)")
+                navigatedToWorkout = true
+                // Pass navigation handling to WeeklyCalendarView
+                print("🧭 LogTab passing navigation to WeeklyCalendarView via navigationState")
+            }
         }
     }
 }
