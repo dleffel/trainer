@@ -9,6 +9,7 @@ struct WeeklyCalendarView: View {
     @State private var selectedWeekNumber: Int = 1
     @EnvironmentObject var navigationState: NavigationState
     @State private var hasNavigatedToTarget = false
+    @State private var isLoadingWeek = false
     
     private let calendar = Calendar.current
     
@@ -52,14 +53,31 @@ struct WeeklyCalendarView: View {
                     
                     WorkoutDetailsCard(day: day, scheduleManager: scheduleManager)
                         .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .opacity
+                            insertion: .scale(scale: 0.95).combined(with: .opacity),
+                            removal: .scale(scale: 0.95).combined(with: .opacity)
                         ))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedDay?.id)
                         .id(day.id) // Force recreation when day changes
                 }
             }
-            .padding()
+            .padding(16)
         }
+        .gesture(
+            DragGesture(minimumDistance: 50)
+                .onEnded { value in
+                    if value.translation.width < -50 {
+                        // Swipe left = next week
+                        withAnimation {
+                            selectedWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedWeek) ?? selectedWeek
+                        }
+                    } else if value.translation.width > 50 {
+                        // Swipe right = previous week
+                        withAnimation {
+                            selectedWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedWeek) ?? selectedWeek
+                        }
+                    }
+                }
+        )
         .onAppear {
             print("🔍 WeeklyCalendarView.onAppear - Starting")
             print("🔍 WeeklyCalendarView.onAppear - weekDays count before load: \(weekDays.count)")
@@ -97,7 +115,11 @@ struct WeeklyCalendarView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.title2)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Previous week")
+            .accessibilityHint("Navigate to earlier workouts")
             
             Spacer()
             
@@ -108,7 +130,7 @@ struct WeeklyCalendarView: View {
                 if isCurrentWeek {
                     Text("Current Week")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary.opacity(0.6))
                 }
             }
             
@@ -121,7 +143,11 @@ struct WeeklyCalendarView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.title2)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Next week")
+            .accessibilityHint("Navigate to later workouts")
         }
     }
     
@@ -136,10 +162,10 @@ struct WeeklyCalendarView: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(block.type.rawValue)
-                    .font(.headline)
+                    .font(Font.title3.bold())
                 Text("Week \(weekNumber) of \(block.type.duration)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary.opacity(0.6))
             }
             
             Spacer()
@@ -151,13 +177,15 @@ struct WeeklyCalendarView: View {
                         .fontWeight(.bold)
                     Text("days to deload")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary.opacity(0.6))
                 }
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
+        .padding(16)
+        .background(Color(.systemGray5))
         .cornerRadius(12)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(block.type.rawValue) phase, week \(weekNumber) of \(block.type.duration)")
     }
     
     private func calculateDaysUntilDeload(from date: Date, block: TrainingBlock) -> Int? {
@@ -169,12 +197,14 @@ struct WeeklyCalendarView: View {
     }
     
     private var weekGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
             ForEach(weekDays) { day in
-                DayCard(day: day, 
+                DayCard(day: day,
        isToday: calendar.isDate(day.date, inSameDayAs: Date.current),
        isSelected: selectedDay?.id == day.id)
                     .onTapGesture {
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
                         selectedDay = day
                     }
             }
@@ -203,6 +233,9 @@ struct WeeklyCalendarView: View {
     }
     
     private func loadWeek() {
+        isLoadingWeek = true
+        defer { isLoadingWeek = false }
+        
         print("🔍 DEBUG - Loading week for date: \(selectedWeek)")
         print("🔍 DEBUG - Is current week: \(isCurrentWeek)")
         print("🔍 DEBUG - scheduleManager.currentWeekDays count: \(scheduleManager.currentWeekDays.count)")
@@ -284,11 +317,11 @@ struct DayCard: View {
     let isSelected: Bool
     
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             Text(day.dayOfWeek.shortName)
                 .font(.caption)
                 .fontWeight(.semibold)
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary.opacity(0.6))
             
             Text("\(Calendar.current.component(.day, from: day.date))")
                 .font(.title3)
@@ -299,23 +332,24 @@ struct DayCard: View {
                 .font(.system(size: 20))
                 .foregroundColor(workoutIconColor)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .padding(.vertical, 8)
         .background(backgroundColor)
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(borderColor, lineWidth: borderLineWidth)
         )
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint(day.hasWorkout ? "Double tap to view workout details" : "No workout planned")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
     
     private var backgroundColor: Color {
         if isSelected {
-            return Color(.systemBlue).opacity(0.2)
+            return Color.accentColor.opacity(0.15)
         } else if isToday {
-            return Color(.systemBlue).opacity(0.1)
-        } else if day.dayOfWeek == .monday {
-            return Color(.systemGray6)
+            return Color.accentColor.opacity(0.1)
         } else {
             return Color(.systemGray6)
         }
@@ -323,16 +357,59 @@ struct DayCard: View {
     
     private var borderColor: Color {
         if isSelected {
-            return .blue
+            return Color.accentColor
         } else if isToday {
-            return .blue.opacity(0.5)
+            return Color.accentColor.opacity(0.5)
         } else {
             return .clear
         }
     }
     
+    private var accessibilityText: String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        let dateText = dateFormatter.string(from: day.date)
+        let workoutDescription = day.hasWorkout ? (day.displaySummary ?? "Workout planned") : "Rest day"
+        return "\(day.dayOfWeek.name), \(dateText), \(workoutDescription)"
+    }
+    
     private var borderLineWidth: CGFloat {
         if isSelected {
+
+// MARK: - Skeleton Loader
+
+struct SkeletonDayCard: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(height: 12)
+                .cornerRadius(4)
+            
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(height: 20)
+                .cornerRadius(4)
+            
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 20, height: 20)
+                .cornerRadius(4)
+        }
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+        .opacity(isAnimating ? 0.5 : 1.0)
+        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isAnimating)
+        .onAppear {
+            isAnimating = true
+        }
+    }
+}
+
             return 2
         } else if isToday {
             return 1
@@ -369,15 +446,15 @@ struct WorkoutDetailsCard: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(day.dayOfWeek.name)")
-                        .font(.headline)
+                        .font(Font.headline)
                     Text(dateFormatter.string(from: day.date))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                        .foregroundColor(.primary.opacity(0.6))
                     
                     if let summary = day.displaySummary {
                         Text(summary)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .foregroundColor(.primary.opacity(0.6))
                     }
                 }
                 
@@ -390,19 +467,20 @@ struct WorkoutDetailsCard: View {
                 } label: {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary.opacity(0.6))
                         .padding(8)
                         .background(Circle().fill(Color(.systemGray5)))
                 }
+                .accessibilityLabel(isExpanded ? "Collapse details" : "Expand details")
             }
             
             // Collapsible content
             if isExpanded {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     if let structuredWorkout = day.structuredWorkout {
                         StructuredWorkoutView(workout: structuredWorkout)
                     } else if !day.hasWorkout {
-                        NoWorkoutView()
+                        NoWorkoutView(context: determineEmptyContext())
                     }
 
                     Divider()
@@ -413,13 +491,22 @@ struct WorkoutDetailsCard: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
+        .padding(16)
+        .background(Color(.systemGray4))
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.blue.opacity(0.3), lineWidth: 1)
         )
+    }
+    
+    private func determineEmptyContext() -> NoWorkoutView.EmptyContext {
+        let isPast = day.date < Date.current
+        if isPast {
+            return .pastUnfilled
+        } else {
+            return .notPlanned
+        }
     }
     
     private var dateFormatter: DateFormatter {
@@ -448,25 +535,24 @@ struct StructuredWorkoutView: View {
             if let title = workout.title {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+                        .font(Font.title3.bold())
                     
                     if let duration = workout.totalDuration {
                         Text("\(duration) minutes")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .foregroundColor(.primary.opacity(0.6))
                     }
                     
                     if let notes = workout.notes {
                         Text(notes)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .foregroundColor(.primary.opacity(0.6))
                             .italic()
                     }
                 }
-                .padding()
+                .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.systemBlue).opacity(0.1))
+                .background(Color.accentColor.opacity(0.1))
                 .cornerRadius(8)
             }
             
@@ -575,7 +661,7 @@ struct ExerciseCard: View {
                 GenericExerciseView(detail: detail)
             }
         }
-        .padding()
+        .padding(16)
         .background(Color(.systemGray5))
         .cornerRadius(8)
     }
@@ -881,24 +967,43 @@ struct GenericExerciseView: View {
 }
 
 struct NoWorkoutView: View {
-    var body: some View {
-        HStack {
-            Image(systemName: "calendar.badge.exclamationmark")
-                .foregroundColor(.orange)
-            Text("No workout planned yet")
-                .font(.body)
-                .italic()
-                .foregroundColor(.secondary)
+    let context: EmptyContext
+    
+    enum EmptyContext {
+        case restDay
+        case notPlanned
+        case pastUnfilled
+        
+        var icon: String {
+            switch self {
+            case .restDay: return "bed.double.fill"
+            case .notPlanned: return "calendar.badge.plus"
+            case .pastUnfilled: return "calendar.badge.exclamationmark"
+            }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(style: StrokeStyle(lineWidth: 1, dash: [5]))
-                .foregroundColor(.secondary.opacity(0.3))
-        )
+        
+        var message: String {
+            switch self {
+            case .restDay: return "Rest day - Recovery is progress 💪"
+            case .notPlanned: return "Ask your coach to plan this workout"
+            case .pastUnfilled: return "This workout was skipped"
+            }
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: context.icon)
+                .font(.system(size: 40))
+                .foregroundColor(.orange)
+            
+            Text(context.message)
+                .font(.subheadline)
+                .foregroundColor(.primary.opacity(0.6))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(16)
     }
 }
 
@@ -991,17 +1096,17 @@ struct ResultsSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Results")
-                    .font(.caption)
+                    .font(Font.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary.opacity(0.6))
                 Spacer()
                 Button {
                     refresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(6)
+                        .foregroundColor(.primary.opacity(0.6))
+                        .padding(4)
                         .background(Circle().fill(Color(.systemGray5)))
                 }
                 .buttonStyle(.plain)
@@ -1010,10 +1115,10 @@ struct ResultsSection: View {
 
             if sortedResults.isEmpty {
                 Text("No results logged yet.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(Font.subheadline)
+                    .foregroundColor(.primary.opacity(0.6))
             } else {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(sortedResults.indices, id: \.self) { idx in
                         let r = sortedResults[idx]
                         Text(formattedLine(for: r))
@@ -1023,7 +1128,7 @@ struct ResultsSection: View {
                 }
             }
         }
-        .padding()
+        .padding(16)
         .background(Color(.systemGray5))
         .cornerRadius(8)
         .onAppear { refresh() }
