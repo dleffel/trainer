@@ -113,12 +113,6 @@ struct ContentView: View {
         }, message: {
             Text("OpenRouter is now required for this app. Please update your API key in Settings. You can get an OpenRouter API key at openrouter.ai")
         })
-        .onChange(of: navigationState.showCalendar) { _, newValue in
-            if newValue {
-                navigationState.selectedTab = 1
-                navigationState.showCalendar = false
-            }
-        }
         .onAppear {
             checkForMigration()
         }
@@ -150,6 +144,7 @@ private struct ChatTab: View {
     
     @EnvironmentObject var navigationState: NavigationState
     @State private var input: String = ""
+    @State private var errorMessage: String?
     
     // Computed properties for UI state
     private var messages: [ChatMessage] {
@@ -191,6 +186,11 @@ private struct ChatTab: View {
                 }
             }
         }
+        .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
+            Button("OK") { errorMessage = nil }
+        }, message: {
+            Text(errorMessage ?? "")
+        })
     }
 
     // MARK: - Views
@@ -322,8 +322,7 @@ private struct ChatTab: View {
         do {
             try await conversationManager.sendMessage(text)
         } catch {
-            // Handle error silently or show alert if needed
-            print("Error sending message: \(error)")
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 }
@@ -399,7 +398,6 @@ private struct Bubble: View {
     private var latestReasoningChunk: String? {
         isStreamingReasoning ? conversationManager.latestReasoningChunk : nil
     }
-    @State private var showCalendar = false
     @State private var showReasoning = false
     @State private var previewLines: [String] = []
     @State private var lastReasoningLength: Int = 0
@@ -489,10 +487,6 @@ private struct Bubble: View {
         .background(isUser ? Color.blue : Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
-        .sheet(isPresented: $showCalendar) {
-            CalendarView()
-                .environmentObject(navigationState)
-        }
         .onChange(of: conversationManager.isStreamingReasoning) { _, newValue in
             // Only process if this is the last message
             let isLastMessage = conversationManager.messages.last?.id == messageId
@@ -556,7 +550,7 @@ private struct Bubble: View {
                 if let date = dateFormatter.date(from: dateString) {
                     print("✅ Parsed deep link date: \(date)")
                     navigationState.targetWorkoutDate = date
-                    showCalendar = true
+                    navigationState.selectedTab = 1
                 } else {
                     print("❌ Failed to parse deep link date: \(dateString)")
                 }

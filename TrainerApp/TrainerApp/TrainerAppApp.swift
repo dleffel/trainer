@@ -4,12 +4,10 @@ import SwiftUI
 class NavigationState: ObservableObject {
     @Published var selectedTab = 0
     @Published var targetWorkoutDate: Date?
-    @Published var showCalendar = false
     
     func navigateToWorkoutDay(date: Date) {
         targetWorkoutDate = date
         selectedTab = 1 // Log tab (tab order: 0=Chat, 1=Log)
-        showCalendar = true
     }
 }
 
