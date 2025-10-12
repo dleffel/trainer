@@ -52,6 +52,9 @@ struct WorkoutSetResult: Codable {
         // Deprecated (backward compatibility only)
         case loadKg
         case rpe
+        
+        // Legacy alias for backward compatibility during decoding
+        case exercise  // Old data may use 'exercise' instead of 'exerciseName'
     }
 
     init(timestamp: Date,
@@ -159,7 +162,22 @@ struct WorkoutSetResult: Codable {
         
         // Universal fields
         self.timestamp = try container.decode(Date.self, forKey: .timestamp)
-        self.exerciseName = try container.decode(String.self, forKey: .exerciseName)
+        
+        // Try exerciseName first, fallback to exercise for backward compatibility
+        if let name = try? container.decode(String.self, forKey: .exerciseName) {
+            self.exerciseName = name
+        } else if let name = try? container.decode(String.self, forKey: .exercise) {
+            self.exerciseName = name
+        } else {
+            throw DecodingError.keyNotFound(
+                CodingKeys.exerciseName,
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Exercise name is required (tried 'exerciseName' and 'exercise' keys)"
+                )
+            )
+        }
+        
         self.notes = try? container.decode(String.self, forKey: .notes)
         
         // Strength fields
