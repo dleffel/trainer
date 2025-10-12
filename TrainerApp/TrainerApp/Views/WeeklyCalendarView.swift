@@ -62,9 +62,15 @@ struct WeeklyCalendarView: View {
             }
             .padding(16)
         }
-        .gesture(
+        .simultaneousGesture(
             DragGesture(minimumDistance: 50)
                 .onEnded { value in
+                    // Only trigger on horizontal swipes (not vertical scrolls)
+                    let horizontalAmount = abs(value.translation.width)
+                    let verticalAmount = abs(value.translation.height)
+                    
+                    guard horizontalAmount > verticalAmount else { return }
+                    
                     if value.translation.width < -50 {
                         // Swipe left = next week
                         withAnimation {

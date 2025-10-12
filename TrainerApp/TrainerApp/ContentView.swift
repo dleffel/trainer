@@ -38,10 +38,7 @@ struct ContentView: View {
                 .tag(1)
         }
         .onAppear {
-            Task {
-                await conversationManager.initialize()
-            }
-            checkForMigration()
+            setupOnAppear()
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet(
@@ -69,6 +66,63 @@ struct ContentView: View {
     }
     
     // MARK: - Setup & Helpers
+    
+    private func setupOnAppear() {
+        // Initialize conversation manager
+        Task {
+            await conversationManager.initialize()
+        }
+        
+        // Check iCloud availability
+        CKContainer.default().accountStatus { status, _ in
+            DispatchQueue.main.async {
+                iCloudAvailable = status == .available
+                if !iCloudAvailable {
+                    print("⚠️ iCloud not available")
+                } else {
+                    print("✅ iCloud is available")
+                }
+            }
+        }
+        
+        // Listen for iCloud changes
+        NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: NSUbiquitousKeyValueStore.default,
+            queue: .main
+        ) { _ in
+            print("📲 iCloud data changed")
+            Task {
+                await conversationManager.loadConversation()
+            }
+        }
+        
+        // Listen for proactive messages
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("ProactiveMessageAdded"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            print("🤖 Proactive message received")
+            Task {
+                await conversationManager.loadConversation()
+            }
+        }
+        
+        // Request HealthKit authorization on app launch
+        Task {
+            if healthKitManager.isHealthKitAvailable {
+                do {
+                    _ = try await healthKitManager.requestAuthorization()
+                } catch {
+                    print("HealthKit authorization failed: \(error)")
+                }
+            }
+        }
+        
+        // Check for API key migration
+        checkForMigration()
+    }
     
     private func checkForMigration() {
         // Check if user has old OpenAI key but no OpenRouter key

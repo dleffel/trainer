@@ -17,13 +17,11 @@ extension Color {
     static let selectionBorder = Color.accentColor
     
     // MARK: - Dark Mode Optimization
-    static func adaptiveOpacity(_ value: Double) -> Double {
-        #if os(iOS)
-        return UITraitCollection.current.userInterfaceStyle == .dark ? value * 1.5 : value
-        #else
-        return value
-        #endif
-    }
+    // Note: For adaptive opacity in Views, use @Environment(\.colorScheme) instead
+    // This is kept for reference but should not be used in practice
+    // Example in View:
+    // @Environment(\.colorScheme) var colorScheme
+    // let opacity = colorScheme == .dark ? value * 1.5 : value
 }
 
 // MARK: - Spacing Grid
