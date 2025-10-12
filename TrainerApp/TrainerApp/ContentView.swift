@@ -257,13 +257,15 @@ private struct ChatTab: View {
         }
     }
 
+    @ViewBuilder
     private func bubble(for message: ChatMessage) -> some View {
         // Don't show system messages in the UI
         if message.role == .system {
-            return AnyView(EmptyView())
-        }
-        
-        return AnyView(
+            EmptyView()
+        } else {
+            // Compute isLastMessage once here to avoid repeated array lookups in every Bubble
+            let isLastMessage = messages.last?.id == message.id
+            
             HStack {
                 if message.role == .assistant {
                     Bubble(
@@ -271,6 +273,7 @@ private struct ChatTab: View {
                         text: message.content,
                         reasoning: message.reasoning,
                         isUser: false,
+                        isLastMessage: isLastMessage,
                         conversationManager: conversationManager
                     )
                     .environmentObject(navigationState)
@@ -282,13 +285,14 @@ private struct ChatTab: View {
                         text: message.content,
                         reasoning: nil,
                         isUser: true,
+                        isLastMessage: isLastMessage,
                         conversationManager: conversationManager
                     )
                     .environmentObject(navigationState)
                 }
             }
             .padding(.vertical, 2)
-        )
+        }
     }
 
     private var inputBar: some View {
@@ -388,14 +392,14 @@ private struct Bubble: View {
     let text: String
     let reasoning: String?
     let isUser: Bool
+    let isLastMessage: Bool  // ✅ New parameter - computed once in parent
     @ObservedObject var conversationManager: ConversationManager
     
     @EnvironmentObject var navigationState: NavigationState
     
     // Computed property - is THIS message currently streaming reasoning?
     private var isStreamingReasoning: Bool {
-        let isLastMessage = conversationManager.messages.last?.id == messageId
-        return isLastMessage && conversationManager.isStreamingReasoning
+        isLastMessage && conversationManager.isStreamingReasoning
     }
     
     // Computed property - get latest reasoning chunk only if this message is streaming
@@ -492,8 +496,7 @@ private struct Bubble: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
         .onChange(of: conversationManager.isStreamingReasoning) { _, newValue in
-            // Only process if this is the last message
-            let isLastMessage = conversationManager.messages.last?.id == messageId
+            // Only process if this is the last message (no array lookup needed!)
             guard isLastMessage else { return }
             
             if !newValue {
@@ -507,8 +510,7 @@ private struct Bubble: View {
             }
         }
         .onChange(of: conversationManager.latestReasoningChunk) { _, _ in
-            // Only update if this is the last message and we're streaming
-            let isLastMessage = conversationManager.messages.last?.id == messageId
+            // Only update if this is the last message and we're streaming (no array lookup needed!)
             guard isLastMessage && conversationManager.isStreamingReasoning else { return }
             guard !showReasoning && showReasoningSetting else { return }
             
