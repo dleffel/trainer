@@ -381,41 +381,6 @@ struct DayCard: View {
     
     private var borderLineWidth: CGFloat {
         if isSelected {
-
-// MARK: - Skeleton Loader
-
-struct SkeletonDayCard: View {
-    @State private var isAnimating = false
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .frame(height: 12)
-                .cornerRadius(4)
-            
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .frame(height: 20)
-                .cornerRadius(4)
-            
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 20, height: 20)
-                .cornerRadius(4)
-        }
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .padding(.vertical, 8)
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
-        .opacity(isAnimating ? 0.5 : 1.0)
-        .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isAnimating)
-        .onAppear {
-            isAnimating = true
-        }
-    }
-}
-
             return 2
         } else if isToday {
             return 1
