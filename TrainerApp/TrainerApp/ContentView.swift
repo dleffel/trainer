@@ -542,9 +542,8 @@ private struct Bubble: View, Equatable {
     
     @MainActor
     private func updatePreviewLines() {
-        // Get the actual message's current reasoning, not the snapshot
-        guard let message = conversationManager.messages.first(where: { $0.id == messageId }),
-              let fullReasoning = message.reasoning, !fullReasoning.isEmpty else {
+        // Use the local reasoning parameter - no array scan needed!
+        guard let fullReasoning = reasoning, !fullReasoning.isEmpty else {
             previewLines = []
             lastReasoningLength = 0
             return
