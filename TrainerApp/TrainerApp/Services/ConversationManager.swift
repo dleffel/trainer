@@ -583,10 +583,13 @@ class ConversationManager: ObservableObject {
     
     /// Extract tool name from token buffer
     private func extractToolName(from buffer: String) -> String? {
-        if let colonRange = buffer.range(of: ":"),
-           let toolNameStart = buffer.index(colonRange.upperBound, offsetBy: 1, limitedBy: buffer.endIndex) {
-            let toolNameEnd = buffer.firstIndex(of: "(") ?? buffer.firstIndex(of: "]") ?? buffer.endIndex
-            return String(buffer[toolNameStart..<toolNameEnd]).trimmingCharacters(in: .whitespaces)
+        // Use canonical regex pattern from ToolCallDetector to match complete tool calls only
+        // This prevents premature matches on partial tokens during streaming
+        let pattern = #"\[TOOL_CALL:\s*(\w+)(?:\((.*?)\))?\]"#
+        if let regex = try? NSRegularExpression(pattern: pattern),
+           let match = regex.firstMatch(in: buffer, range: NSRange(buffer.startIndex..., in: buffer)),
+           let toolNameRange = Range(match.range(at: 1), in: buffer) {
+            return String(buffer[toolNameRange])
         }
         return nil
     }
