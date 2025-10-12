@@ -398,13 +398,24 @@ private struct CalendarContentView: View {
 
 // MARK: - Components
 
-private struct Bubble: View {
+private struct Bubble: View, Equatable {
     let messageId: UUID
     let text: String
     let reasoning: String?
     let isUser: Bool
     let isLastMessage: Bool  // ✅ New parameter - computed once in parent
     @ObservedObject var conversationManager: ConversationManager
+    
+    // MARK: - Equatable Conformance
+    static func == (lhs: Bubble, rhs: Bubble) -> Bool {
+        // Compare only the properties that affect the visible state
+        // Exclude @ObservedObject, @EnvironmentObject, @State, and @AppStorage
+        lhs.messageId == rhs.messageId &&
+        lhs.text == rhs.text &&
+        lhs.reasoning == rhs.reasoning &&
+        lhs.isUser == rhs.isUser &&
+        lhs.isLastMessage == rhs.isLastMessage
+    }
     
     @EnvironmentObject var navigationState: NavigationState
     
