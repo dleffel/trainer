@@ -583,8 +583,8 @@ class ConversationManager: ObservableObject {
     
     /// Extract tool name from token buffer
     private func extractToolName(from buffer: String) -> String? {
-        if let colonRange = buffer.range(of: ":"),
-           let toolNameStart = buffer.index(colonRange.upperBound, offsetBy: 1, limitedBy: buffer.endIndex) {
+        if let colonRange = buffer.range(of: ":") {
+            let toolNameStart = colonRange.upperBound
             let toolNameEnd = buffer.firstIndex(of: "(") ?? buffer.firstIndex(of: "]") ?? buffer.endIndex
             return String(buffer[toolNameStart..<toolNameEnd]).trimmingCharacters(in: .whitespaces)
         }
