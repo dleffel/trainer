@@ -61,14 +61,14 @@ class ToolParameterParser {
                 inQuotes.toggle()
             } else if !inQuotes && char == ":" {
                 // Found key-value separator
-                currentKey = currentValue.trimmingCharacters(in: .whitespaces)
+                currentKey = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
                 currentValue = ""
                 expectingValue = true
             } else if !inQuotes && char == "," {
                 // Found parameter separator
                 if expectingValue && !currentKey.isEmpty {
                     // Remove quotes from value if present
-                    var finalValue = currentValue.trimmingCharacters(in: .whitespaces)
+                    var finalValue = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
                     if finalValue.hasPrefix("\"") && finalValue.hasSuffix("\"") {
                         finalValue = String(finalValue.dropFirst().dropLast())
                     }
@@ -86,7 +86,7 @@ class ToolParameterParser {
         
         // Handle last parameter
         if expectingValue && !currentKey.isEmpty {
-            var finalValue = currentValue.trimmingCharacters(in: .whitespaces)
+            var finalValue = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if finalValue.hasPrefix("\"") && finalValue.hasSuffix("\"") {
                 finalValue = String(finalValue.dropFirst().dropLast())
             }
@@ -223,16 +223,20 @@ class ToolParameterParser {
                 var braceCount = 0
                 var endIndex = currentIndex
                 
-                for i in paramsStr[currentIndex...] {
-                    if i == "{" {
+                // Use explicit index to track position during iteration
+                var idx = currentIndex
+                while idx < paramsStr.endIndex {
+                    let ch = paramsStr[idx]
+                    if ch == "{" {
                         braceCount += 1
-                    } else if i == "}" {
+                    } else if ch == "}" {
                         braceCount -= 1
                         if braceCount == 0 {
-                            endIndex = paramsStr.index(after: paramsStr.firstIndex(of: i)!)
+                            endIndex = paramsStr.index(after: idx)
                             break
                         }
                     }
+                    idx = paramsStr.index(after: idx)
                 }
                 
                 let workoutsJSON = String(paramsStr[currentIndex..<endIndex])
@@ -270,8 +274,8 @@ class ToolParameterParser {
         for pair in paramPairs {
             let parts = pair.split(separator: ":")
             if parts.count == 2 {
-                let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
-                let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
+                let key = String(parts[0]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let value = String(parts[1]).trimmingCharacters(in: .whitespacesAndNewlines)
                     .replacingOccurrences(of: "\"", with: "")
                 parameters[key] = value
             }

@@ -13,8 +13,8 @@ class WorkoutToolExecutor: ToolExecutor {
         self.resultsManager = resultsManager
     }
     
-    // New tool for per-set logging
-    // log_set_result(date, exercise, set, reps, load_lb, load_kg, rir, rpe, notes)
+    // Universal logging tool for all modalities (strength, cardio, mobility)
+    // log_set_result(date, exercise, set, reps, load_lb, rir, interval, time, distance, pace, spm, hr, power, cadence, notes)
     var supportedToolNames: [String] {
         return [
             "plan_workout",
@@ -77,44 +77,64 @@ class WorkoutToolExecutor: ToolExecutor {
 
         case "log_set_result":
             print("🧾 WorkoutToolExecutor: Matched log_set_result tool")
-            // Expected simple params: date, exercise, set, reps, load_lb, load_kg, rir, rpe, notes
             let params = toolCall.parameters
-
+            
+            // Debug: Log all received parameters
+            print("🔍 DEBUG log_set_result parameters: \(params.keys.sorted())")
+            
+            // STRICT SCHEMA ENFORCEMENT: Required parameter 'exercise'
+            guard let exercise = params["exercise"] as? String else {
+                // Detect common mistakes and provide helpful error
+                var hint = ""
+                if params["exerciseName"] != nil {
+                    hint = "\n\n❌ You used 'exerciseName' but the correct parameter is 'exercise'"
+                } else if params["movement"] != nil {
+                    hint = "\n\n❌ You used 'movement' but the correct parameter is 'exercise'"
+                } else if params["name"] != nil {
+                    hint = "\n\n❌ You used 'name' but the correct parameter is 'exercise'"
+                } else {
+                    hint = "\n\n💡 Make sure you're using exactly 'exercise' as the parameter name"
+                }
+                
+                return ToolProcessor.ToolCallResult(
+                    toolName: toolCall.name,
+                    result: "[Error: Missing required parameter 'exercise']\(hint)\n\nCorrect usage:\nlog_set_result(exercise: \"Bench Press\", set: \"1\", reps: \"8\", load_lb: \"185\", rir: \"2\")",
+                    success: false
+                )
+            }
+            
+            // Extract optional parameters - STRICT NAMES ONLY (no aliases)
             let dateParam = (params["date"] as? String) ?? "today"
-
-            // Be tolerant to different field names coming from the coach
-            // Prefer explicit "exercise", then common aliases
-            let exercise = (params["exercise"] as? String)
-                ?? (params["exerciseName"] as? String)
-                ?? (params["movement"] as? String)
-                ?? (params["name"] as? String)
-                ?? "Unknown"
-
-            // Accept alternate names for set and reps
-            let setStr = (params["set"] as? String)
-                ?? (params["set_number"] as? String)
-                ?? (params["setIndex"] as? String)
-
-            let repsStr = (params["reps"] as? String)
-                ?? (params["rep"] as? String)
-                ?? (params["repetitions"] as? String)
-
-            // Accept alternate names for weight units
-            let loadLb = (params["load_lb"] as? String)
-                ?? (params["weight_lb"] as? String)
-
-            let loadKg = (params["load_kg"] as? String)
-                ?? (params["weight_kg"] as? String)
-
-            let rirStr = (params["rir"] as? String)
-            let rpeStr = (params["rpe"] as? String)
+            
+            // Strength training parameters
+            let setStr = params["set"] as? String
+            let repsStr = params["reps"] as? String
+            let loadLb = params["load_lb"] as? String
+            let rirStr = params["rir"] as? String
+            
+            // Cardio/interval parameters
+            let intervalStr = params["interval"] as? String
+            let time = params["time"] as? String
+            let distance = params["distance"] as? String
+            let pace = params["pace"] as? String
+            let spmStr = params["spm"] as? String
+            let hrStr = params["hr"] as? String
+            let powerStr = params["power"] as? String
+            let cadenceStr = params["cadence"] as? String
+            
+            // Universal parameters
             let notes = params["notes"] as? String
-
+            
+            // Parse integer values
             let setNumber = setStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
             let reps = repsStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
             let rir = rirStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
-            let rpe = rpeStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
-
+            let interval = intervalStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let spm = spmStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let hr = hrStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let power = powerStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            let cadence = cadenceStr.flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            
             let targetDate = ToolUtilities.parseDate(dateParam)
 
             let result = await MainActor.run { () -> (success: Bool, error: String?) in
@@ -125,9 +145,15 @@ class WorkoutToolExecutor: ToolExecutor {
                         setNumber: setNumber,
                         reps: reps,
                         loadLb: loadLb,
-                        loadKg: loadKg,
                         rir: rir,
-                        rpe: rpe,
+                        interval: interval,
+                        time: time,
+                        distance: distance,
+                        pace: pace,
+                        spm: spm,
+                        hr: hr,
+                        power: power,
+                        cadence: cadence,
                         notes: notes
                     )
                     
@@ -146,7 +172,29 @@ class WorkoutToolExecutor: ToolExecutor {
             let success: Bool
             
             if result.success {
-                response = "[Set Logged] date=\(dateKey), exercise=\(exercise), set=\(setNumber ?? 0), reps=\(reps ?? 0), load_lb=\(loadLb ?? "-"), load_kg=\(loadKg ?? "-"), rir=\(rir ?? -1), rpe=\(rpe ?? -1)\(notes != nil ? ", notes=\(notes!)" : "")"
+                // Build response based on modality (strength vs cardio)
+                var parts = ["[Set Logged]", "date=\(dateKey)", "exercise=\(exercise)"]
+                
+                // Strength fields
+                if let s = setNumber { parts.append("set=\(s)") }
+                if let r = reps { parts.append("reps=\(r)") }
+                if let lb = loadLb { parts.append("load_lb=\(lb)") }
+                if let r = rir { parts.append("rir=\(r)") }
+                
+                // Cardio fields
+                if let i = interval { parts.append("interval=\(i)") }
+                if let t = time { parts.append("time=\(t)") }
+                if let d = distance { parts.append("distance=\(d)") }
+                if let p = pace { parts.append("pace=\(p)") }
+                if let s = spm { parts.append("spm=\(s)") }
+                if let h = hr { parts.append("hr=\(h)") }
+                if let p = power { parts.append("power=\(p)W") }
+                if let c = cadence { parts.append("cadence=\(c)rpm") }
+                
+                // Notes
+                if let n = notes { parts.append("notes=\(n)") }
+                
+                response = parts.joined(separator: ", ")
                 success = true
             } else {
                 response = "[Error: \(result.error ?? "Failed to persist set result for \(dateParam)")]"

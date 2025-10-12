@@ -1112,18 +1112,53 @@ struct ResultsSection: View {
 
     private func formattedLine(for r: WorkoutSetResult) -> String {
         var line = "• \(r.exerciseName)"
-        if let set = r.setNumber { line += " — Set \(set)" }
-
-        var metrics: [String] = []
-        if let reps = r.reps { metrics.append("\(reps) reps") }
-        if let w = weightText(r) { metrics.append(w) }
-        if !metrics.isEmpty { line += ": " + metrics.joined(separator: " × ") }
-
-        var suffix: [String] = []
-        if let rir = r.rir { suffix.append("RIR \(rir)") }
-        if let rpe = r.rpe { suffix.append("RPE \(rpe)") }
-        if !suffix.isEmpty { line += " (" + suffix.joined(separator: ", ") + ")" }
-
+        
+        // Detect modality based on which fields are present
+        let hasStrengthFields = r.setNumber != nil || r.reps != nil || r.loadLb != nil || r.rir != nil
+        let hasCardioFields = r.interval != nil || r.time != nil || r.distance != nil || r.pace != nil || r.spm != nil || r.hr != nil || r.power != nil || r.cadence != nil
+        
+        // Format based on modality
+        if hasCardioFields {
+            // Cardio/Interval formatting
+            if let interval = r.interval { line += " — Interval \(interval)" }
+            
+            var metrics: [String] = []
+            if let time = r.time { metrics.append(time) }
+            if let distance = r.distance { metrics.append(distance) }
+            if let pace = r.pace { metrics.append("@ \(pace)") }
+            if !metrics.isEmpty { line += ": " + metrics.joined(separator: ", ") }
+            
+            var details: [String] = []
+            if let spm = r.spm { details.append("\(spm) spm") }
+            if let hr = r.hr { details.append("\(hr) bpm") }
+            if let power = r.power { details.append("\(power)W") }
+            if let cadence = r.cadence { details.append("\(cadence) rpm") }
+            if !details.isEmpty { line += " (" + details.joined(separator: ", ") + ")" }
+            
+        } else if hasStrengthFields {
+            // Strength training formatting
+            if let set = r.setNumber { line += " — Set \(set)" }
+            
+            var metrics: [String] = []
+            if let reps = r.reps { metrics.append("\(reps) reps") }
+            if let w = weightText(r) { metrics.append(w) }
+            if !metrics.isEmpty { line += ": " + metrics.joined(separator: " × ") }
+            
+            var suffix: [String] = []
+            if let rir = r.rir { suffix.append("RIR \(rir)") }
+            if let rpe = r.rpe { suffix.append("RPE \(rpe)") }  // Deprecated but still display if present
+            if !suffix.isEmpty { line += " (" + suffix.joined(separator: ", ") + ")" }
+            
+        } else {
+            // Mobility/generic (only has time or notes)
+            if let time = r.time { line += ": \(time)" }
+        }
+        
+        // Add notes if present (universal)
+        if let notes = r.notes, !notes.isEmpty {
+            line += " — \(notes)"
+        }
+        
         return line
     }
 
@@ -1132,6 +1167,7 @@ struct ResultsSection: View {
             if lb.lowercased().contains("lb") || lb.lowercased().contains("kg") { return lb }
             return "\(lb) lb"
         }
+        // Backward compatibility: still display loadKg if present
         if let kg = r.loadKg, !kg.isEmpty {
             if kg.lowercased().contains("kg") || kg.lowercased().contains("lb") { return kg }
             return "\(kg) kg"

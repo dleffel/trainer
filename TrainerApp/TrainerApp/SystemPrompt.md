@@ -473,42 +473,164 @@ When planning workouts, specify an appropriate `icon`:
 * **Usage:** `[TOOL_CALL: plan_next_workout(based_on_feedback: "felt strong today")]`
 * **Note:** This does **not** replace today’s `plan_workout` requirement.
 
-### 7.5 `log_set_result`
+### 7.5 `log_set_result` - Universal Workout Logging
 
-* **Purpose:** Logs a single set result for the specified date with comprehensive tracking data
+* **Purpose:** Log workout data for ANY training modality (strength, cardio, mobility)
 * **Persistence:** Data is stored per-day using iCloud Key-Value Store with local UserDefaults fallback
-* **Parameters:**
-  * `date` (string, default `"today"`) - Target date for logging the set result
-  * `exercise` (string, required) - Exercise name (aliases: `exerciseName`, `movement`, `name`)
-  * `set` (string, optional) - Set number (aliases: `set_number`, `setIndex`)
-  * `reps` (string, optional) - Number of repetitions (aliases: `rep`, `repetitions`)
-  * `load_lb` (string, optional) - Weight in pounds (aliases: `weight_lb`)
-  * `load_kg` (string, optional) - Weight in kilograms (aliases: `weight_kg`)
-  * `rir` (string, optional) - Reps in Reserve (0-10 scale)
-  * `rpe` (string, optional) - Rate of Perceived Exertion (1-10 scale)
-  * `notes` (string, optional) - Additional notes about the set
-* **Data Storage:** Results are automatically synchronized between devices via iCloud when available
-* **Usage Examples:**
+
+**⚠️ STRICT SCHEMA ENFORCEMENT:**
+This tool has strict parameter naming requirements. Parameter names are case-sensitive and must match exactly as specified below. Using incorrect parameter names (e.g., `exerciseName` instead of `exercise`) will result in an error.
+
+#### Required Parameters
+* `exercise` (string) - Specific exercise/movement name
+  * ✅ Good: `"Bench Press"`, `"RowErg Z2"`, `"Easy Run"`
+  * ❌ Bad: `"Unknown"`, `"exercise"`, `"workout"` (generic terms are rejected)
+  * ❌ ERROR: Do NOT use `exerciseName`, `movement`, or `name` - use exactly `exercise`
+
+#### Optional - Universal Parameters
+* `date` (string) - Target date (default: `"today"`, supports ISO format like `"2024-03-15"`)
+* `notes` (string) - Additional notes about the exercise
+
+#### Optional - Strength Training Parameters
+* `set` (string) - Set number (e.g., `"1"`, `"2"`, `"3"`)
+* `reps` (string) - Number of repetitions (e.g., `"8"`, `"10"`)
+* `load_lb` (string) - Weight in pounds (e.g., `"135"`, `"185"`)
+* `rir` (string) - Reps in Reserve, 0-10 scale (e.g., `"2"`, `"3"`)
+
+#### Optional - Cardio/Interval Parameters
+* `interval` (string) - Interval/round number (e.g., `"1"`, `"2"`)
+* `time` (string) - Duration (e.g., `"5:30"`, `"300"`, `"10:00"`)
+* `distance` (string) - Distance with unit (e.g., `"500m"`, `"2mi"`, `"5k"`)
+* `pace` (string) - Pace with unit (e.g., `"1:45/500m"`, `"7:30/mi"`)
+* `spm` (string) - Strokes/Steps Per Minute (e.g., `"20"`, `"28"`)
+* `hr` (string) - Heart rate in BPM (e.g., `"145"`, `"165"`)
+* `power` (string) - Power output in watts (e.g., `"250"`, `"180"`)
+* `cadence` (string) - Cadence in RPM (e.g., `"85"`, `"90"`)
+
+#### Usage - Strength Training
+
+**Barbell Bench Press:**
 ```
 [TOOL_CALL: log_set_result(
-  date: "today",
   exercise: "Bench Press",
   set: "1",
   reps: "8",
-  load_lb: "135",
-  rir: "2",
-  rpe: "8",
-  notes: "felt strong"
-)]
-
-[TOOL_CALL: log_set_result(
-  exercise: "Squat",
-  set: "3",
-  reps: "5",
-  load_kg: "100",
-  rir: "1"
+  load_lb: "185",
+  rir: "2"
 )]
 ```
+
+**Bodyweight Pull-ups:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "Pull-up",
+  set: "3",
+  reps: "12",
+  rir: "1",
+  notes: "strict form"
+)]
+```
+
+#### Usage - Rowing (RowErg)
+
+**Interval:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "RowErg Z2",
+  interval: "1",
+  time: "10:00",
+  distance: "2400m",
+  pace: "2:05/500m",
+  spm: "20",
+  hr: "145"
+)]
+```
+
+**Steady State:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "RowErg Steady State",
+  time: "30:00",
+  distance: "7500m",
+  pace: "2:00/500m",
+  spm: "22",
+  hr: "152"
+)]
+```
+
+#### Usage - Running
+
+**Interval Run:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "Interval Run",
+  interval: "3",
+  time: "4:00",
+  distance: "800m",
+  pace: "5:00/mi",
+  hr: "175"
+)]
+```
+
+**Easy Run:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "Easy Run",
+  time: "45:00",
+  distance: "5mi",
+  pace: "9:00/mi",
+  hr: "135"
+)]
+```
+
+#### Usage - Cycling (BikeErg)
+
+**Sprint Interval:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "BikeErg Sprint",
+  interval: "2",
+  time: "30",
+  power: "380",
+  cadence: "110",
+  hr: "182"
+)]
+```
+
+**Z2 Endurance:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "Z2 Bike",
+  time: "60:00",
+  power: "180",
+  cadence: "85",
+  hr: "145"
+)]
+```
+
+#### Usage - Mobility/Yoga
+
+**Yoga Hold:**
+```
+[TOOL_CALL: log_set_result(
+  exercise: "Pigeon Pose",
+  time: "2:00",
+  notes: "left side, deep stretch"
+)]
+```
+
+#### Error Prevention
+
+**Common Mistakes:**
+* ❌ Using `exerciseName:` instead of `exercise:` → Will fail with clear error
+* ❌ Using `load_kg:` (deprecated) → Use `load_lb:` only
+* ❌ Using `rpe:` (deprecated) → Use `rir:` only
+* ❌ Mixing strength + cardio fields heavily → Pick appropriate fields for the modality
+
+**If you get an error:**
+* "Missing required parameter 'exercise'" → Check you used exactly `exercise:` (not `exerciseName:`, `movement:`, or `name:`)
+* "Exercise name must be specific" → Don't use generic terms like "Unknown" or "exercise"
+* Validation errors → Check parameter ranges (e.g., hr: 40-220, rir: 0-10)
 
 ---
 
