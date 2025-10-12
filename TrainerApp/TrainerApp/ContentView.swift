@@ -211,6 +211,7 @@ private struct ChatTab: View {
                     // Use the new unified status view
                     if chatState != .idle {
                         ChatStatusView(state: chatState)
+                            .id("status-indicator")
                             .padding(.horizontal, 4)
                     }
                     
@@ -224,46 +225,58 @@ private struct ChatTab: View {
                 .padding(.bottom, 8)
             }
             .onChange(of: messages.count) { _, _ in
-                withAnimation(.easeOut(duration: 0.25)) {
-                    if chatState != .idle {
-                        // When processing, scroll to show status indicator
-                        proxy.scrollTo("status-indicator", anchor: .bottom)
-                    } else {
-                        // When idle, scroll to bottom spacer to ensure last message is fully visible
-                        proxy.scrollTo("bottom-spacer", anchor: .bottom)
-                    }
-                }
+                scrollToBottom(proxy: proxy, animated: true)
             }
-            .onChange(of: chatState) { _, _ in
-                // Smooth scroll when state changes
-                withAnimation(.easeOut(duration: 0.25)) {
-                    if chatState != .idle {
-                        proxy.scrollTo("status-indicator", anchor: .bottom)
-                    }
+            .onChange(of: chatState) { _, newValue in
+                // Only scroll when transitioning to non-idle state
+                if newValue != .idle {
+                    scrollToBottom(proxy: proxy, animated: true)
                 }
             }
             .onAppear {
-                // Scroll to bottom when view appears
+                // Scroll to bottom when view appears (delayed for layout)
                 if messages.count > 0 {
-                    // Use DispatchQueue to ensure the scroll happens after the view is laid out
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            // Scroll to the bottom spacer to ensure last message is fully visible
-                            proxy.scrollTo("bottom-spacer", anchor: .bottom)
-                        }
+                        scrollToBottom(proxy: proxy, animated: true)
                     }
                 }
             }
         }
     }
+    
+    /// Centralized scroll-to-bottom logic
+    /// - Parameters:
+    ///   - proxy: The ScrollViewProxy for controlling scroll position
+    ///   - animated: Whether to animate the scroll
+    private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
+        let scrollAction = {
+            if chatState != .idle {
+                // When processing, scroll to show status indicator
+                proxy.scrollTo("status-indicator", anchor: .bottom)
+            } else {
+                // When idle, scroll to bottom spacer to ensure last message is fully visible
+                proxy.scrollTo("bottom-spacer", anchor: .bottom)
+            }
+        }
+        
+        if animated {
+            withAnimation(.easeOut(duration: 0.25)) {
+                scrollAction()
+            }
+        } else {
+            scrollAction()
+        }
+    }
 
+    @ViewBuilder
     private func bubble(for message: ChatMessage) -> some View {
         // Don't show system messages in the UI
         if message.role == .system {
-            return AnyView(EmptyView())
-        }
-        
-        return AnyView(
+            EmptyView()
+        } else {
+            // Compute isLastMessage once here to avoid repeated array lookups in every Bubble
+            let isLastMessage = messages.last?.id == message.id
+            
             HStack {
                 if message.role == .assistant {
                     Bubble(
@@ -271,6 +284,7 @@ private struct ChatTab: View {
                         text: message.content,
                         reasoning: message.reasoning,
                         isUser: false,
+                        isLastMessage: isLastMessage,
                         conversationManager: conversationManager
                     )
                     .environmentObject(navigationState)
@@ -282,13 +296,14 @@ private struct ChatTab: View {
                         text: message.content,
                         reasoning: nil,
                         isUser: true,
+                        isLastMessage: isLastMessage,
                         conversationManager: conversationManager
                     )
                     .environmentObject(navigationState)
                 }
             }
             .padding(.vertical, 2)
-        )
+        }
     }
 
     private var inputBar: some View {
@@ -383,19 +398,30 @@ private struct CalendarContentView: View {
 
 // MARK: - Components
 
-private struct Bubble: View {
+private struct Bubble: View, Equatable {
     let messageId: UUID
     let text: String
     let reasoning: String?
     let isUser: Bool
+    let isLastMessage: Bool  // ✅ New parameter - computed once in parent
     @ObservedObject var conversationManager: ConversationManager
+    
+    // MARK: - Equatable Conformance
+    static func == (lhs: Bubble, rhs: Bubble) -> Bool {
+        // Compare only the properties that affect the visible state
+        // Exclude @ObservedObject, @EnvironmentObject, @State, and @AppStorage
+        lhs.messageId == rhs.messageId &&
+        lhs.text == rhs.text &&
+        lhs.reasoning == rhs.reasoning &&
+        lhs.isUser == rhs.isUser &&
+        lhs.isLastMessage == rhs.isLastMessage
+    }
     
     @EnvironmentObject var navigationState: NavigationState
     
     // Computed property - is THIS message currently streaming reasoning?
     private var isStreamingReasoning: Bool {
-        let isLastMessage = conversationManager.messages.last?.id == messageId
-        return isLastMessage && conversationManager.isStreamingReasoning
+        isLastMessage && conversationManager.isStreamingReasoning
     }
     
     // Computed property - get latest reasoning chunk only if this message is streaming
@@ -492,8 +518,7 @@ private struct Bubble: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
         .onChange(of: conversationManager.isStreamingReasoning) { _, newValue in
-            // Only process if this is the last message
-            let isLastMessage = conversationManager.messages.last?.id == messageId
+            // Only process if this is the last message (no array lookup needed!)
             guard isLastMessage else { return }
             
             if !newValue {
@@ -507,8 +532,7 @@ private struct Bubble: View {
             }
         }
         .onChange(of: conversationManager.latestReasoningChunk) { _, _ in
-            // Only update if this is the last message and we're streaming
-            let isLastMessage = conversationManager.messages.last?.id == messageId
+            // Only update if this is the last message and we're streaming (no array lookup needed!)
             guard isLastMessage && conversationManager.isStreamingReasoning else { return }
             guard !showReasoning && showReasoningSetting else { return }
             
@@ -518,9 +542,8 @@ private struct Bubble: View {
     
     @MainActor
     private func updatePreviewLines() {
-        // Get the actual message's current reasoning, not the snapshot
-        guard let message = conversationManager.messages.first(where: { $0.id == messageId }),
-              let fullReasoning = message.reasoning, !fullReasoning.isEmpty else {
+        // Use the local reasoning parameter - no array scan needed!
+        guard let fullReasoning = reasoning, !fullReasoning.isEmpty else {
             previewLines = []
             lastReasoningLength = 0
             return
