@@ -84,7 +84,7 @@ enum MessageFactory {
         let attachments = images.compactMap { image -> MessageAttachment? in
             // Compress image to JPEG with 0.8 quality
             guard let jpegData = image.jpegData(compressionQuality: 0.8) else { return nil }
-            return MessageAttachment(type: .image, data: jpegData)
+            return MessageAttachment(type: .image, data: jpegData, mimeType: "image/jpeg")
         }
         
         return ChatMessage(

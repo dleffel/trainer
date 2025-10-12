@@ -380,13 +380,16 @@ private struct ChatTab: View {
         // Must have either text or images
         guard !text.isEmpty || !images.isEmpty else { return }
         
+        // Clear input text immediately for better UX
         input = ""
-        selectedImages = []
         
         do {
             try await conversationManager.sendMessage(text, images: images)
+            // Only clear images on successful send to prevent data loss
+            selectedImages = []
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            // Images remain in selectedImages for retry on failure
         }
     }
 }
@@ -889,10 +892,13 @@ private struct PhotoAttachmentButton: View {
     
     var body: some View {
         Menu {
-            Button {
-                showCamera = true
-            } label: {
-                Label("Take Photo", systemImage: "camera")
+            // Only show camera option if available (prevents crashes on simulator/devices without camera)
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("Take Photo", systemImage: "camera")
+                }
             }
             
             Button {
