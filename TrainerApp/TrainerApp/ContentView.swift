@@ -315,52 +315,86 @@ private struct ChatTab: View {
             // Image preview row (if images selected)
             if !selectedImages.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 12) {
                         ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
                             ZStack(alignment: .topTrailing) {
                                 Image(uiImage: image)
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(Color.white.opacity(0.3), lineWidth: 2)
+                                    )
                                 
                                 // Remove button
                                 Button {
-                                    selectedImages.remove(at: index)
+                                    withAnimation(.spring(response: 0.3)) {
+                                        let _ = selectedImages.remove(at: index)
+                                    }
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.white)
-                                        .background(Circle().fill(Color.black.opacity(0.6)))
+                                        .font(.system(size: 22))
+                                        .foregroundStyle(.white)
+                                        .background(
+                                            Circle()
+                                                .fill(Color.black.opacity(0.6))
+                                                .padding(-4)
+                                        )
                                 }
-                                .padding(4)
+                                .padding(6)
                             }
                         }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .background(Color(.systemGray6))
+                .background(.ultraThinMaterial)
             }
             
             // Input controls
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 PhotoAttachmentButton(selectedImages: $selectedImages)
+                    .scaleEffect(canSend ? 1.0 : 0.9)
+                    .animation(.spring(response: 0.3), value: canSend)
                 
                 TextField("Message…", text: $input, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.tertiarySystemBackground))
+                    )
                     .lineLimit(1...5)
                     .disabled(chatState != .idle)
 
                 Button {
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
                     Task { await send() }
                 } label: {
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(canSend ? Color.blue : Color.gray)
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(
+                            canSend
+                                ? LinearGradient(colors: [.blue, .blue.opacity(0.8)],
+                                               startPoint: .topLeading,
+                                               endPoint: .bottomTrailing)
+                                : LinearGradient(colors: [.gray.opacity(0.3)],
+                                               startPoint: .topLeading,
+                                               endPoint: .bottomTrailing)
+                        )
+                        .shadow(color: canSend ? Color.blue.opacity(0.3) : Color.clear,
+                               radius: 8, x: 0, y: 4)
                 }
+                .scaleEffect(canSend ? 1.0 : 0.9)
+                .animation(.spring(response: 0.3), value: canSend)
                 .disabled(!canSend)
             }
-            .padding(.all, 10)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(.ultraThinMaterial)
         }
     }
@@ -482,79 +516,28 @@ private struct Bubble: View, Equatable {
     @State private var previewLines: [String] = []
     @State private var lastReasoningLength: Int = 0
     @AppStorage("ShowAIReasoning") private var showReasoningSetting = false
+    
+    @ViewBuilder
+    private var bubbleBackground: some View {
+        if isUser {
+            LinearGradient(
+                colors: [Color.blue, Color.blue.opacity(0.8)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Show reasoning section if available and enabled
             if let reasoning = reasoning, !reasoning.isEmpty, showReasoningSetting {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showReasoning.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "brain")
-                            .font(.caption)
-                        Text("Coach's Thinking")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Spacer()
-                        Image(systemName: showReasoning ? "chevron.up" : "chevron.down")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                
-                // Preview scroll view when collapsed and streaming
-                if !showReasoning && isStreamingReasoning && !previewLines.isEmpty {
-                    VStack(spacing: 2) {
-                        Divider()
-                            .padding(.horizontal, -14)
-                        
-                        ScrollViewReader { proxy in
-                            ScrollView {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    ForEach(Array(previewLines.enumerated()), id: \.offset) { index, line in
-                                        Text(line)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary.opacity(0.8))
-                                            .italic()
-                                            .id(index)
-                                    }
-                                }
-                            }
-                            .frame(height: 60)
-                            .onChange(of: previewLines.count) { _, _ in
-                                // Scroll to bottom when new lines arrive
-                                if let lastIndex = previewLines.indices.last {
-                                    withAnimation(.easeOut(duration: 0.3)) {
-                                        proxy.scrollTo(lastIndex, anchor: .bottom)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.leading, 20)
-                        .padding(.vertical, 4)
-                        
-                        Divider()
-                            .padding(.horizontal, -14)
-                    }
-                }
-                
-                if showReasoning {
-                    Text(reasoning)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .italic()
-                        .padding(.leading, 20)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-                
-                Divider()
-                    .padding(.vertical, 4)
+                reasoningSection(reasoning: reasoning)
             }
-            
+                
             // Show images if present
             if let attachments = attachments, !attachments.isEmpty {
                 ForEach(attachments) { attachment in
@@ -578,11 +561,17 @@ private struct Bubble: View, Equatable {
             }
         }
         .foregroundStyle(isUser ? .white : .primary)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 14)
-        .background(isUser ? Color.blue : Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(bubbleBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(
+            color: Color.black.opacity(isUser ? 0.12 : 0.08),
+            radius: isUser ? 6 : 4,
+            x: 0,
+            y: isUser ? 3 : 2
+        )
+        .frame(maxWidth: CGFloat.infinity, alignment: isUser ? Alignment.trailing : Alignment.leading)
         .onChange(of: conversationManager.isStreamingReasoning) { _, newValue in
             // Only process if this is the last message (no array lookup needed!)
             guard isLastMessage else { return }
@@ -627,6 +616,94 @@ private struct Bubble: View, Equatable {
         // Show last 5 lines
         previewLines = Array(allLines.suffix(5))
         lastReasoningLength = fullReasoning.count
+    }
+    
+    @ViewBuilder
+    private func reasoningSection(reasoning: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    showReasoning.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.purple.gradient)
+                    
+                    Text("Coach's Thinking")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Image(systemName: showReasoning ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(showReasoning ? 180 : 0))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            
+            // Preview scroll view when collapsed and streaming
+            if !showReasoning && isStreamingReasoning && !previewLines.isEmpty {
+                VStack(spacing: 2) {
+                    Divider()
+                        .padding(.horizontal, -14)
+                    
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(Array(previewLines.enumerated()), id: \.offset) { index, line in
+                                    Text(line)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary.opacity(0.8))
+                                        .italic()
+                                        .id(index)
+                                }
+                            }
+                        }
+                        .frame(height: 60)
+                        .onChange(of: previewLines.count) { _, _ in
+                            if let lastIndex = previewLines.indices.last {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    proxy.scrollTo(lastIndex, anchor: .bottom)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.leading, 20)
+                    .padding(.vertical, 4)
+                    
+                    Divider()
+                        .padding(.horizontal, -14)
+                }
+            }
+            
+            if showReasoning {
+                Text(reasoning)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .italic()
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.purple.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .strokeBorder(Color.purple.opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.95).combined(with: .opacity),
+                        removal: .scale(scale: 0.95).combined(with: .opacity)
+                    ))
+            }
+        }
+        .padding(.bottom, 8)
     }
     
     private func handleURL(_ url: URL) {
