@@ -67,57 +67,6 @@ struct ContentView: View {
     
     // MARK: - Setup & Helpers
     
-    private func checkForMigration() {
-        // Check if user has old OpenAI key but no OpenRouter key
-        let oldKey = UserDefaults.standard.string(forKey: "OPENAI_API_KEY")
-        let newKey = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY")
-        
-        if let oldKey = oldKey, !oldKey.isEmpty, (newKey == nil || newKey!.isEmpty) {
-            // User has old key but no new key - show migration alert
-            showMigrationAlert = true
-            
-            // Clear the old key to avoid confusion
-            UserDefaults.standard.removeObject(forKey: "OPENAI_API_KEY")
-        }
-    }
-}
-
-// MARK: - Chat Tab
-
-private struct ChatTab: View {
-    @ObservedObject var conversationManager: ConversationManager
-    @Binding var showSettings: Bool
-    let iCloudAvailable: Bool
-    
-    @EnvironmentObject var navigationState: NavigationState
-    @State private var input: String = ""
-    @State private var errorMessage: String?
-    
-    // Computed properties for UI state
-    private var messages: [ChatMessage] {
-        conversationManager.messages
-    }
-    
-    private var chatState: ChatState {
-        conversationManager.conversationState.chatState
-    }
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                messagesList
-                inputBar
-            }
-            .navigationTitle("Chat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    if iCloudAvailable {
-                        Image(systemName: "icloud.fill")
-                            .foregroundColor(.green)
-                            .font(.caption)
-                    } else {
-    
     private func setupOnAppear() {
         // Initialize conversation manager
         Task {
@@ -174,6 +123,57 @@ private struct ChatTab: View {
         // Check for API key migration
         checkForMigration()
     }
+    
+    private func checkForMigration() {
+        // Check if user has old OpenAI key but no OpenRouter key
+        let oldKey = UserDefaults.standard.string(forKey: "OPENAI_API_KEY")
+        let newKey = UserDefaults.standard.string(forKey: "OPENROUTER_API_KEY")
+        
+        if let oldKey = oldKey, !oldKey.isEmpty, (newKey == nil || newKey!.isEmpty) {
+            // User has old key but no new key - show migration alert
+            showMigrationAlert = true
+            
+            // Clear the old key to avoid confusion
+            UserDefaults.standard.removeObject(forKey: "OPENAI_API_KEY")
+        }
+    }
+}
+
+// MARK: - Chat Tab
+
+private struct ChatTab: View {
+    @ObservedObject var conversationManager: ConversationManager
+    @Binding var showSettings: Bool
+    let iCloudAvailable: Bool
+    
+    @EnvironmentObject var navigationState: NavigationState
+    @State private var input: String = ""
+    @State private var errorMessage: String?
+    
+    // Computed properties for UI state
+    private var messages: [ChatMessage] {
+        conversationManager.messages
+    }
+    
+    private var chatState: ChatState {
+        conversationManager.conversationState.chatState
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                messagesList
+                inputBar
+            }
+            .navigationTitle("Chat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if iCloudAvailable {
+                        Image(systemName: "icloud.fill")
+                            .foregroundColor(.green)
+                            .font(.caption)
+                    } else {
                         Image(systemName: "icloud.slash")
                             .foregroundColor(.orange)
                             .font(.caption)
