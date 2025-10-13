@@ -58,8 +58,9 @@ struct LinkDetectingText: View {
     private func parseTextForLinks(_ text: String) -> [(text: String, isLink: Bool)] {
         var components: [(text: String, isLink: Bool)] = []
         
-        // Pattern to match trainer:// URLs
-        let pattern = #"trainer://[^\s]+"#
+        // Pattern to match trainer:// URLs, excluding trailing punctuation
+        // Matches trainer:// followed by any non-whitespace except common punctuation
+        let pattern = #"trainer://[^\s.,;:()!\[\]]+"#
         
         do {
             let regex = try NSRegularExpression(pattern: pattern, options: [])
