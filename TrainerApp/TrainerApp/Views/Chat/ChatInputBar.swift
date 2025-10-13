@@ -1,6 +1,14 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Identifiable Photo Wrapper
+
+/// Wrapper to provide stable identity for UIImage in SwiftUI lists
+private struct IdentifiablePhoto: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
 // MARK: - Chat Input Bar
 
 /// Input bar for the chat interface with text field, photo attachments, and send button.
@@ -12,15 +20,20 @@ struct ChatInputBar: View {
     let canSend: Bool
     let onSend: () async -> Void
     
+    // Convert UIImages to identifiable wrappers for stable SwiftUI identity
+    private var identifiablePhotos: [IdentifiablePhoto] {
+        selectedImages.map { IdentifiablePhoto(image: $0) }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // Image preview row (if images selected)
             if !selectedImages.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(Array(selectedImages.enumerated()), id: \.offset) { index, image in
+                        ForEach(identifiablePhotos) { photo in
                             ZStack(alignment: .topTrailing) {
-                                Image(uiImage: image)
+                                Image(uiImage: photo.image)
                                     .resizable()
                                     .scaledToFill()
                                     .frame(width: 80, height: 80)
@@ -28,7 +41,10 @@ struct ChatInputBar: View {
                                 
                                 // Remove button
                                 Button {
-                                    selectedImages.remove(at: index)
+                                    // Find and remove by matching image reference
+                                    if let index = selectedImages.firstIndex(where: { $0 === photo.image }) {
+                                        selectedImages.remove(at: index)
+                                    }
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.white)
