@@ -32,9 +32,16 @@ struct LinkDetectingText: View {
                 }
             }
             .environment(\.openURL, OpenURLAction { url in
-                print("🔗 openURL action invoked with URL: \(url.absoluteString)")
-                onTap(url)
-                return .handled
+                // Only intercept trainer:// URLs for custom handling
+                // All other URLs use default system behavior to preserve accessibility and system features
+                if url.scheme == "trainer" {
+                    print("🔗 Custom scheme URL intercepted: \(url.absoluteString)")
+                    onTap(url)
+                    return .handled
+                } else {
+                    print("🔗 Using default handler for URL: \(url.absoluteString)")
+                    return .systemAction
+                }
             })
         }
     }
