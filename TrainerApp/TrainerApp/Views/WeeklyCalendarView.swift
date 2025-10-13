@@ -158,40 +158,87 @@ struct WeeklyCalendarView: View {
     }
     
     private func blockInfoCard(block: TrainingBlock, weekNumber: Int) -> some View {
-        HStack {
-            Image(systemName: block.type.icon)
-                .font(.title3)
-                .foregroundColor(.white)
-                .frame(width: 40, height: 40)
-                .background(Color(block.type.color))
-                .clipShape(Circle())
+        HStack(spacing: 16) {
+            // Icon with gradient background
+            ZStack {
+                Circle()
+                    .fill(blockGradient(for: block.type))
+                    .frame(width: 56, height: 56)
+                    .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
+                
+                Image(systemName: block.type.icon)
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
             
+            // Block info
             VStack(alignment: .leading, spacing: 4) {
                 Text(block.type.rawValue)
-                    .font(Font.title3.bold())
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(.primary)
+                
                 Text("Week \(weekNumber) of \(block.type.duration)")
-                    .font(.caption)
-                    .foregroundColor(.primary.opacity(0.6))
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
             
-            if let daysUntilDeload = calculateDaysUntilDeload(from: selectedWeek, block: block), daysUntilDeload > 0 {
-                VStack(alignment: .trailing, spacing: 4) {
+            // Days to deload indicator
+            if let daysUntilDeload = calculateDaysUntilDeload(from: selectedWeek, block: block),
+               daysUntilDeload > 0 {
+                VStack(alignment: .trailing, spacing: 2) {
                     Text("\(daysUntilDeload)")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                    
                     Text("days to deload")
-                        .font(.caption2)
-                        .foregroundColor(.primary.opacity(0.6))
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(.secondary)
                 }
             }
         }
-        .padding(16)
-        .background(Color(.systemGray5))
-        .cornerRadius(12)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(
+                            blockGradient(for: block.type).opacity(0.3),
+                            lineWidth: 1
+                        )
+                )
+        )
+        .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(block.type.rawValue) phase, week \(weekNumber) of \(block.type.duration)")
+    }
+    
+    private func blockGradient(for type: BlockType) -> LinearGradient {
+        let colors: [Color]
+        switch type.rawValue.lowercased() {
+        case let value where value.contains("hypertrophy"):
+            colors = [.blue, .purple]
+        case let value where value.contains("strength"):
+            colors = [.red, .orange]
+        case let value where value.contains("deload"):
+            colors = [.green, .teal]
+        default:
+            colors = [.blue, .cyan]
+        }
+        
+        return LinearGradient(
+            colors: colors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
     
     private func calculateDaysUntilDeload(from date: Date, block: TrainingBlock) -> Int? {
@@ -206,12 +253,14 @@ struct WeeklyCalendarView: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
             ForEach(weekDays) { day in
                 DayCard(day: day,
-       isToday: calendar.isDate(day.date, inSameDayAs: Date.current),
-       isSelected: selectedDay?.id == day.id)
+                       isToday: calendar.isDate(day.date, inSameDayAs: Date.current),
+                       isSelected: selectedDay?.id == day.id)
                     .onTapGesture {
-                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        let generator = UIImpactFeedbackGenerator(style: .medium)
                         generator.impactOccurred()
-                        selectedDay = day
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedDay = day
+                        }
                     }
             }
         }
@@ -321,43 +370,93 @@ struct DayCard: View {
     let day: WorkoutDay
     let isToday: Bool
     let isSelected: Bool
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
+            // Day abbreviation
             Text(day.dayOfWeek.shortName)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary.opacity(0.6))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
             
+            // Day number
             Text("\(Calendar.current.component(.day, from: day.date))")
-                .font(.title3)
-                .fontWeight(isToday || isSelected ? .bold : .medium)
+                .font(.system(size: 20, weight: isToday ? .bold : .semibold, design: .rounded))
+                .foregroundColor(isToday ? .white : .primary)
             
-            // Use coach-selected icon or show "no workout" indicator
-            Image(systemName: workoutIcon)
-                .font(.system(size: 20))
-                .foregroundColor(workoutIconColor)
+            // Workout icon with gradient
+            if day.hasWorkout {
+                Image(systemName: workoutIcon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(workoutStatusGradient)
+            } else {
+                Image(systemName: "moon.zzz.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.gray.gradient)
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 44)
-        .padding(.vertical, 8)
-        .background(backgroundColor)
-        .cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(borderColor, lineWidth: borderLineWidth)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            ZStack {
+                // Base background
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(backgroundColor)
+                
+                // Today indicator with gradient
+                if isToday {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [.blue, .blue.opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                
+                // Selection overlay
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                }
+            }
         )
+        .shadow(color: Color.black.opacity(isSelected ? 0.16 : 0.08), radius: isSelected ? 8 : 4, x: 0, y: isSelected ? 4 : 2)
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
         .accessibilityLabel(accessibilityText)
         .accessibilityHint(day.hasWorkout ? "Double tap to view workout details" : "No workout planned")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
     
     private var backgroundColor: Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.15)
-        } else if isToday {
-            return Color.accentColor.opacity(0.1)
+        if isToday {
+            return .clear // Gradient handles today background
+        } else if day.hasWorkout && !(day.displaySummary?.isEmpty ?? true) {
+            // Subtle tint for completed workouts
+            return Color.green.opacity(0.1)
         } else {
-            return Color(.systemGray6)
+            return Color(.secondarySystemBackground)
+        }
+    }
+    
+    private var workoutStatusGradient: LinearGradient {
+        // Check if workout appears completed (has summary/results)
+        let hasResults = day.displaySummary != nil && !day.displaySummary!.isEmpty
+        
+        if hasResults {
+            return LinearGradient(
+                colors: [.green, .green.opacity(0.7)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        } else {
+            return LinearGradient(
+                colors: [.orange, .orange.opacity(0.7)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
     }
     
@@ -410,44 +509,59 @@ struct WorkoutDetailsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header with day info and collapse button
-            HStack {
-                Image(systemName: day.displayIcon)
-                    .font(.title2)
-                    .foregroundColor(.blue)
+            HStack(spacing: 12) {
+                // Icon with gradient background
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [.blue, .blue.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 44, height: 44)
+                        .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+                    
+                    Image(systemName: day.displayIcon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(day.dayOfWeek.name)")
-                        .font(Font.headline)
+                        .font(.system(size: 20, weight: .semibold))
                     Text(dateFormatter.string(from: day.date))
-                        .font(.subheadline)
-                        .foregroundColor(.primary.opacity(0.6))
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(.secondary)
                     
                     if let summary = day.displaySummary {
                         Text(summary)
-                            .font(.subheadline)
-                            .foregroundColor(.primary.opacity(0.6))
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundColor(.secondary)
                     }
                 }
                 
                 Spacer()
                 
                 Button {
-                    withAnimation(.spring(response: 0.3)) {
+                    let generator = UIImpactFeedbackGenerator(style: .light)
+                    generator.impactOccurred()
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                         isExpanded.toggle()
                     }
                 } label: {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(.primary.opacity(0.6))
-                        .padding(8)
-                        .background(Circle().fill(Color(.systemGray5)))
+                    Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.blue.gradient)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .accessibilityLabel(isExpanded ? "Collapse details" : "Expand details")
             }
             
             // Collapsible content
             if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
                     if let structuredWorkout = day.structuredWorkout {
                         StructuredWorkoutView(workout: structuredWorkout)
                     } else if !day.hasWorkout {
@@ -455,20 +569,26 @@ struct WorkoutDetailsCard: View {
                     }
 
                     Divider()
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
 
                     ResultsSection(day: day, scheduleManager: scheduleManager)
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.95).combined(with: .opacity),
+                    removal: .scale(scale: 0.95).combined(with: .opacity)
+                ))
             }
         }
-        .padding(16)
-        .background(Color(.systemGray4))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.regularMaterial)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.blue.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 3)
     }
     
     private func determineEmptyContext() -> NoWorkoutView.EmptyContext {
