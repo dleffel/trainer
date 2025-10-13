@@ -62,7 +62,7 @@ struct ContentView: View {
             }
             Button("Later", role: .cancel) { }
         }, message: {
-            Text("OpenRouter is now required for this app. Please update your API key in Settings. You can get an OpenRouter API key at openrouter.ai")
+            Text("OpenRouter API key required — update in Settings")
         })
     }
     
