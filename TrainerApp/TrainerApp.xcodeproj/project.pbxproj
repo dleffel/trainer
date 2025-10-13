@@ -17,6 +17,15 @@
 		B70B93E52E90E63E00B9BD7E /* PersistenceError.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93DC2E90E63E00B9BD7E /* PersistenceError.swift */; };
 		B70B93E82E93641B00B9BD7E /* MessageFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93E72E93641B00B9BD7E /* MessageFactory.swift */; };
 		B70B93E92E93641B00B9BD7E /* AssistantResponseState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93E62E93641B00B9BD7E /* AssistantResponseState.swift */; };
+		B70B93FC2E9C7E4000B9BD7E /* MessageListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93F42E9C7E4000B9BD7E /* MessageListView.swift */; };
+		B70B93FD2E9C7E4000B9BD7E /* ChatInputBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93F12E9C7E4000B9BD7E /* ChatInputBar.swift */; };
+		B70B93FE2E9C7E4000B9BD7E /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93F22E9C7E4000B9BD7E /* ChatView.swift */; };
+		B70B93FF2E9C7E4000B9BD7E /* LinkDetectingText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93F92E9C7E4000B9BD7E /* LinkDetectingText.swift */; };
+		B70B94002E9C7E4000B9BD7E /* PhotoAttachmentButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93FA2E9C7E4000B9BD7E /* PhotoAttachmentButton.swift */; };
+		B70B94012E9C7E4000B9BD7E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93F62E9C7E4000B9BD7E /* SettingsView.swift */; };
+		B70B94022E9C7E4000B9BD7E /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93F32E9C7E4000B9BD7E /* MessageBubble.swift */; };
+		B70B94032E9C7E4000B9BD7E /* CalendarTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93EF2E9C7E4000B9BD7E /* CalendarTabView.swift */; };
+		B70B94042E9C7E4000B9BD7E /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B93F82E9C7E4000B9BD7E /* ImagePicker.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -69,6 +78,15 @@
 		B70B93DD2E90E63E00B9BD7E /* PersistenceKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceKey.swift; sourceTree = "<group>"; };
 		B70B93E62E93641B00B9BD7E /* AssistantResponseState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantResponseState.swift; sourceTree = "<group>"; };
 		B70B93E72E93641B00B9BD7E /* MessageFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFactory.swift; sourceTree = "<group>"; };
+		B70B93EF2E9C7E4000B9BD7E /* CalendarTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarTabView.swift; sourceTree = "<group>"; };
+		B70B93F12E9C7E4000B9BD7E /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
+		B70B93F22E9C7E4000B9BD7E /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		B70B93F32E9C7E4000B9BD7E /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
+		B70B93F42E9C7E4000B9BD7E /* MessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageListView.swift; sourceTree = "<group>"; };
+		B70B93F62E9C7E4000B9BD7E /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B70B93F82E9C7E4000B9BD7E /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		B70B93F92E9C7E4000B9BD7E /* LinkDetectingText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkDetectingText.swift; sourceTree = "<group>"; };
+		B70B93FA2E9C7E4000B9BD7E /* PhotoAttachmentButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoAttachmentButton.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -161,6 +179,43 @@
 				B70B93DE2E90E63E00B9BD7E /* Utilities */,
 			);
 			path = Persistence;
+			sourceTree = "<group>";
+		};
+		B70B93F02E9C7E4000B9BD7E /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93EF2E9C7E4000B9BD7E /* CalendarTabView.swift */,
+			);
+			path = Calendar;
+			sourceTree = "<group>";
+		};
+		B70B93F52E9C7E4000B9BD7E /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93F12E9C7E4000B9BD7E /* ChatInputBar.swift */,
+				B70B93F22E9C7E4000B9BD7E /* ChatView.swift */,
+				B70B93F32E9C7E4000B9BD7E /* MessageBubble.swift */,
+				B70B93F42E9C7E4000B9BD7E /* MessageListView.swift */,
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		B70B93F72E9C7E4000B9BD7E /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93F62E9C7E4000B9BD7E /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		B70B93FB2E9C7E4000B9BD7E /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				B70B93F82E9C7E4000B9BD7E /* ImagePicker.swift */,
+				B70B93F92E9C7E4000B9BD7E /* LinkDetectingText.swift */,
+				B70B93FA2E9C7E4000B9BD7E /* PhotoAttachmentButton.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		B75947052E07006B00BE6537 = {
@@ -258,6 +313,10 @@
 		B75A86682E5D884700CB5792 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				B70B93F02E9C7E4000B9BD7E /* Calendar */,
+				B70B93F52E9C7E4000B9BD7E /* Chat */,
+				B70B93F72E9C7E4000B9BD7E /* Settings */,
+				B70B93FB2E9C7E4000B9BD7E /* Shared */,
 				B75A86672E5D884700CB5792 /* WeeklyCalendarView.swift */,
 				B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */,
 			);
@@ -389,6 +448,15 @@
 				B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */,
 				B75947142E07006B00BE6537 /* ContentView.swift in Sources */,
 				B75C33372E59A5A5004C515B /* ToolParameterParser.swift in Sources */,
+				B70B93FC2E9C7E4000B9BD7E /* MessageListView.swift in Sources */,
+				B70B93FD2E9C7E4000B9BD7E /* ChatInputBar.swift in Sources */,
+				B70B93FE2E9C7E4000B9BD7E /* ChatView.swift in Sources */,
+				B70B93FF2E9C7E4000B9BD7E /* LinkDetectingText.swift in Sources */,
+				B70B94002E9C7E4000B9BD7E /* PhotoAttachmentButton.swift in Sources */,
+				B70B94012E9C7E4000B9BD7E /* SettingsView.swift in Sources */,
+				B70B94022E9C7E4000B9BD7E /* MessageBubble.swift in Sources */,
+				B70B94032E9C7E4000B9BD7E /* CalendarTabView.swift in Sources */,
+				B70B94042E9C7E4000B9BD7E /* ImagePicker.swift in Sources */,
 				B7E0B0010000000000000001 /* ToolProcessor/Protocols/ToolExecutor.swift in Sources */,
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
 				B7E0B0010000000000000002 /* ToolProcessor/Core/ToolCallDetector.swift in Sources */,
