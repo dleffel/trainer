@@ -4,7 +4,7 @@ import UIKit
 // MARK: - Identifiable Photo Wrapper
 
 /// Wrapper to provide stable identity for UIImage in SwiftUI lists
-private struct IdentifiablePhoto: Identifiable {
+struct IdentifiablePhoto: Identifiable {
     let id = UUID()
     let image: UIImage
 }
@@ -20,18 +20,16 @@ struct ChatInputBar: View {
     let canSend: Bool
     let onSend: () async -> Void
     
-    // Convert UIImages to identifiable wrappers for stable SwiftUI identity
-    private var identifiablePhotos: [IdentifiablePhoto] {
-        selectedImages.map { IdentifiablePhoto(image: $0) }
-    }
+    // Track photo IDs alongside images for stable removal
+    @State private var photoWrappers: [IdentifiablePhoto] = []
     
     var body: some View {
         VStack(spacing: 0) {
             // Image preview row (if images selected)
-            if !selectedImages.isEmpty {
+            if !photoWrappers.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(identifiablePhotos) { photo in
+                        ForEach(photoWrappers) { photo in
                             ZStack(alignment: .topTrailing) {
                                 Image(uiImage: photo.image)
                                     .resizable()
@@ -39,12 +37,9 @@ struct ChatInputBar: View {
                                     .frame(width: 80, height: 80)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                                 
-                                // Remove button
+                                // Remove button - remove by stable ID
                                 Button {
-                                    // Find and remove by matching image reference
-                                    if let index = selectedImages.firstIndex(where: { $0 === photo.image }) {
-                                        selectedImages.remove(at: index)
-                                    }
+                                    removePhoto(withId: photo.id)
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.white)
@@ -81,5 +76,27 @@ struct ChatInputBar: View {
             .padding(.all, 10)
             .background(.ultraThinMaterial)
         }
+        .onChange(of: selectedImages) { _, newImages in
+            // Sync photoWrappers when selectedImages changes from external sources
+            syncPhotoWrappers(with: newImages)
+        }
+        .onAppear {
+            // Initialize photoWrappers on first appear
+            syncPhotoWrappers(with: selectedImages)
+        }
+    }
+    
+    // MARK: - Private Helpers
+    
+    private func removePhoto(withId id: UUID) {
+        guard let index = photoWrappers.firstIndex(where: { $0.id == id }) else { return }
+        photoWrappers.remove(at: index)
+        selectedImages.remove(at: index)
+    }
+    
+    private func syncPhotoWrappers(with images: [UIImage]) {
+        // Only rebuild if count changed (avoids unnecessary recreation)
+        guard images.count != photoWrappers.count else { return }
+        photoWrappers = images.map { IdentifiablePhoto(image: $0) }
     }
 }
