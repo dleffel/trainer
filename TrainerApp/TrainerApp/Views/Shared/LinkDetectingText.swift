@@ -16,22 +16,17 @@ struct LinkDetectingText: View {
             // No links found, just show plain text
             Text(text)
         } else {
-            // Build text with tappable links
+            // Build text with tappable links using AttributedString directly
             components.reduce(Text("")) { result, component in
                 if component.isLink, let url = URL(string: component.text) {
-                    // Build markdown with dynamic URL using AttributedString to avoid "%@" placeholder issue
+                    // Create AttributedString directly and apply .link attribute
                     let label = getLinkDisplayText(from: component.text)
-                    let markdown = " [\(label)](\(url.absoluteString)) "
-                    let attributed = (try? AttributedString(
-                        markdown: markdown,
-                        options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-                    )) ?? AttributedString(label)
+                    var attributed = AttributedString(label)
+                    attributed.link = url
+                    attributed.foregroundColor = isUser ? .white : .blue
+                    attributed.underlineStyle = .single
                     
-                    let linkText = Text(attributed)
-                        .foregroundColor(isUser ? .white : .blue)
-                        .underline()
-                    
-                    return result + linkText
+                    return result + Text(attributed)
                 } else {
                     return result + Text(component.text)
                 }

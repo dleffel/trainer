@@ -59,9 +59,15 @@ struct PhotoAttachmentButton: View {
     @MainActor
     private func loadSelectedPhotos(from items: [PhotosPickerItem]) async {
         for item in items {
-            if let data = try? await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-                selectedImages.append(image)
+            do {
+                if let data = try await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    selectedImages.append(image)
+                } else {
+                    print("⚠️ PhotoAttachmentButton: Failed to create UIImage from photo data")
+                }
+            } catch {
+                print("❌ PhotoAttachmentButton: Failed to load photo - \(error.localizedDescription)")
             }
         }
         selectedPhotoItems = []

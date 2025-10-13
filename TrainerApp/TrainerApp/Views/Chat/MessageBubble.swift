@@ -24,7 +24,7 @@ struct MessageBubble: View, Equatable {
         lhs.reasoning == rhs.reasoning &&
         lhs.isUser == rhs.isUser &&
         lhs.isLastMessage == rhs.isLastMessage &&
-        lhs.attachments?.count == rhs.attachments?.count
+        lhs.attachments?.map(\.id) == rhs.attachments?.map(\.id)
     }
     
     // MARK: - Environment & State
