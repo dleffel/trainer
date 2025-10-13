@@ -39,7 +39,19 @@ struct ContentView: View {
                 .tag(1)
         }
         .onAppear {
-            setupOnAppear()
+            initializeApp()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification)) { _ in
+            print("📲 iCloud data changed")
+            Task {
+                await conversationManager.loadConversation()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ProactiveMessageAdded"))) { _ in
+            print("🤖 Proactive message received")
+            Task {
+                await conversationManager.loadConversation()
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(
@@ -68,7 +80,7 @@ struct ContentView: View {
     
     // MARK: - Setup & Helpers
     
-    private func setupOnAppear() {
+    private func initializeApp() {
         // Initialize conversation manager
         Task {
             await conversationManager.initialize()
@@ -83,30 +95,6 @@ struct ContentView: View {
                 } else {
                     print("✅ iCloud is available")
                 }
-            }
-        }
-        
-        // Listen for iCloud changes
-        NotificationCenter.default.addObserver(
-            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: NSUbiquitousKeyValueStore.default,
-            queue: .main
-        ) { _ in
-            print("📲 iCloud data changed")
-            Task {
-                await conversationManager.loadConversation()
-            }
-        }
-        
-        // Listen for proactive messages
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("ProactiveMessageAdded"),
-            object: nil,
-            queue: .main
-        ) { notification in
-            print("🤖 Proactive message received")
-            Task {
-                await conversationManager.loadConversation()
             }
         }
         
