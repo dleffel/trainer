@@ -48,8 +48,9 @@ class ScheduleSnapshotBuilder {
     ) -> String {
         let calendar = Calendar.current
         
-        // Start building the snapshot
-        var snapshot = "## SCHEDULE SNAPSHOT (Last 30 Days)\n"
+        // Start building the snapshot with dynamic date range
+        var snapshot = "## SCHEDULE SNAPSHOT\n"
+        snapshot += "Range: \(WorkoutFormatter.formatDate(startDate)) to \(WorkoutFormatter.formatDate(endDate))\n"
         snapshot += "Generated: \(WorkoutFormatter.formatDateTime(endDate))\n\n"
         
         // Iterate through each date from start to end
@@ -92,7 +93,10 @@ class ScheduleSnapshotBuilder {
             return "Unable to calculate date range for schedule snapshot"
         }
         
-        return buildSnapshot(from: startDate, to: endDate)
+        var snapshot = buildSnapshot(from: startDate, to: endDate)
+        // Replace generic header with "Last 30 Days" for this convenience method
+        snapshot = snapshot.replacingOccurrences(of: "## SCHEDULE SNAPSHOT\n", with: "## SCHEDULE SNAPSHOT (Last 30 Days)\n")
+        return snapshot
     }
     
     // MARK: - Private Helpers

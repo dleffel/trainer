@@ -195,20 +195,32 @@ class WorkoutRepository {
         currentBlock: TrainingBlock?
     ) -> WorkoutDay {
         guard let program = program else {
+            // No program exists - use default block
             return WorkoutDay(date: date, blockType: .hypertrophyStrength)
         }
         
         let blocks = blockScheduler.generateBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
         let blockForDate = blockScheduler.getBlock(for: date, in: blocks)
         
-        let targetBlock = blockForDate ?? currentBlock ?? TrainingBlock(
-            type: .hypertrophyStrength,
-            startDate: date,
-            endDate: date,
-            weekNumber: 1
-        )
+        // Use actual block for date, or current block, or default
+        let targetBlock = blockForDate ?? currentBlock ?? defaultBlock(for: date)
         
         return WorkoutDay(date: date, blockType: targetBlock.type)
+    }
+    
+    /// Create a well-defined default block for fallback scenarios
+    /// Used when no program or current block is available
+    /// Returns a 1-week Hypertrophy-Strength block starting on the given date
+    private func defaultBlock(for date: Date) -> TrainingBlock {
+        let calendar = Calendar.current
+        let endDate = calendar.date(byAdding: .weekOfYear, value: 1, to: date) ?? date
+        
+        return TrainingBlock(
+            type: .hypertrophyStrength,
+            startDate: date,
+            endDate: endDate,
+            weekNumber: 1
+        )
     }
 }
 
