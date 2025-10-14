@@ -116,6 +116,10 @@ class TrainingScheduleManager: ObservableObject {
         if let (block, weekInBlock) = blockScheduler.getCurrentBlock(for: now, in: blocks) {
             self.currentBlock = block
             self.currentWeekInBlock = weekInBlock
+        } else {
+            // No block found - explicitly clear to prevent stale state
+            self.currentBlock = nil
+            self.currentWeekInBlock = 1
         }
         
         // Generate current week's workout days (blank, to be filled by coach)
@@ -335,10 +339,20 @@ class TrainingScheduleManager: ObservableObject {
     
     /// Generate current training block context for the coach
     func generateBlockContext() -> String {
+        // Calculate total program weeks dynamically from blocks
+        let totalProgramWeeks: Int
+        if let program = currentProgram {
+            let blocks = blockScheduler.generateBlocks(from: program.startDate, macroCycle: program.currentMacroCycle)
+            totalProgramWeeks = blocks.reduce(0) { $0 + ($1.type.duration) }
+        } else {
+            totalProgramWeeks = 20  // Fallback only
+        }
+        
         return snapshotBuilder.buildBlockContext(
             currentBlock: currentBlock,
             currentWeekInBlock: currentWeekInBlock,
             totalWeek: totalWeekInProgram,
+            totalProgramWeeks: totalProgramWeeks,
             programStartDate: currentProgram?.startDate
         )
     }

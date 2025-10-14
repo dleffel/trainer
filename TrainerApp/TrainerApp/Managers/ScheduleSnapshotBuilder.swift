@@ -24,6 +24,7 @@ class ScheduleSnapshotBuilder {
         currentBlock: TrainingBlock?,
         currentWeekInBlock: Int,
         totalWeek: Int,
+        totalProgramWeeks: Int,
         programStartDate: Date?
     ) -> String {
         guard let block = currentBlock, let startDate = programStartDate else {
@@ -35,7 +36,7 @@ class ScheduleSnapshotBuilder {
         // PURE STATE ONLY - no interpretation or guidance
         context += "**Block Type**: \(block.type.rawValue)\n"
         context += "**Week in Block**: \(currentWeekInBlock) of \(block.type.duration)\n"
-        context += "**Total Week in Program**: \(totalWeek) of 20\n"
+        context += "**Total Week in Program**: \(totalWeek) of \(totalProgramWeeks)\n"
         context += "**Program Started**: \(WorkoutFormatter.formatDate(startDate))\n"
         
         return context

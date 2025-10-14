@@ -244,31 +244,23 @@ struct WorkoutFormatter {
     
     // MARK: - Date Formatting
     
-    /// Reusable date formatter (static to avoid repeated allocation overhead)
-    private static let dateFormatter: DateFormatter = {
+    /// Format date for display (e.g., "Oct 5, 2025")
+    /// Uses UTC timezone for consistent programmatic output across devices/timezones
+    /// Thread-safe: Creates formatter locally to avoid concurrent access issues
+    static func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy"
         formatter.timeZone = TimeZone(identifier: "UTC")  // Required per .roorules for consistency
-        return formatter
-    }()
-    
-    /// Reusable date-time formatter (static to avoid repeated allocation overhead)
-    private static let dateTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy 'at' h:mm a"
-        formatter.timeZone = TimeZone(identifier: "UTC")  // Consistent with dateFormatter
-        return formatter
-    }()
-    
-    /// Format date for display (e.g., "Oct 5, 2025")
-    /// Uses UTC timezone for consistent programmatic output across devices/timezones
-    static func formatDate(_ date: Date) -> String {
-        return dateFormatter.string(from: date)
+        return formatter.string(from: date)
     }
     
     /// Format date and time for display (e.g., "Oct 5, 2025 at 2:57 PM UTC")
     /// Uses UTC timezone for consistent programmatic output across devices/timezones
+    /// Thread-safe: Creates formatter locally to avoid concurrent access issues
     static func formatDateTime(_ date: Date) -> String {
-        return dateTimeFormatter.string(from: date) + " UTC"  // Explicit timezone in output
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy 'at' h:mm a"
+        formatter.timeZone = TimeZone(identifier: "UTC")  // Consistent with formatDate
+        return formatter.string(from: date) + " UTC"  // Explicit timezone in output
     }
 }
