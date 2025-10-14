@@ -172,25 +172,9 @@ class TrainingScheduleManager: ObservableObject {
         return programManager.programStartDate
     }
     
-    /// Get current week in the block
+    /// Get current week in the block (delegates to scheduler for consistency)
     var currentWeek: Int {
-        guard let program = currentProgram else { return 1 }
-        
-        let weeksSinceStart = Calendar.current.dateComponents([.weekOfYear],
-                                                              from: program.startDate,
-                                                              to: Date.current).weekOfYear ?? 0
-        let totalWeek = (weeksSinceStart % 20) + 1
-        
-        // Calculate week within current block
-        if totalWeek <= 8 {
-            return totalWeek
-        } else if totalWeek == 9 {
-            return 1
-        } else if totalWeek <= 19 {
-            return totalWeek - 9
-        } else {
-            return 1
-        }
+        return currentWeekInBlock
     }
     
     /// Get total week in program (1-20)
