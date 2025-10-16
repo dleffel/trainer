@@ -4,8 +4,8 @@ import SwiftUI
 /// Delegate protocol for streaming state updates
 @MainActor
 protocol StreamingStateDelegate: AnyObject {
-    /// Called when a streaming message is created
-    func streamingDidCreateMessage(_ message: ChatMessage)
+    /// Called when a streaming message is created, returns the index where it was added
+    func streamingDidCreateMessage(_ message: ChatMessage) -> Int
     
     /// Called when a streaming message is updated
     func streamingDidUpdateMessage(at index: Int, with message: ChatMessage)
@@ -105,18 +105,19 @@ class StreamingCoordinator {
                             )
                             createdMessage = message
                             messageCreated = true
-                            self.logger.logStreamingEvent(.messageCreated(index: 0))
-                            self.delegate?.streamingDidCreateMessage(message)
-                        } else if messageCreated, let message = createdMessage {
+                            // Get index from delegate
+                            if let idx = self.delegate?.streamingDidCreateMessage(message) {
+                                messageIndex = idx
+                                self.logger.logStreamingEvent(.messageCreated(index: idx))
+                            }
+                        } else if messageCreated, let message = createdMessage, let idx = messageIndex {
                             // Update streaming message
                             if let updated = message.updatedContent(
                                 streamedContent,
                                 reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning
                             ) {
                                 createdMessage = updated
-                                if let idx = messageIndex {
-                                    self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
-                                }
+                                self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
                             }
                         }
                     }
@@ -145,18 +146,19 @@ class StreamingCoordinator {
                         )
                         createdMessage = message
                         messageCreated = true
-                        self.logger.logStreamingEvent(.messageCreated(index: 0))
-                        self.delegate?.streamingDidCreateMessage(message)
-                    } else if messageCreated, let message = createdMessage {
+                        // Get index from delegate
+                        if let idx = self.delegate?.streamingDidCreateMessage(message) {
+                            messageIndex = idx
+                            self.logger.logStreamingEvent(.messageCreated(index: idx))
+                        }
+                    } else if messageCreated, let message = createdMessage, let idx = messageIndex {
                         // Update existing streaming message with new reasoning
                         if let updated = message.updatedContent(
                             streamedContent,
                             reasoning: streamedReasoning
                         ) {
                             createdMessage = updated
-                            if let idx = messageIndex {
-                                self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
-                            }
+                            self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
                         }
                     }
                 }

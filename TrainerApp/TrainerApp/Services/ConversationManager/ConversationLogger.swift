@@ -10,11 +10,12 @@ class ConversationLogger {
     
     // MARK: - Configuration
     
-    /// Enable/disable debug logging (should be false in production)
+    /// Enable/disable debug-level logging (should be false in production)
+    /// Note: warnings and errors always emit regardless of this setting
     var isDebugMode: Bool = true
     
-    /// Minimum log level to display
-    var minimumLevel: LogLevel = .debug
+    /// Minimum log level to display (default: .info so warnings/errors always show)
+    var minimumLevel: LogLevel = .info
     
     // MARK: - Log Levels
     
@@ -88,7 +89,10 @@ class ConversationLogger {
     
     /// General-purpose logging
     func log(_ level: LogLevel, _ message: String, context: String? = nil) {
-        guard isDebugMode, level >= minimumLevel else { return }
+        // Always honor minimumLevel for warnings and errors
+        // Only gate debug/info behind isDebugMode
+        guard level >= minimumLevel else { return }
+        guard level >= .warning || isDebugMode else { return }
         
         let contextStr = context.map { " [\($0)]" } ?? ""
         print("\(level.emoji) \(level.name)\(contextStr): \(message)")
@@ -96,43 +100,36 @@ class ConversationLogger {
     
     /// Log a streaming event
     func logStreamingEvent(_ event: StreamingEvent) {
-        guard isDebugMode else { return }
         log(.debug, event.description, context: "Streaming")
     }
     
     /// Log tool execution
     func logToolExecution(_ toolName: String, result: String) {
-        guard isDebugMode else { return }
         log(.info, "Tool '\(toolName)' executed: \(result)", context: "Tools")
     }
     
     /// Log state transition
     func logStateTransition(from: String, to: String) {
-        guard isDebugMode else { return }
         log(.debug, "State: \(from) → \(to)", context: "State")
     }
     
     /// Log conversation flow milestone
     func logFlowMilestone(_ milestone: String) {
-        guard isDebugMode else { return }
         log(.info, milestone, context: "Flow")
     }
     
     /// Log timing information
     func logTiming(_ label: String, timestamp: TimeInterval) {
-        guard isDebugMode else { return }
         log(.debug, "\(label): \(timestamp)", context: "Timing")
     }
     
     /// Log response processing
     func logResponse(_ event: ResponseEvent) {
-        guard isDebugMode else { return }
         log(.debug, event.description, context: "Response")
     }
     
     /// Log persistence operations
     func logPersistence(_ operation: String, messageCount: Int) {
-        guard isDebugMode else { return }
         log(.debug, "\(operation) with \(messageCount) messages", context: "Persistence")
     }
     

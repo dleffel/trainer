@@ -395,14 +395,7 @@ class ConversationManager: ObservableObject {
             history: apiHistory
         )
         
-        // Add the created message to our messages array if one was created
-        if let message = result.createdMessage {
-            messages.append(message)
-            var state = result.state
-            state.setMessageIndex(messages.count - 1)
-            return state
-        }
-        
+        // Message already added via delegate, just return the state
         return result.state
     }
     
@@ -541,9 +534,12 @@ extension ConversationState {
 // MARK: - StreamingStateDelegate
 
 extension ConversationManager: StreamingStateDelegate {
-    func streamingDidCreateMessage(_ message: ChatMessage) {
-        // Coordinator will add the message; we just log it
-        logger.log(ConversationLogger.LogLevel.debug, "Streaming message created", context: "Streaming")
+    func streamingDidCreateMessage(_ message: ChatMessage) -> Int {
+        // Append the message and return its index
+        messages.append(message)
+        let index = messages.count - 1
+        logger.log(ConversationLogger.LogLevel.debug, "Streaming message created at index \(index)", context: "Streaming")
+        return index
     }
     
     func streamingDidUpdateMessage(at index: Int, with message: ChatMessage) {
