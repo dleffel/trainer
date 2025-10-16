@@ -1,0 +1,168 @@
+import Foundation
+
+/// Centralized logging for conversation management
+///
+/// Provides structured, filterable logging for debugging conversation flow,
+/// streaming operations, tool execution, and state transitions.
+class ConversationLogger {
+    // MARK: - Singleton
+    static let shared = ConversationLogger()
+    
+    // MARK: - Configuration
+    
+    /// Enable/disable debug logging (should be false in production)
+    var isDebugMode: Bool = true
+    
+    /// Minimum log level to display
+    var minimumLevel: LogLevel = .debug
+    
+    // MARK: - Log Levels
+    
+    enum LogLevel: Int, Comparable {
+        case debug = 0
+        case info = 1
+        case warning = 2
+        case error = 3
+        
+        var emoji: String {
+            switch self {
+            case .debug: return "🔍"
+            case .info: return "ℹ️"
+            case .warning: return "⚠️"
+            case .error: return "❌"
+            }
+        }
+        
+        var name: String {
+            switch self {
+            case .debug: return "DEBUG"
+            case .info: return "INFO"
+            case .warning: return "WARN"
+            case .error: return "ERROR"
+            }
+        }
+        
+        static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
+    }
+    
+    // MARK: - Event Types
+    
+    enum StreamingEvent {
+        case started
+        case tokenReceived(count: Int)
+        case reasoningReceived(length: Int)
+        case toolDetected(name: String)
+        case messageCreated(index: Int)
+        case messageUpdated(index: Int)
+        case completed
+        case failed(error: String)
+        
+        var description: String {
+            switch self {
+            case .started:
+                return "Streaming started"
+            case .tokenReceived(let count):
+                return "Token received (buffer: \(count))"
+            case .reasoningReceived(let length):
+                return "Reasoning chunk received (total: \(length))"
+            case .toolDetected(let name):
+                return "Tool detected: \(name)"
+            case .messageCreated(let index):
+                return "Message created at index \(index)"
+            case .messageUpdated(let index):
+                return "Message updated at index \(index)"
+            case .completed:
+                return "Streaming completed"
+            case .failed(let error):
+                return "Streaming failed: \(error)"
+            }
+        }
+    }
+    
+    // MARK: - Private Init
+    private init() {}
+    
+    // MARK: - Public Logging Methods
+    
+    /// General-purpose logging
+    func log(_ level: LogLevel, _ message: String, context: String? = nil) {
+        guard isDebugMode, level >= minimumLevel else { return }
+        
+        let contextStr = context.map { " [\($0)]" } ?? ""
+        print("\(level.emoji) \(level.name)\(contextStr): \(message)")
+    }
+    
+    /// Log a streaming event
+    func logStreamingEvent(_ event: StreamingEvent) {
+        guard isDebugMode else { return }
+        log(.debug, event.description, context: "Streaming")
+    }
+    
+    /// Log tool execution
+    func logToolExecution(_ toolName: String, result: String) {
+        guard isDebugMode else { return }
+        log(.info, "Tool '\(toolName)' executed: \(result)", context: "Tools")
+    }
+    
+    /// Log state transition
+    func logStateTransition(from: String, to: String) {
+        guard isDebugMode else { return }
+        log(.debug, "State: \(from) → \(to)", context: "State")
+    }
+    
+    /// Log conversation flow milestone
+    func logFlowMilestone(_ milestone: String) {
+        guard isDebugMode else { return }
+        log(.info, milestone, context: "Flow")
+    }
+    
+    /// Log timing information
+    func logTiming(_ label: String, timestamp: TimeInterval) {
+        guard isDebugMode else { return }
+        log(.debug, "\(label): \(timestamp)", context: "Timing")
+    }
+    
+    /// Log response processing
+    func logResponse(_ event: ResponseEvent) {
+        guard isDebugMode else { return }
+        log(.debug, event.description, context: "Response")
+    }
+    
+    /// Log persistence operations
+    func logPersistence(_ operation: String, messageCount: Int) {
+        guard isDebugMode else { return }
+        log(.debug, "\(operation) with \(messageCount) messages", context: "Persistence")
+    }
+    
+    /// Log errors with full context
+    func logError(_ error: Error, context: String? = nil) {
+        log(.error, error.localizedDescription, context: context)
+    }
+    
+    // MARK: - Response Events
+    
+    enum ResponseEvent {
+        case preparingResponse
+        case receivedResponse(length: Int)
+        case processedResponse(cleaned: Int, hasTools: Bool)
+        case generatedFallback
+        case finalized
+        
+        var description: String {
+            switch self {
+            case .preparingResponse:
+                return "Preparing response"
+            case .receivedResponse(let length):
+                return "Received response (length: \(length))"
+            case .processedResponse(let cleaned, let hasTools):
+                return "Processed response (cleaned: \(cleaned), hasTools: \(hasTools))"
+            case .generatedFallback:
+                return "Generated fallback response"
+            case .finalized:
+                return "Response finalized"
+            }
+        }
+    }
+}

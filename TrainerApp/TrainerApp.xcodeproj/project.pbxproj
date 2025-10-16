@@ -32,6 +32,8 @@
 		B70B940E2E9DC23300B9BD7E /* CalendarGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B940D2E9DC23300B9BD7E /* CalendarGenerator.swift */; };
 		B70B94102E9DC47200B9BD7E /* TrainingProgramManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B940F2E9DC47200B9BD7E /* TrainingProgramManager.swift */; };
 		B70B94122E9DC62E00B9BD7E /* WorkoutRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94112E9DC62E00B9BD7E /* WorkoutRepository.swift */; };
+		B70B94162EA0B8BF00B9BD7E /* ConversationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94132EA0B8BF00B9BD7E /* ConversationLogger.swift */; };
+		B70B94172EA0B8BF00B9BD7E /* StreamingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -99,6 +101,8 @@
 		B70B940D2E9DC23300B9BD7E /* CalendarGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarGenerator.swift; sourceTree = "<group>"; };
 		B70B940F2E9DC47200B9BD7E /* TrainingProgramManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingProgramManager.swift; sourceTree = "<group>"; };
 		B70B94112E9DC62E00B9BD7E /* WorkoutRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutRepository.swift; sourceTree = "<group>"; };
+		B70B94132EA0B8BF00B9BD7E /* ConversationLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationLogger.swift; sourceTree = "<group>"; };
+		B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingCoordinator.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -230,6 +234,15 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		B70B94152EA0B8BF00B9BD7E /* ConversationManager */ = {
+			isa = PBXGroup;
+			children = (
+				B70B94132EA0B8BF00B9BD7E /* ConversationLogger.swift */,
+				B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */,
+			);
+			path = ConversationManager;
+			sourceTree = "<group>";
+		};
 		B75947052E07006B00BE6537 = {
 			isa = PBXGroup;
 			children = (
@@ -306,6 +319,7 @@
 		B759473D2E0703BD00BE6537 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B70B94152EA0B8BF00B9BD7E /* ConversationManager */,
 				B70B93E62E93641B00B9BD7E /* AssistantResponseState.swift */,
 				B70B93E72E93641B00B9BD7E /* MessageFactory.swift */,
 				B75C33362E59A5A5004C515B /* ToolParameterParser.swift */,
@@ -501,6 +515,8 @@
 				B70B93E02E90E63E00B9BD7E /* FileStore.swift in Sources */,
 				B70B93E12E90E63E00B9BD7E /* SimpleKeyValueStore.swift in Sources */,
 				B70B93E22E90E63E00B9BD7E /* PersistenceStore.swift in Sources */,
+				B70B94162EA0B8BF00B9BD7E /* ConversationLogger.swift in Sources */,
+				B70B94172EA0B8BF00B9BD7E /* StreamingCoordinator.swift in Sources */,
 				B70B93E32E90E63E00B9BD7E /* HybridCloudStore.swift in Sources */,
 				B70B940C2E9DB92E00B9BD7E /* TrainingBlockScheduler.swift in Sources */,
 				B70B93E42E90E63E00B9BD7E /* PersistenceKey.swift in Sources */,
