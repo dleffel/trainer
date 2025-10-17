@@ -249,11 +249,7 @@ extension ConversationManager: ToolExecutionStateDelegate {
         // Clear reasoning preview flags before tool processing
         self.isStreamingReasoning = false
         self.latestReasoningChunk = nil
-func toolExecutionDidStart(toolName: String, description: String) {
-    self.isStreamingReasoning = false
-    self.latestReasoningChunk = nil
-    updateState(.processingTool(name: toolName, description: description))
-}
+        updateState(.processingTool(name: toolName, description: description))
     }
     
     func toolExecutionDidComplete(result: ToolProcessor.ToolCallResult) {
