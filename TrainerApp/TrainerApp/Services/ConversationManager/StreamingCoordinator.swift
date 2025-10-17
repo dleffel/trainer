@@ -27,6 +27,16 @@ class StreamingCoordinator {
     private let logger = ConversationLogger.shared
     weak var delegate: StreamingStateDelegate?
     
+    // MARK: - Static Configuration
+    
+    /// Precompiled regex for tool detection (avoid recompiling per token)
+    private static let toolRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: #"\[TOOL_CALL:\s*(\w+)(?:\((.*?)\))?\]"#)
+    }()
+    
+    /// Maximum size of token buffer (prevents unbounded growth)
+    private static let maxTokenBufferSize = 2000
+    
     // MARK: - Initialization
     init(llmService: LLMServiceProtocol) {
         self.llmService = llmService
@@ -72,8 +82,14 @@ class StreamingCoordinator {
                 
                 tokenBuffer.append(token)
                 
+                // Bound tokenBuffer to prevent unbounded growth (keep last 2k chars)
+                if tokenBuffer.count > Self.maxTokenBufferSize {
+                    let startIndex = tokenBuffer.index(tokenBuffer.endIndex, offsetBy: -Self.maxTokenBufferSize)
+                    tokenBuffer = String(tokenBuffer[startIndex...])
+                }
+                
                 // Diagnostic logging
-                if tokenBuffer.count % 50 == 0 || tokenBuffer.contains("[TOOL_CALL:") {
+                if tokenBuffer.count % 50 == 0 {
                     self.logger.logStreamingEvent(.tokenReceived(count: tokenBuffer.count))
                 }
                 
@@ -173,16 +189,17 @@ class StreamingCoordinator {
     
     // MARK: - Private Helpers
     
-    /// Extract tool name from token buffer
+    /// Extract tool name from token buffer using precompiled regex
     private func extractToolName(from buffer: String) -> String? {
-        // Use canonical regex pattern to match complete tool calls only
-        let pattern = #"\[TOOL_CALL:\s*(\w+)(?:\((.*?)\))?\]"#
-        if let regex = try? NSRegularExpression(pattern: pattern),
-           let match = regex.firstMatch(in: buffer, range: NSRange(buffer.startIndex..., in: buffer)),
-           let toolNameRange = Range(match.range(at: 1), in: buffer) {
-            return String(buffer[toolNameRange])
+        guard let regex = Self.toolRegex else { return nil }
+        
+        let range = NSRange(buffer.startIndex..., in: buffer)
+        guard let match = regex.firstMatch(in: buffer, range: range),
+              let toolNameRange = Range(match.range(at: 1), in: buffer) else {
+            return nil
         }
-        return nil
+        
+        return String(buffer[toolNameRange])
     }
     
     /// Get tool description for UI display

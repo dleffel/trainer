@@ -216,46 +216,21 @@ class ConversationManager: ObservableObject {
                 logger.log(ConversationLogger.LogLevel.debug, "Reasoning: '\(reasoning)'", context: "handleFollowUpResponse")
             }
             
-            let processedResponse = try await toolProcessor.processResponseWithToolCalls(result.content)
-            let finalResponse = processedResponse.cleanedResponse
-            
-            logger.log(ConversationLogger.LogLevel.debug, "Cleaned response: '\(finalResponse)'", context: "handleFollowUpResponse")
-            logger.log(ConversationLogger.LogLevel.debug, "Tool results count: \(processedResponse.toolResults.count)", context: "handleFollowUpResponse")
-            
-            // Create state from RAW response (for tool detection)
+            // Create state from RAW response (tool processing happens in processToolCallsIfNeeded)
             var state = AssistantResponseState()
-            state.setContent(result.content)  // Keep raw content for tool processing
+            state.setContent(result.content)  // Keep raw content for tool detection downstream
             state.setReasoning(result.reasoning)
             
-            // Append user-visible message with CLEANED response
-            if !finalResponse.isEmpty {
-                let message = MessageFactory.assistant(
-                    content: finalResponse,
-                    reasoning: result.reasoning
-                )
-                messages.append(message)
-                state.setMessageIndex(messages.count - 1)
-                
-                logger.log(ConversationLogger.LogLevel.debug, "Appended new assistant message", context: "handleFollowUpResponse")
-            } else {
-                logger.log(ConversationLogger.LogLevel.warning, "Follow-up response is empty after processing!", context: "handleFollowUpResponse")
-                
-                // Generate meaningful response from tool results
-                let meaningfulResponse = generateMeaningfulResponseContent(from: apiHistory)
-                state.setContent(meaningfulResponse)
-                state.setReasoning(result.reasoning)
-                
-                let message = MessageFactory.assistant(
-                    content: meaningfulResponse,
-                    reasoning: result.reasoning
-                )
-                messages.append(message)
-                state.setMessageIndex(messages.count - 1)
-                
-                logger.log(ConversationLogger.LogLevel.info, "Generated meaningful response from tool results", context: "handleFollowUpResponse")
-            }
+            // Create message - will be updated by processToolCallsIfNeeded with cleaned content
+            let message = MessageFactory.assistant(
+                content: result.content,  // Start with raw content
+                reasoning: result.reasoning
+            )
+            messages.append(message)
+            state.setMessageIndex(messages.count - 1)
             
-            // Don't call updateState(.finalizing) here - finalizeResponse will do it
+            logger.log(ConversationLogger.LogLevel.debug, "Created assistant message for follow-up", context: "handleFollowUpResponse")
+            
             return state
             
         } catch LLMError.missingContent {
@@ -280,7 +255,7 @@ class ConversationManager: ObservableObject {
         
         logger.log(ConversationLogger.LogLevel.info, "Generated meaningful response from tool results: '\(meaningfulResponse)'", context: "handleEmptyResponse")
         
-        updateState(.finalizing)
+        // Don't call updateState(.finalizing) here - finalizeResponse will do it
         return state
     }
     
@@ -490,14 +465,6 @@ class ConversationManager: ObservableObject {
     }
     
     
-    /// Extract clean content before the first tool call
-    private func extractCleanContentBeforeTools(from response: String) -> String {
-        if let toolCallRange = response.range(of: "[TOOL_CALL:") {
-            let cleanContent = String(response[..<toolCallRange.lowerBound])
-            return cleanContent.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        return response.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }
 
 // MARK: - Conversation State
