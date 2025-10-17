@@ -158,13 +158,14 @@ class ResponseOrchestrator {
                 streamingDelegate.streamingDidUpdateReasoningState(isStreaming: false, latestChunk: nil)
             }
             
-            // Fallback to non-streaming
-            logger.log(ConversationLogger.LogLevel.warning, "Streaming failed, falling back to non-streaming: \(error.localizedDescription)", context: "handleInitialResponse")
-            state = try await fallbackNonStreaming(
-                apiKey: apiKey,
-                model: model,
-                systemPrompt: systemPrompt
-            )
+// Fallback to non-streaming
+delegate?.orchestrationDidUpdateState(.preparingResponse)
+logger.log(ConversationLogger.LogLevel.warning, "Streaming failed, falling back to non-streaming: \(error.localizedDescription)", context: "handleInitialResponse")
+state = try await fallbackNonStreaming(
+    apiKey: apiKey,
+    model: model,
+    systemPrompt: systemPrompt
+)
         }
         
         logger.logTiming("response_complete", timestamp: Date().timeIntervalSince1970)
