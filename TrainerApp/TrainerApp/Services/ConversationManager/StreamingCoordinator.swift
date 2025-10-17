@@ -81,16 +81,15 @@ class StreamingCoordinator {
                     self.logger.logStreamingEvent(.tokenReceived(count: tokenBuffer.count))
                 }
                 
-                // Check for tool pattern
-                if tokenBuffer.contains("[TOOL_CALL:") && !isBufferingTool {
+                // Check for tool pattern - only switch to buffering if we have a complete match
+                if !isBufferingTool, let toolName = self.extractToolName(from: tokenBuffer) {
+                    // Full regex match found - switch to buffering mode
                     isBufferingTool = true
                     self.logger.log(.debug, "Tool detected - switching to buffering mode", context: "Streaming")
                     
-                    if let toolName = self.extractToolName(from: tokenBuffer) {
-                        let description = self.getToolDescription(toolName)
-                        Task { @MainActor in
-                            self.delegate?.streamingDidDetectTool(name: toolName, description: description)
-                        }
+                    let description = self.getToolDescription(toolName)
+                    Task { @MainActor in
+                        self.delegate?.streamingDidDetectTool(name: toolName, description: description)
                     }
                 } else if !isBufferingTool {
                     // Only append non-tool content

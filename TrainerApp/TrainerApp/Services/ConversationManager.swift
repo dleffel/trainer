@@ -302,7 +302,7 @@ class ConversationManager: ObservableObject {
                 try? await Task.sleep(for: .milliseconds(500))
             }
             
-            // Update message with cleaned content
+            // Update in-flight streaming message with cleaned content and mark as completed
             if let idx = responseState.messageIndex, idx < messages.count {
                 let cleanContent = extractCleanContentBeforeTools(from: responseState.content)
                 if !cleanContent.isEmpty {
@@ -316,14 +316,9 @@ class ConversationManager: ObservableObject {
                 }
             }
             
-            // Add assistant response to API history (if cleaned response exists)
-            if !processed.cleanedResponse.isEmpty {
-                let historyMessage = MessageFactory.assistant(
-                    content: processed.cleanedResponse,
-                    reasoning: responseState.reasoning
-                )
-                messages.append(historyMessage)
-            }
+            // Note: No need to append a separate assistant message here
+            // The streaming message has been finalized and will be included in apiHistory
+            // when its state is .completed
             
             // Add tool results as system message
             let toolMessage = MessageFactory.system(
