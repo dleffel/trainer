@@ -364,12 +364,15 @@ class ConversationManager: ObservableObject {
         
         // Update existing message (works for both streaming and non-streaming)
         // Always preserve reasoning when finalizing
-        messages[idx] = MessageFactory.updated(
-            messages[idx],
-            content: finalContent,
-            reasoning: state.reasoning,
-            state: .completed
-        )
+let current = messages[idx]
+let trimmed = current.content.trimmingCharacters(in: .whitespacesAndNewlines)
+let contentToApply = trimmed.isEmpty ? finalContent : current.content
+messages[idx] = MessageFactory.updated(
+    current,
+    content: contentToApply,
+    reasoning: state.reasoning,
+    state: .completed
+)
         
         updateState(.finalizing)
     }
