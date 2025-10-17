@@ -89,13 +89,18 @@ class ConversationLogger {
     
     /// General-purpose logging
     func log(_ level: LogLevel, _ message: String, context: String? = nil) {
-        // Always honor minimumLevel for warnings and errors
-        // Only gate debug/info behind isDebugMode
-        guard level >= minimumLevel else { return }
-        guard level >= .warning || isDebugMode else { return }
-        
-        let contextStr = context.map { " [\($0)]" } ?? ""
-        print("\(level.emoji) \(level.name)\(contextStr): \(message)")
+        // Warnings and errors always emit (bypass minimumLevel and isDebugMode)
+        // Debug and info are gated by both minimumLevel and isDebugMode
+        if level >= .warning {
+            // Always log warnings and errors
+            let contextStr = context.map { " [\($0)]" } ?? ""
+            print("\(level.emoji) \(level.name)\(contextStr): \(message)")
+        } else {
+            // For debug and info: check minimumLevel AND isDebugMode
+            guard level >= minimumLevel && isDebugMode else { return }
+            let contextStr = context.map { " [\($0)]" } ?? ""
+            print("\(level.emoji) \(level.name)\(contextStr): \(message)")
+        }
     }
     
     /// Log a streaming event

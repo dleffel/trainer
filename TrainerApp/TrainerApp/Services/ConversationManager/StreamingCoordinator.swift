@@ -169,6 +169,11 @@ class StreamingCoordinator {
         state.setContent(result.content)
         state.setReasoning(result.reasoning)
         
+        // Set the messageIndex on state if we created a message
+        if let idx = messageIndex {
+            state.setMessageIndex(idx)
+        }
+        
         // Clear reasoning streaming state
         delegate?.streamingDidUpdateReasoningState(isStreaming: false, latestChunk: nil)
         
