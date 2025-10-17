@@ -34,6 +34,8 @@
 		B70B94122E9DC62E00B9BD7E /* WorkoutRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94112E9DC62E00B9BD7E /* WorkoutRepository.swift */; };
 		B70B94162EA0B8BF00B9BD7E /* ConversationLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94132EA0B8BF00B9BD7E /* ConversationLogger.swift */; };
 		B70B94172EA0B8BF00B9BD7E /* StreamingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */; };
+		B70B941A2EA2CF2500B9BD7E /* ResponseOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94182EA2CF2500B9BD7E /* ResponseOrchestrator.swift */; };
+		B70B941B2EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94192EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -103,6 +105,8 @@
 		B70B94112E9DC62E00B9BD7E /* WorkoutRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutRepository.swift; sourceTree = "<group>"; };
 		B70B94132EA0B8BF00B9BD7E /* ConversationLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationLogger.swift; sourceTree = "<group>"; };
 		B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingCoordinator.swift; sourceTree = "<group>"; };
+		B70B94182EA2CF2500B9BD7E /* ResponseOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseOrchestrator.swift; sourceTree = "<group>"; };
+		B70B94192EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolExecutionCoordinator.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -237,6 +241,8 @@
 		B70B94152EA0B8BF00B9BD7E /* ConversationManager */ = {
 			isa = PBXGroup;
 			children = (
+				B70B94182EA2CF2500B9BD7E /* ResponseOrchestrator.swift */,
+				B70B94192EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift */,
 				B70B94132EA0B8BF00B9BD7E /* ConversationLogger.swift */,
 				B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */,
 			);
@@ -495,6 +501,8 @@
 				B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */,
 				B7E0B0010000000000000002 /* ToolProcessor/Core/ToolCallDetector.swift in Sources */,
 				B70B94122E9DC62E00B9BD7E /* WorkoutRepository.swift in Sources */,
+				B70B941A2EA2CF2500B9BD7E /* ResponseOrchestrator.swift in Sources */,
+				B70B941B2EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift in Sources */,
 				B70B94082E9DB42E00B9BD7E /* WorkoutFormatter.swift in Sources */,
 				B7E0B0010000000000000003 /* ToolProcessor/Core/ToolExecutorRegistry.swift in Sources */,
 				B7E0B0010000000000000004 /* ToolProcessor/Core/ToolCallRouter.swift in Sources */,
