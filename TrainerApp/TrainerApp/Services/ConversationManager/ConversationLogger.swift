@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 
 /// Centralized logging for conversation management
 ///
@@ -7,6 +8,9 @@ import Foundation
 class ConversationLogger {
     // MARK: - Singleton
     static let shared = ConversationLogger()
+    
+    // MARK: - Backend Logger
+    private let osLogger = Logger(subsystem: "com.trainer.app", category: "Conversation")
     
     // MARK: - Configuration
     
@@ -92,20 +96,28 @@ class ConversationLogger {
         // Warnings and errors: always emit (bypass all checks)
         // Info: honor minimumLevel only (can be enabled in production)
         // Debug: honor minimumLevel AND isDebugMode (debug builds only)
+        
+        let contextStr = context.map { "[\($0)] " } ?? ""
+        let fullMessage = "\(contextStr)\(message)"
+        
         if level >= .warning {
             // Always log warnings and errors
-            let contextStr = context.map { " [\($0)]" } ?? ""
-            print("\(level.emoji) \(level.name)\(contextStr): \(message)")
+            switch level {
+            case .error:
+                osLogger.error("\(fullMessage, privacy: .public)")
+            case .warning:
+                osLogger.warning("\(fullMessage, privacy: .public)")
+            default:
+                break
+            }
         } else if level == .info {
             // Info respects minimumLevel but not isDebugMode
             guard level >= minimumLevel else { return }
-            let contextStr = context.map { " [\($0)]" } ?? ""
-            print("\(level.emoji) \(level.name)\(contextStr): \(message)")
+            osLogger.info("\(fullMessage, privacy: .public)")
         } else {
             // Debug requires both minimumLevel and isDebugMode
             guard level >= minimumLevel && isDebugMode else { return }
-            let contextStr = context.map { " [\($0)]" } ?? ""
-            print("\(level.emoji) \(level.name)\(contextStr): \(message)")
+            osLogger.debug("\(fullMessage, privacy: .public)")
         }
     }
     

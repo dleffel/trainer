@@ -285,17 +285,23 @@ class ConversationManager: ObservableObject {
                 ))
             }
             
-            // Update in-flight streaming message with cleaned content and mark as completed
+            // Update in-flight message with cleaned content and mark as completed
             if let idx = responseState.messageIndex, idx < messages.count {
                 // Use processed.cleanedResponse for consistency with tool processor
+                // Pass reasoning to preserve it in the finalized message
                 if !processed.cleanedResponse.isEmpty {
                     messages[idx] = MessageFactory.updated(
                         messages[idx],
                         content: processed.cleanedResponse,
+                        reasoning: responseState.reasoning,
                         state: .completed
                     )
                 } else {
-                    messages[idx] = MessageFactory.completed(messages[idx])
+                    messages[idx] = MessageFactory.updated(
+                        messages[idx],
+                        reasoning: responseState.reasoning,
+                        state: .completed
+                    )
                 }
             }
             
@@ -315,6 +321,16 @@ class ConversationManager: ObservableObject {
                 hasTools: true,
                 toolResults: processed.toolResults,
                 cleanedResponse: processed.cleanedResponse
+            )
+        }
+        
+        // No tools detected - still apply cleaned response for normalization
+        if let idx = responseState.messageIndex, idx < messages.count {
+            messages[idx] = MessageFactory.updated(
+                messages[idx],
+                content: processed.cleanedResponse,
+                reasoning: responseState.reasoning,
+                state: .completed
             )
         }
         
@@ -346,14 +362,14 @@ class ConversationManager: ObservableObject {
             return
         }
         
-        // Update existing message if still streaming
-        if messages[idx].state == .streaming {
-            messages[idx] = MessageFactory.updated(
-                messages[idx],
-                content: finalContent,
-                state: .completed
-            )
-        }
+        // Update existing message (works for both streaming and non-streaming)
+        // Always preserve reasoning when finalizing
+        messages[idx] = MessageFactory.updated(
+            messages[idx],
+            content: finalContent,
+            reasoning: state.reasoning,
+            state: .completed
+        )
         
         updateState(.finalizing)
     }

@@ -131,10 +131,9 @@ class StreamingCoordinator {
                     }
                 }
                 
-                // Keep full text for processing
-                if isBufferingTool {
-                    streamedContent = tokenBuffer
-                }
+                // When tool detected, don't truncate content - use separate buffer
+                // streamedContent already has all non-tool tokens up to detection point
+                // tokenBuffer continues growing for full tool call capture
             },
             onReasoning: { [weak self] reasoning in
                 guard let self = self else { return }
