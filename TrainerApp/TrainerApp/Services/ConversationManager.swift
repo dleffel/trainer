@@ -178,6 +178,10 @@ class ConversationManager: ObservableObject {
                 logger.log(ConversationLogger.LogLevel.debug, "Removed dangling streaming message before fallback", context: "handleInitialResponse")
             }
             
+            // Clear reasoning UI flags before fallback
+            isStreamingReasoning = false
+            latestReasoningChunk = nil
+            
             // Fallback to non-streaming
             logger.log(ConversationLogger.LogLevel.warning, "Streaming failed, falling back to non-streaming: \(error.localizedDescription)", context: "handleInitialResponse")
             state = try await fallbackNonStreaming(
@@ -218,14 +222,13 @@ class ConversationManager: ObservableObject {
             logger.log(ConversationLogger.LogLevel.debug, "Cleaned response: '\(finalResponse)'", context: "handleFollowUpResponse")
             logger.log(ConversationLogger.LogLevel.debug, "Tool results count: \(processedResponse.toolResults.count)", context: "handleFollowUpResponse")
             
-            // Create state from response
+            // Create state from RAW response (for tool detection)
             var state = AssistantResponseState()
+            state.setContent(result.content)  // Keep raw content for tool processing
+            state.setReasoning(result.reasoning)
             
+            // Append user-visible message with CLEANED response
             if !finalResponse.isEmpty {
-                state.setContent(finalResponse)
-                state.setReasoning(result.reasoning)
-                
-                // Append new message for follow-up
                 let message = MessageFactory.assistant(
                     content: finalResponse,
                     reasoning: result.reasoning
@@ -252,7 +255,7 @@ class ConversationManager: ObservableObject {
                 logger.log(ConversationLogger.LogLevel.info, "Generated meaningful response from tool results", context: "handleFollowUpResponse")
             }
             
-            updateState(.finalizing)
+            // Don't call updateState(.finalizing) here - finalizeResponse will do it
             return state
             
         } catch LLMError.missingContent {
@@ -309,11 +312,11 @@ class ConversationManager: ObservableObject {
             
             // Update in-flight streaming message with cleaned content and mark as completed
             if let idx = responseState.messageIndex, idx < messages.count {
-                let cleanContent = extractCleanContentBeforeTools(from: responseState.content)
-                if !cleanContent.isEmpty {
+                // Use processed.cleanedResponse for consistency with tool processor
+                if !processed.cleanedResponse.isEmpty {
                     messages[idx] = MessageFactory.updated(
                         messages[idx],
-                        content: cleanContent,
+                        content: processed.cleanedResponse,
                         state: .completed
                     )
                 } else {
