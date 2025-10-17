@@ -18,6 +18,8 @@ class ConversationManager: ObservableObject {
     private let toolProcessor = ToolProcessor.shared
     private let llmService: LLMServiceProtocol
     private let config: AppConfiguration
+    private let logger = ConversationLogger.shared
+    private let streamingCoordinator: StreamingCoordinator
     private let maxConversationTurns = 5
     
     // MARK: - Computed Properties
@@ -39,6 +41,12 @@ class ConversationManager: ObservableObject {
     ) {
         self.config = config
         self.llmService = llmService
+        self.streamingCoordinator = StreamingCoordinator(llmService: llmService)
+        
+        // Set up streaming delegate after initialization
+        Task { @MainActor in
+            self.streamingCoordinator.delegate = self
+        }
     }
     
     // MARK: - Public Interface
@@ -88,7 +96,7 @@ class ConversationManager: ObservableObject {
         do {
             messages = try persistence.load()
         } catch {
-            print("❌ Failed to load conversation: \(error)")
+            logger.logError(error, context: "loadConversation")
             messages = []
         }
     }
@@ -99,7 +107,7 @@ class ConversationManager: ObservableObject {
         do {
             try persistence.clear()
         } catch {
-            print("❌ Failed to clear conversation: \(error)")
+            logger.logError(error, context: "clearConversation")
         }
     }
     
@@ -152,7 +160,7 @@ class ConversationManager: ObservableObject {
         updateState(.streaming(progress: nil))
         
         let requestStart = Date()
-        print("⏱️ request_start: \(requestStart.timeIntervalSince1970)")
+        logger.logTiming("request_start", timestamp: requestStart.timeIntervalSince1970)
         
         var state: AssistantResponseState
         
@@ -164,8 +172,18 @@ class ConversationManager: ObservableObject {
                 systemPrompt: systemPrompt
             )
         } catch {
+            // Clean up any dangling .streaming message before fallback
+            if let lastMessage = messages.last, lastMessage.state == .streaming {
+                messages.removeLast()
+                logger.log(ConversationLogger.LogLevel.debug, "Removed dangling streaming message before fallback", context: "handleInitialResponse")
+            }
+            
+            // Clear reasoning UI flags before fallback
+            isStreamingReasoning = false
+            latestReasoningChunk = nil
+            
             // Fallback to non-streaming
-            print("⚠️ Streaming failed: \(error). Falling back to non-streaming.")
+            logger.log(ConversationLogger.LogLevel.warning, "Streaming failed, falling back to non-streaming: \(error.localizedDescription)", context: "handleInitialResponse")
             state = try await fallbackNonStreaming(
                 apiKey: apiKey,
                 model: model,
@@ -173,7 +191,7 @@ class ConversationManager: ObservableObject {
             )
         }
         
-        print("⏱️ response_complete: \(Date().timeIntervalSince1970)")
+        logger.logTiming("response_complete", timestamp: Date().timeIntervalSince1970)
         return state
     }
     
@@ -193,52 +211,26 @@ class ConversationManager: ObservableObject {
                 history: apiHistory
             )
             
-            print("🔍 DEBUG handleFollowUpResponse: Raw AI response: '\(result.content)'")
+            logger.log(ConversationLogger.LogLevel.debug, "Raw AI response: '\(result.content)'", context: "handleFollowUpResponse")
             if let reasoning = result.reasoning {
-                print("🧠 DEBUG handleFollowUpResponse: Reasoning: '\(reasoning)'")
+                logger.log(ConversationLogger.LogLevel.debug, "Reasoning: '\(reasoning)'", context: "handleFollowUpResponse")
             }
             
-            let processedResponse = try await toolProcessor.processResponseWithToolCalls(result.content)
-            let finalResponse = processedResponse.cleanedResponse
-            
-            print("🔍 DEBUG handleFollowUpResponse: Cleaned response: '\(finalResponse)'")
-            print("🔍 DEBUG handleFollowUpResponse: Tool results count: \(processedResponse.toolResults.count)")
-            
-            // Create state from response
+            // Create state from RAW response (tool processing happens in processToolCallsIfNeeded)
             var state = AssistantResponseState()
+            state.setContent(result.content)  // Keep raw content for tool detection downstream
+            state.setReasoning(result.reasoning)
             
-            if !finalResponse.isEmpty {
-                state.setContent(finalResponse)
-                state.setReasoning(result.reasoning)
-                
-                // Append new message for follow-up
-                let message = MessageFactory.assistant(
-                    content: finalResponse,
-                    reasoning: result.reasoning
-                )
-                messages.append(message)
-                state.setMessageIndex(messages.count - 1)
-                
-                print("📝 Follow-up response: Appended new assistant message")
-            } else {
-                print("⚠️ WARNING: Follow-up response is empty after processing!")
-                
-                // Generate meaningful response from tool results
-                let meaningfulResponse = generateMeaningfulResponseContent(from: apiHistory)
-                state.setContent(meaningfulResponse)
-                state.setReasoning(result.reasoning)
-                
-                let message = MessageFactory.assistant(
-                    content: meaningfulResponse,
-                    reasoning: result.reasoning
-                )
-                messages.append(message)
-                state.setMessageIndex(messages.count - 1)
-                
-                print("✅ RECOVERY: Generated meaningful response from tool results")
-            }
+            // Create message - will be updated by processToolCallsIfNeeded with cleaned content
+            let message = MessageFactory.assistant(
+                content: result.content,  // Start with raw content
+                reasoning: result.reasoning
+            )
+            messages.append(message)
+            state.setMessageIndex(messages.count - 1)
             
-            updateState(.finalizing)
+            logger.log(ConversationLogger.LogLevel.debug, "Created assistant message for follow-up", context: "handleFollowUpResponse")
+            
             return state
             
         } catch LLMError.missingContent {
@@ -249,7 +241,7 @@ class ConversationManager: ObservableObject {
     
     /// Handle empty LLM responses by generating meaningful content from tool results
     private func handleEmptyResponse() async throws -> AssistantResponseState {
-        print("🔍 handleEmptyResponse: AI returned empty content, generating response from tool results")
+        logger.log(ConversationLogger.LogLevel.debug, "AI returned empty content, generating response from tool results", context: "handleEmptyResponse")
         
         let meaningfulResponse = generateMeaningfulResponseContent(from: apiHistory)
         
@@ -261,9 +253,9 @@ class ConversationManager: ObservableObject {
         messages.append(message)
         state.setMessageIndex(messages.count - 1)
         
-        print("✅ Generated meaningful response from tool results: '\(meaningfulResponse)'")
+        logger.log(ConversationLogger.LogLevel.info, "Generated meaningful response from tool results: '\(meaningfulResponse)'", context: "handleEmptyResponse")
         
-        updateState(.finalizing)
+        // Don't call updateState(.finalizing) here - finalizeResponse will do it
         return state
     }
     
@@ -283,39 +275,39 @@ class ConversationManager: ObservableObject {
         let processed = try await toolProcessor.processResponseWithToolCalls(responseState.content)
         
         if !processed.toolResults.isEmpty {
-            print("⏱️ tools_start: \(Date().timeIntervalSince1970)")
+            logger.logTiming("tools_start", timestamp: Date().timeIntervalSince1970)
             
-            // Show tool processing UI
+            // Show tool processing UI (no artificial delay - tools complete quickly)
             for result in processed.toolResults {
                 updateState(.processingTool(
                     name: result.toolName,
-                    description: getToolDescription(result.toolName)
+                    description: "Processing \(result.toolName)..."
                 ))
-                try? await Task.sleep(for: .milliseconds(500))
             }
             
-            // Update message with cleaned content
+            // Update in-flight message with cleaned content and mark as completed
             if let idx = responseState.messageIndex, idx < messages.count {
-                let cleanContent = extractCleanContentBeforeTools(from: responseState.content)
-                if !cleanContent.isEmpty {
+                // Use processed.cleanedResponse for consistency with tool processor
+                // Pass reasoning to preserve it in the finalized message
+                if !processed.cleanedResponse.isEmpty {
                     messages[idx] = MessageFactory.updated(
                         messages[idx],
-                        content: cleanContent,
+                        content: processed.cleanedResponse,
+                        reasoning: responseState.reasoning,
                         state: .completed
                     )
                 } else {
-                    messages[idx] = MessageFactory.completed(messages[idx])
+                    messages[idx] = MessageFactory.updated(
+                        messages[idx],
+                        reasoning: responseState.reasoning,
+                        state: .completed
+                    )
                 }
             }
             
-            // Add assistant response to API history (if cleaned response exists)
-            if !processed.cleanedResponse.isEmpty {
-                let historyMessage = MessageFactory.assistant(
-                    content: processed.cleanedResponse,
-                    reasoning: responseState.reasoning
-                )
-                messages.append(historyMessage)
-            }
+            // Note: No need to append a separate assistant message here
+            // The streaming message has been finalized and will be included in apiHistory
+            // when its state is .completed
             
             // Add tool results as system message
             let toolMessage = MessageFactory.system(
@@ -323,12 +315,22 @@ class ConversationManager: ObservableObject {
             )
             messages.append(toolMessage)
             
-            print("⏱️ tools_complete: \(Date().timeIntervalSince1970)")
+            logger.logTiming("tools_complete", timestamp: Date().timeIntervalSince1970)
             
             return ToolProcessingResult(
                 hasTools: true,
                 toolResults: processed.toolResults,
                 cleanedResponse: processed.cleanedResponse
+            )
+        }
+        
+        // No tools detected - still apply cleaned response for normalization
+        if let idx = responseState.messageIndex, idx < messages.count {
+            messages[idx] = MessageFactory.updated(
+                messages[idx],
+                content: processed.cleanedResponse,
+                reasoning: responseState.reasoning,
+                state: .completed
             )
         }
         
@@ -345,7 +347,7 @@ class ConversationManager: ObservableObject {
         
         // Defensive check: if content is empty, create fallback
         if finalContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            print("⚠️ ConversationManager: Final response is empty, using fallback")
+            logger.log(ConversationLogger.LogLevel.warning, "Final response is empty, using fallback", context: "finalizeResponse")
             finalContent = "I've processed your request, but encountered an issue generating a response. Please try again."
         }
         
@@ -360,138 +362,38 @@ class ConversationManager: ObservableObject {
             return
         }
         
-        // Update existing message if still streaming
-        if messages[idx].state == .streaming {
-            messages[idx] = MessageFactory.updated(
-                messages[idx],
-                content: finalContent,
-                state: .completed
-            )
-        }
+        // Update existing message (works for both streaming and non-streaming)
+        // Always preserve reasoning when finalizing
+let current = messages[idx]
+let trimmed = current.content.trimmingCharacters(in: .whitespacesAndNewlines)
+let contentToApply = trimmed.isEmpty ? finalContent : current.content
+messages[idx] = MessageFactory.updated(
+    current,
+    content: contentToApply,
+    reasoning: state.reasoning,
+    state: .completed
+)
         
         updateState(.finalizing)
     }
     
     // MARK: - Streaming Support
     
-    /// Stream response from LLM service
+    /// Stream response from LLM service (delegates to StreamingCoordinator)
     private func streamResponse(
         apiKey: String,
         model: String,
         systemPrompt: String
     ) async throws -> AssistantResponseState {
-        var state = AssistantResponseState()
-        var streamedContent = ""
-        var streamedReasoning = ""
-        var tokenBuffer = ""
-        var isBufferingTool = false
-        var messageCreated = false
-        
-        let result = try await llmService.streamComplete(
+        let result = try await streamingCoordinator.streamResponse(
             apiKey: apiKey,
             model: model,
             systemPrompt: systemPrompt,
-            history: apiHistory,
-            onToken: { [weak self] token in
-                guard let self = self else { return }
-                
-                tokenBuffer.append(token)
-                
-                // Diagnostic logging
-                if tokenBuffer.count % 50 == 0 || tokenBuffer.contains("[TOOL_CALL:") {
-                    print("🔍 STREAM_DEBUG: Buffer length=\(tokenBuffer.count), isBuffering=\(isBufferingTool)")
-                }
-                
-                // Check for tool pattern
-                if tokenBuffer.contains("[TOOL_CALL:") && !isBufferingTool {
-                    isBufferingTool = true
-                    print("🔍 STREAM_DEBUG: TOOL DETECTED - Switching to buffering mode")
-                    
-                    if let toolName = self.extractToolName(from: tokenBuffer) {
-                        Task { @MainActor in
-                            self.updateState(.processingTool(
-                                name: toolName,
-                                description: self.getToolDescription(toolName)
-                            ))
-                        }
-                    }
-                } else if !isBufferingTool {
-                    // Only append non-tool content
-                    streamedContent.append(token)
-                    
-                    Task { @MainActor in
-                        if !messageCreated && !streamedContent.isEmpty {
-                            // Create streaming message
-                            let message = MessageFactory.assistantStreaming(
-                                content: streamedContent,
-                                reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning
-                            )
-                            self.messages.append(message)
-                            state.setMessageIndex(self.messages.count - 1)
-                            messageCreated = true
-                            print("🔍 STREAM_DEBUG: Created streaming message")
-                        } else if let idx = state.messageIndex, idx < self.messages.count,
-                                  self.messages[idx].state == .streaming {
-                            // Update streaming message
-                            if let updated = self.messages[idx].updatedContent(
-                                streamedContent,
-                                reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning
-                            ) {
-                                self.messages[idx] = updated
-                            }
-                        }
-                    }
-                }
-                
-                // Keep full text for processing
-                if isBufferingTool {
-                    streamedContent = tokenBuffer
-                }
-            },
-            onReasoning: { [weak self] reasoning in
-                guard let self = self else { return }
-                streamedReasoning += reasoning
-                print("🧠 Reasoning token: '\(reasoning)'")
-                
-                // Update message with reasoning in real-time
-                Task { @MainActor in
-                    // Publish reasoning chunk for preview UI
-                    self.isStreamingReasoning = true
-                    self.latestReasoningChunk = reasoning
-                    
-                    if !messageCreated && !streamedReasoning.isEmpty {
-                        // Create streaming message with reasoning (even if no content yet)
-                        let message = MessageFactory.assistantStreaming(
-                            content: streamedContent,
-                            reasoning: streamedReasoning
-                        )
-                        self.messages.append(message)
-                        state.setMessageIndex(self.messages.count - 1)
-                        messageCreated = true
-                        print("🔍 STREAM_DEBUG: Created streaming message from reasoning")
-                    } else if let idx = state.messageIndex, idx < self.messages.count,
-                              self.messages[idx].state == .streaming {
-                        // Update existing streaming message with new reasoning
-                        if let updated = self.messages[idx].updatedContent(
-                            streamedContent,
-                            reasoning: streamedReasoning
-                        ) {
-                            self.messages[idx] = updated
-                        }
-                    }
-                }
-            }
+            history: apiHistory
         )
         
-        // Store final content
-        state.setContent(result.content)
-        state.setReasoning(result.reasoning)
-        
-        // Clear reasoning streaming state
-        isStreamingReasoning = false
-        latestReasoningChunk = nil
-        
-        return state
+        // Message already added via delegate, just return the state
+        return result.state
     }
     
     /// Fallback to non-streaming when streaming fails
@@ -575,38 +477,13 @@ class ConversationManager: ObservableObject {
     private func persistMessages() async {
         do {
             try persistence.save(messages)
-            print("💾 Persist called with \(messages.count) messages")
+            logger.logPersistence("save", messageCount: messages.count)
         } catch {
-            print("❌ Persist error: \(error)")
+            logger.logError(error, context: "persistMessages")
         }
     }
     
-    /// Extract tool name from token buffer
-    private func extractToolName(from buffer: String) -> String? {
-        // Use canonical regex pattern from ToolCallDetector to match complete tool calls only
-        // This prevents premature matches on partial tokens during streaming
-        let pattern = #"\[TOOL_CALL:\s*(\w+)(?:\((.*?)\))?\]"#
-        if let regex = try? NSRegularExpression(pattern: pattern),
-           let match = regex.firstMatch(in: buffer, range: NSRange(buffer.startIndex..., in: buffer)),
-           let toolNameRange = Range(match.range(at: 1), in: buffer) {
-            return String(buffer[toolNameRange])
-        }
-        return nil
-    }
     
-    /// Get tool description for UI display
-    private func getToolDescription(_ toolName: String) -> String {
-        return toolDescriptions[toolName]?.description ?? "Processing \(toolName)..."
-    }
-    
-    /// Extract clean content before the first tool call
-    private func extractCleanContentBeforeTools(from response: String) -> String {
-        if let toolCallRange = response.range(of: "[TOOL_CALL:") {
-            let cleanContent = String(response[..<toolCallRange.lowerBound])
-            return cleanContent.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        return response.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }
 
 // MARK: - Conversation State
@@ -640,5 +517,33 @@ extension ConversationState {
         case .error:
             return .idle // Handle errors via separate error message in UI
         }
+    }
+}
+
+// MARK: - StreamingStateDelegate
+
+extension ConversationManager: StreamingStateDelegate {
+    func streamingDidCreateMessage(_ message: ChatMessage) -> Int {
+        // Append the message and return its index
+        messages.append(message)
+        let index = messages.count - 1
+        logger.log(ConversationLogger.LogLevel.debug, "Streaming message created at index \(index)", context: "Streaming")
+        return index
+    }
+    
+    func streamingDidUpdateMessage(at index: Int, with message: ChatMessage) {
+        // Update our messages array with the latest version
+        if index < messages.count {
+            messages[index] = message
+        }
+    }
+    
+    func streamingDidDetectTool(name: String, description: String) {
+        updateState(.processingTool(name: name, description: description))
+    }
+    
+    func streamingDidUpdateReasoningState(isStreaming: Bool, latestChunk: String?) {
+        self.isStreamingReasoning = isStreaming
+        self.latestReasoningChunk = latestChunk
     }
 }
