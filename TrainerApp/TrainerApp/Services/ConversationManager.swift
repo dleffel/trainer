@@ -246,6 +246,9 @@ extension ConversationManager: StreamingStateDelegate {
 
 extension ConversationManager: ToolExecutionStateDelegate {
     func toolExecutionDidStart(toolName: String, description: String) {
+        // Clear reasoning preview flags before tool processing
+        self.isStreamingReasoning = false
+        self.latestReasoningChunk = nil
         updateState(.processingTool(name: toolName, description: description))
     }
     

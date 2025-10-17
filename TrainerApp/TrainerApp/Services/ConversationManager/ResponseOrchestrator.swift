@@ -153,6 +153,11 @@ class ResponseOrchestrator {
                 logger.log(ConversationLogger.LogLevel.debug, "Detected dangling streaming message before fallback", context: "handleInitialResponse")
             }
             
+            // Clear reasoning UI flags before fallback
+            if let streamingDelegate = delegate as? StreamingStateDelegate {
+                streamingDelegate.streamingDidUpdateReasoningState(isStreaming: false, latestChunk: nil)
+            }
+            
             // Fallback to non-streaming
             logger.log(ConversationLogger.LogLevel.warning, "Streaming failed, falling back to non-streaming: \(error.localizedDescription)", context: "handleInitialResponse")
             state = try await fallbackNonStreaming(
