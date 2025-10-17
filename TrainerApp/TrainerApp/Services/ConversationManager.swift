@@ -172,6 +172,12 @@ class ConversationManager: ObservableObject {
                 systemPrompt: systemPrompt
             )
         } catch {
+            // Clean up any dangling .streaming message before fallback
+            if let lastMessage = messages.last, lastMessage.state == .streaming {
+                messages.removeLast()
+                logger.log(ConversationLogger.LogLevel.debug, "Removed dangling streaming message before fallback", context: "handleInitialResponse")
+            }
+            
             // Fallback to non-streaming
             logger.log(ConversationLogger.LogLevel.warning, "Streaming failed, falling back to non-streaming: \(error.localizedDescription)", context: "handleInitialResponse")
             state = try await fallbackNonStreaming(
@@ -293,13 +299,12 @@ class ConversationManager: ObservableObject {
         if !processed.toolResults.isEmpty {
             logger.logTiming("tools_start", timestamp: Date().timeIntervalSince1970)
             
-            // Show tool processing UI
+            // Show tool processing UI (no artificial delay - tools complete quickly)
             for result in processed.toolResults {
                 updateState(.processingTool(
                     name: result.toolName,
                     description: "Processing \(result.toolName)..."
                 ))
-                try? await Task.sleep(for: .milliseconds(500))
             }
             
             // Update in-flight streaming message with cleaned content and mark as completed

@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 /// Delegate protocol for streaming state updates
 @MainActor
@@ -38,8 +37,6 @@ class StreamingCoordinator {
     /// Result of streaming operation
     struct StreamingResult {
         let state: AssistantResponseState
-        let createdMessage: ChatMessage?
-        let detectedToolCall: Bool
     }
     
     /// Stream a response and return the final state
@@ -178,11 +175,7 @@ class StreamingCoordinator {
         
         logger.logStreamingEvent(.completed)
         
-        return StreamingResult(
-            state: state,
-            createdMessage: createdMessage,
-            detectedToolCall: isBufferingTool
-        )
+        return StreamingResult(state: state)
     }
     
     // MARK: - Private Helpers
