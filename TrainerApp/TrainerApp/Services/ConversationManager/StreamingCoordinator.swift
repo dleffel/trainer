@@ -60,7 +60,6 @@ class StreamingCoordinator {
         var tokenBuffer = ""
         var isBufferingTool = false
         var messageCreated = false
-        var createdMessage: ChatMessage? = nil
         var messageIndex: Int? = nil
         
         let result = try await llmService.streamComplete(
@@ -99,22 +98,19 @@ class StreamingCoordinator {
                                 content: streamedContent,
                                 reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning
                             )
-                            createdMessage = message
                             messageCreated = true
                             // Get index from delegate
                             if let idx = self.delegate?.streamingDidCreateMessage(message) {
                                 messageIndex = idx
                                 self.logger.logStreamingEvent(.messageCreated(index: idx))
                             }
-                        } else if messageCreated, let message = createdMessage, let idx = messageIndex {
-                            // Update streaming message
-                            if let updated = message.updatedContent(
-                                streamedContent,
+                        } else if messageCreated, let idx = messageIndex {
+                            // Update streaming message via delegate
+                            let updated = MessageFactory.assistantStreaming(
+                                content: streamedContent,
                                 reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning
-                            ) {
-                                createdMessage = updated
-                                self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
-                            }
+                            )
+                            self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
                         }
                     }
                 }
@@ -140,22 +136,19 @@ class StreamingCoordinator {
                             content: streamedContent,
                             reasoning: streamedReasoning
                         )
-                        createdMessage = message
                         messageCreated = true
                         // Get index from delegate
                         if let idx = self.delegate?.streamingDidCreateMessage(message) {
                             messageIndex = idx
                             self.logger.logStreamingEvent(.messageCreated(index: idx))
                         }
-                    } else if messageCreated, let message = createdMessage, let idx = messageIndex {
-                        // Update existing streaming message with new reasoning
-                        if let updated = message.updatedContent(
-                            streamedContent,
+                    } else if messageCreated, let idx = messageIndex {
+                        // Update existing streaming message with new reasoning via delegate
+                        let updated = MessageFactory.assistantStreaming(
+                            content: streamedContent,
                             reasoning: streamedReasoning
-                        ) {
-                            createdMessage = updated
-                            self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
-                        }
+                        )
+                        self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
                     }
                 }
             }
