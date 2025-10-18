@@ -278,6 +278,14 @@ class MessageRetryManager: ObservableObject {
         saveOfflineQueue()
     }
     
+    /// Clear all messages from offline queue and return the list
+    func clearOfflineQueue() -> [UUID] {
+        let queuedMessages = Array(offlineQueue)
+        offlineQueue.removeAll()
+        saveOfflineQueue()
+        return queuedMessages
+    }
+    
     
     /// Setup network observer to process queue when online
     private func setupNetworkObserver() {

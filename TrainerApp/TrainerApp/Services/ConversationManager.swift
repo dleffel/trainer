@@ -416,9 +416,21 @@ class ConversationManager: ObservableObject {
                 
                 // Process offline queue when network returns
                 if isConnected && wasOffline && !self.retryManager.offlineQueue.isEmpty {
-                    print("🌐 ConversationManager: Processing \(self.retryManager.offlineQueue.count) queued messages")
+                    // Clear the queue and get queued message IDs
+                    let queuedMessageIds = self.retryManager.clearOfflineQueue()
+                    print("🌐 ConversationManager: Processing \(queuedMessageIds.count) queued messages")
+                    
+                    self.offlineQueueCount = 0
+                    
+                    // Actually retry each queued message
                     Task {
-                        await self.retryManager.processOfflineQueue()
+                        for messageId in queuedMessageIds {
+                            // Find the message index
+                            if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                                print("🔄 ConversationManager: Retrying message at index \(index)")
+                                try? await self.retryFailedMessage(at: index)
+                            }
+                        }
                     }
                 }
             }

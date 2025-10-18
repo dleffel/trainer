@@ -70,7 +70,16 @@ struct ChatMessage: Identifiable, Codable {
     
     /// Update send status
     func withSendStatus(_ newStatus: SendStatus) -> ChatMessage {
-        return ChatMessage(id: id, role: role, content: content, reasoning: reasoning, date: date, state: state, attachments: attachments, sendStatus: newStatus, lastRetryAttempt: Date.current, retryCount: retryCount + (newStatus.isActive ? 1 : 0))
+        // Only increment retry count when transitioning to .retrying, not .sending
+        let shouldIncrementRetry: Bool
+        switch newStatus {
+        case .retrying:
+            shouldIncrementRetry = true
+        default:
+            shouldIncrementRetry = false
+        }
+        
+        return ChatMessage(id: id, role: role, content: content, reasoning: reasoning, date: date, state: state, attachments: attachments, sendStatus: newStatus, lastRetryAttempt: Date.current, retryCount: retryCount + (shouldIncrementRetry ? 1 : 0))
     }
 
     enum Role: String, Codable {
