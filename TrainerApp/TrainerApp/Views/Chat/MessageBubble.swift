@@ -204,10 +204,11 @@ struct MessageBubble: View, Equatable {
                         Text("Retry")
                     }
                     .font(.caption)
+                    .fontWeight(.medium)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
+                    .background(Color.white.opacity(0.25))
+                    .foregroundColor(.white)
                     .clipShape(Capsule())
                 }
             }
