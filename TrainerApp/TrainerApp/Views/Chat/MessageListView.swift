@@ -36,6 +36,7 @@ struct MessageListView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 8)
             }
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: messages.count) { _, _ in
                 scrollToBottom(proxy: proxy, animated: true)
             }
