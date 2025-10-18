@@ -191,14 +191,8 @@ class ConversationManager: ObservableObject {
             }
         }
         
-        // All retries exhausted
-        if let error = lastError {
-            let failureReason = classifyError(error)
-            updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: false))
-            await persistMessages()
-            updateState(.error(error.localizedDescription))
-            throw error
-        }
+        // Should never reach here - loop always throws on last attempt
+        throw SendError.cannotRetry
     }
     
     /// Manually retry a failed message
@@ -212,15 +206,12 @@ class ConversationManager: ObservableObject {
             throw SendError.cannotRetry
         }
         
-        // Extract images if any
-        let images = extractImages(from: message)
-        
         // Retry the existing message in-place
-        try await retryExistingMessage(at: index, text: message.content, images: images)
+        try await retryExistingMessage(at: index)
     }
     
     /// Retry an existing message at a specific index (in-place, no new message)
-    private func retryExistingMessage(at messageIndex: Int, text: String, images: [UIImage]) async throws {
+    private func retryExistingMessage(at messageIndex: Int) async throws {
         guard config.hasValidApiKey else {
             throw ConfigurationError.missingApiKey
         }
@@ -309,14 +300,8 @@ class ConversationManager: ObservableObject {
             }
         }
         
-        // All retries exhausted - allow manual retry
-        if let error = lastError {
-            let failureReason = classifyError(error)
-            updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: true))
-            await persistMessages()
-            updateState(.error(error.localizedDescription))
-            throw error
-        }
+        // Should never reach here, but handle gracefully
+        throw SendError.cannotRetry
     }
     
     /// Load conversation from persistence

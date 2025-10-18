@@ -22,25 +22,21 @@ class MessageRetryManager: ObservableObject {
     
     // MARK: - Published Properties
     
-    @Published private(set) var sendStatus: [UUID: SendStatus] = [:]
     @Published private(set) var offlineQueue: [UUID] = []
-    @Published private(set) var activeRetries: Set<UUID> = []
     
     // MARK: - Private Properties
     
     private let config = RetryConfiguration()
     private let networkMonitor: NetworkMonitor
-    private let retryStatePersistence: HybridCloudStore<RetryState>
     private let queuePersistence: SimpleKeyValueStore<[UUID]>
     
     // MARK: - Initialization
     
     init(networkMonitor: NetworkMonitor = .shared) {
         self.networkMonitor = networkMonitor
-        self.retryStatePersistence = HybridCloudStore<RetryState>()
         self.queuePersistence = SimpleKeyValueStore()
         
-        // Load persisted retry state
+        // Load persisted offline queue
         loadPersistedState()
     }
     
@@ -82,32 +78,6 @@ class MessageRetryManager: ObservableObject {
     
     // MARK: - Persistence
     
-    private func saveRetryState(_ messageId: UUID, attempt: Int, error: String) {
-        let state = RetryState(
-            messageId: messageId,
-            attempt: attempt,
-            lastAttemptDate: Date.current,
-            error: error,
-            status: sendStatus[messageId] ?? .notSent
-        )
-        
-        do {
-            try retryStatePersistence.save(state, forKey: PersistenceKey.MessageRetry.status(messageId))
-        } catch {
-            print("⚠️ MessageRetryManager: Failed to save retry state: \(error)")
-        }
-    }
-    
-    private func clearRetryState(_ messageId: UUID) {
-        do {
-            try retryStatePersistence.delete(forKey: PersistenceKey.MessageRetry.status(messageId))
-        } catch {
-            print("⚠️ MessageRetryManager: Failed to clear retry state: \(error)")
-        }
-        
-        sendStatus.removeValue(forKey: messageId)
-    }
-    
     private func loadPersistedState() {
         // Load offline queue using SimpleKeyValueStore
         if let loadedQueue: [UUID] = queuePersistence.load(forKey: PersistenceKey.MessageRetry.offlineQueue) {
@@ -129,15 +99,6 @@ class MessageRetryManager: ObservableObject {
 }
 
 // MARK: - Supporting Types
-
-/// Persisted retry state
-struct RetryState: Codable {
-    let messageId: UUID
-    let attempt: Int
-    let lastAttemptDate: Date
-    let error: String?
-    let status: SendStatus
-}
 
 /// Send-specific errors
 enum SendError: LocalizedError {
