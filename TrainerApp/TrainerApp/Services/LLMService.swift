@@ -5,7 +5,7 @@ import Foundation
 enum LLMError: LocalizedError {
     case missingContent
     case invalidResponse
-    case httpError(Int, isRetryable: Bool = true)
+case httpError(Int, isRetryable: Bool = false)
     case networkError(Error, isRetryable: Bool = true)
     case timeout
 
