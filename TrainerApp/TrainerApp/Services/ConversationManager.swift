@@ -229,6 +229,7 @@ class ConversationManager: ObservableObject {
         guard networkMonitor.isConnected else {
             updateMessageSendStatus(at: messageIndex, status: .offline)
             retryManager.addToOfflineQueue(messages[messageIndex].id)
+            self.offlineQueueCount = self.retryManager.offlineQueue.count
             await persistMessages()
             throw SendError.offline
         }
@@ -308,10 +309,10 @@ class ConversationManager: ObservableObject {
             }
         }
         
-        // All retries exhausted
+        // All retries exhausted - allow manual retry
         if let error = lastError {
             let failureReason = classifyError(error)
-            updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: false))
+            updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: true))
             await persistMessages()
             updateState(.error(error.localizedDescription))
             throw error
