@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import UIKit
+import Combine
 
 /// Manages conversation flow, message handling, and coordination between streaming, tools, and persistence
 @MainActor
@@ -21,6 +22,7 @@ class ConversationManager: ObservableObject {
     private let persistence = ConversationPersistence()
     private let config: AppConfiguration
     private let logger = ConversationLogger.shared
+    private var networkCancellable: AnyCancellable?
     
     // MARK: - Coordinators
     private let streamingCoordinator: StreamingCoordinator
@@ -105,41 +107,90 @@ class ConversationManager: ObservableObject {
         let messageIndex = messages.count - 1
         await persistMessages()
         
+        // Check if offline before attempting
+        guard networkMonitor.isConnected else {
+            updateMessageSendStatus(at: messageIndex, status: .offline)
+            retryManager.addToOfflineQueue(messages[messageIndex].id)
+            await persistMessages()
+            throw SendError.offline
+        }
+        
         // Update to sending status
         updateMessageSendStatus(at: messageIndex, status: .sending)
         
-        // Start conversation flow via orchestrator
+        // Start conversation flow via orchestrator with automatic retry
         updateState(.preparingResponse)
         
-        do {
-            // Send with retry logic
-            let result = try await responseOrchestrator.executeConversationFlow(
-                apiKey: apiKey,
-                model: model,
-                systemPrompt: systemPrompt
-            )
-            
-            logger.log(ConversationLogger.LogLevel.info, "Conversation completed in \(result.turns) turns, hadTools: \(result.hadTools)", context: "sendMessage")
-            
-            // Mark as sent
-            updateMessageSendStatus(at: messageIndex, status: .sent)
-            
-            // Persist after successful completion
-            await persistMessages()
-            
-        } catch {
-            logger.logError(error, context: "sendMessage")
-            
-            // Check if offline
-            if !networkMonitor.isConnected {
-                updateMessageSendStatus(at: messageIndex, status: .offline)
-            } else {
-                // Classify error and update status
+        // Retry configuration
+        let maxAttempts = 3
+        let baseDelay: TimeInterval = 1.0
+        let maxDelay: TimeInterval = 30.0
+        let backoffMultiplier: Double = 2.0
+        
+        var lastError: Error?
+        
+        for attempt in 1...maxAttempts {
+            do {
+                // Attempt to send
+                let result = try await responseOrchestrator.executeConversationFlow(
+                    apiKey: apiKey,
+                    model: model,
+                    systemPrompt: systemPrompt
+                )
+                
+                logger.log(ConversationLogger.LogLevel.info, "Conversation completed in \(result.turns) turns, hadTools: \(result.hadTools)", context: "sendMessage")
+                
+                // Mark as sent
+                updateMessageSendStatus(at: messageIndex, status: .sent)
+                
+                // Persist after successful completion
+                await persistMessages()
+                return // Success!
+                
+            } catch {
+                lastError = error
+                logger.logError(error, context: "sendMessage(attempt \(attempt)/\(maxAttempts))")
+                
+                // Check if error is retryable
                 let failureReason = classifyError(error)
                 let canRetry = shouldRetry(error: error)
-                updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: canRetry))
+                
+                // Check if offline
+                if !networkMonitor.isConnected {
+                    updateMessageSendStatus(at: messageIndex, status: .offline)
+                    retryManager.addToOfflineQueue(messages[messageIndex].id)
+                    await persistMessages()
+                    throw SendError.offline
+                }
+                
+                // If not retryable or last attempt, fail
+                if !canRetry || attempt >= maxAttempts {
+                    updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: canRetry))
+                    await persistMessages()
+                    updateState(.error(error.localizedDescription))
+                    throw error
+                }
+                
+                // Update status to retrying
+                updateMessageSendStatus(at: messageIndex, status: .retrying(attempt: attempt, maxAttempts: maxAttempts))
+                await persistMessages()
+                
+                // Calculate delay with exponential backoff and jitter
+                let exponentialDelay = baseDelay * pow(backoffMultiplier, Double(attempt - 1))
+                let jitter = Double.random(in: 0...0.1) * exponentialDelay
+                let delay = min(exponentialDelay + jitter, maxDelay)
+                
+                print("🔄 Retrying message (attempt \(attempt + 1)/\(maxAttempts)) after \(String(format: "%.1f", delay))s delay...")
+                
+                // Wait before retry
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
-            
+        }
+        
+        // All retries exhausted
+        if let error = lastError {
+            let failureReason = classifyError(error)
+            updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: false))
             await persistMessages()
             updateState(.error(error.localizedDescription))
             throw error
@@ -247,27 +298,31 @@ class ConversationManager: ObservableObject {
         }
     }
     
-    /// Setup network observation
+    /// Setup network observation using Combine
     private func setupNetworkObservation() {
-        // Observe network status changes
-        Task {
-            for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("NetworkStatusChanged")) {
-                await MainActor.run {
-                    self.isOnline = networkMonitor.isConnected
-                    self.offlineQueueCount = retryManager.offlineQueue.count
-                    
-                    // Process offline queue when network returns
-                    if networkMonitor.isConnected && !retryManager.offlineQueue.isEmpty {
-                        Task {
-                            await retryManager.processOfflineQueue()
-                        }
+        // Initial status
+        isOnline = networkMonitor.isConnected
+        offlineQueueCount = retryManager.offlineQueue.count
+        
+        // Observe network status changes using Combine
+        networkCancellable = networkMonitor.$isConnected
+            .sink { [weak self] isConnected in
+                guard let self = self else { return }
+                
+                let wasOffline = !self.isOnline
+                self.isOnline = isConnected
+                self.offlineQueueCount = self.retryManager.offlineQueue.count
+                
+                print("🌐 ConversationManager: Network status changed to \(isConnected ? "online" : "offline")")
+                
+                // Process offline queue when network returns
+                if isConnected && wasOffline && !self.retryManager.offlineQueue.isEmpty {
+                    print("🌐 ConversationManager: Processing \(self.retryManager.offlineQueue.count) queued messages")
+                    Task {
+                        await self.retryManager.processOfflineQueue()
                     }
                 }
             }
-        }
-        
-        // Initial status
-        isOnline = networkMonitor.isConnected
     }
     
     // MARK: - Helper Methods

@@ -94,7 +94,7 @@ class MessageRetryManager: ObservableObject {
         }
         
         // Remove from offline queue if present
-        offlineQueue.removeAll { $0 == messageId }
+        removeFromOfflineQueue(messageId)
         
         // Note: Actual retry logic would need message context
         // This is a placeholder - the real implementation would be called from ConversationManager
@@ -266,12 +266,18 @@ class MessageRetryManager: ObservableObject {
     }
     
     /// Add message to offline queue
-    private func addToOfflineQueue(_ messageId: UUID) {
+    func addToOfflineQueue(_ messageId: UUID) {
         if !offlineQueue.contains(messageId) {
             offlineQueue.append(messageId)
             saveOfflineQueue()
         }
     }
+    /// Remove message from offline queue
+    func removeFromOfflineQueue(_ messageId: UUID) {
+        offlineQueue.removeAll { $0 == messageId }
+        saveOfflineQueue()
+    }
+    
     
     /// Setup network observer to process queue when online
     private func setupNetworkObserver() {
