@@ -22,7 +22,8 @@ case httpError(Int, isRetryable: Bool = false)
     var isRetryable: Bool {
         switch self {
         case .httpError(let code, let retry):
-            return retry || (500...599).contains(code)  // Server errors are retryable
+            // 429 rate limit and 5xx server errors are retryable
+            return retry || code == 429 || (500...599).contains(code)
         case .networkError(_, let retry):
             return retry
         case .timeout:

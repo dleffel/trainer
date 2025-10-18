@@ -111,6 +111,7 @@ class ConversationManager: ObservableObject {
         guard networkMonitor.isConnected else {
             updateMessageSendStatus(at: messageIndex, status: .offline)
             retryManager.addToOfflineQueue(messages[messageIndex].id)
+            self.offlineQueueCount = self.retryManager.offlineQueue.count
             await persistMessages()
             throw SendError.offline
         }
@@ -159,25 +160,28 @@ class ConversationManager: ObservableObject {
                 if !networkMonitor.isConnected {
                     updateMessageSendStatus(at: messageIndex, status: .offline)
                     retryManager.addToOfflineQueue(messages[messageIndex].id)
+                    self.offlineQueueCount = self.retryManager.offlineQueue.count
                     await persistMessages()
                     throw SendError.offline
                 }
                 
                 // If not retryable or last attempt, fail
                 if !canRetry || attempt >= maxAttempts {
-                    updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: canRetry))
+                    // Allow manual retry even if auto-retry exhausted or not applicable
+                    let allowManualRetry = (!canRetry) || attempt >= maxAttempts
+                    updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: allowManualRetry))
                     await persistMessages()
                     updateState(.error(error.localizedDescription))
                     throw error
                 }
                 
-                // Update status to retrying
-                updateMessageSendStatus(at: messageIndex, status: .retrying(attempt: attempt, maxAttempts: maxAttempts))
+                // Update status to retrying (show next attempt number)
+                updateMessageSendStatus(at: messageIndex, status: .retrying(attempt: attempt + 1, maxAttempts: maxAttempts))
                 await persistMessages()
                 
-                // Calculate delay with exponential backoff and jitter
+                // Calculate delay with exponential backoff and constant jitter
                 let exponentialDelay = baseDelay * pow(backoffMultiplier, Double(attempt - 1))
-                let jitter = Double.random(in: 0...0.1) * exponentialDelay
+                let jitter = Double.random(in: 0...0.1)  // 0-100ms constant jitter
                 let delay = min(exponentialDelay + jitter, maxDelay)
                 
                 print("🔄 Retrying message (attempt \(attempt + 1)/\(maxAttempts)) after \(String(format: "%.1f", delay))s delay...")
@@ -273,25 +277,28 @@ class ConversationManager: ObservableObject {
                 if !networkMonitor.isConnected {
                     updateMessageSendStatus(at: messageIndex, status: .offline)
                     retryManager.addToOfflineQueue(messages[messageIndex].id)
+                    self.offlineQueueCount = self.retryManager.offlineQueue.count
                     await persistMessages()
                     throw SendError.offline
                 }
                 
                 // If not retryable or last attempt, fail
                 if !canRetry || attempt >= maxAttempts {
-                    updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: canRetry))
+                    // Allow manual retry even if auto-retry exhausted or not applicable
+                    let allowManualRetry = (!canRetry) || attempt >= maxAttempts
+                    updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: allowManualRetry))
                     await persistMessages()
                     updateState(.error(error.localizedDescription))
                     throw error
                 }
                 
-                // Update status to retrying
-                updateMessageSendStatus(at: messageIndex, status: .retrying(attempt: attempt, maxAttempts: maxAttempts))
+                // Update status to retrying (show next attempt number)
+                updateMessageSendStatus(at: messageIndex, status: .retrying(attempt: attempt + 1, maxAttempts: maxAttempts))
                 await persistMessages()
                 
-                // Calculate delay with exponential backoff and jitter
+                // Calculate delay with exponential backoff and constant jitter
                 let exponentialDelay = baseDelay * pow(backoffMultiplier, Double(attempt - 1))
-                let jitter = Double.random(in: 0...0.1) * exponentialDelay
+                let jitter = Double.random(in: 0...0.1)  // 0-100ms constant jitter
                 let delay = min(exponentialDelay + jitter, maxDelay)
                 
                 print("🔄 Retrying message (attempt \(attempt + 1)/\(maxAttempts)) after \(String(format: "%.1f", delay))s delay...")
@@ -355,7 +362,7 @@ class ConversationManager: ObservableObject {
                 }
             case .timeout:
                 return .timeout
-            case .networkError:
+            case .networkError(_, _):
                 return .networkError
             default:
                 return .unknown
