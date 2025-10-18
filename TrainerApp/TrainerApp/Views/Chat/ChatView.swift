@@ -35,6 +35,11 @@ struct ChatView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Offline banner
+                if !conversationManager.isOnline {
+                    offlineBanner
+                }
+                
                 MessageListView(
                     messages: messages,
                     chatState: chatState,
@@ -79,6 +84,38 @@ struct ChatView: View {
         }, message: {
             Text(errorMessage ?? "")
         })
+    }
+    
+    // MARK: - UI Components
+    
+    private var offlineBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "wifi.slash")
+                .font(.title3)
+                .foregroundColor(.white)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Offline")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                if conversationManager.offlineQueueCount > 0 {
+                    Text("\(conversationManager.offlineQueueCount) message\(conversationManager.offlineQueueCount == 1 ? "" : "s") queued")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.9))
+                } else {
+                    Text("Messages will send when connected")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.orange)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
     
     // MARK: - Actions

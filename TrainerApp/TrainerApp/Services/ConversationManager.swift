@@ -13,6 +13,10 @@ class ConversationManager: ObservableObject {
     @Published private(set) var isStreamingReasoning: Bool = false
     @Published private(set) var latestReasoningChunk: String? = nil
     
+    // Network status for UI
+    @Published private(set) var isOnline: Bool = true
+    @Published private(set) var offlineQueueCount: Int = 0
+    
     // MARK: - Private Properties
     private let persistence = ConversationPersistence()
     private let config: AppConfiguration
@@ -22,6 +26,8 @@ class ConversationManager: ObservableObject {
     private let streamingCoordinator: StreamingCoordinator
     private let toolCoordinator: ToolExecutionCoordinator
     private let responseOrchestrator: ResponseOrchestrator
+    private let retryManager: MessageRetryManager
+    private let networkMonitor: NetworkMonitor
     
     // MARK: - Computed Properties
     
@@ -38,13 +44,16 @@ class ConversationManager: ObservableObject {
     
     init(
         config: AppConfiguration = .shared,
-        llmService: LLMServiceProtocol = LLMService.shared
+        llmService: LLMServiceProtocol = LLMService.shared,
+        networkMonitor: NetworkMonitor = .shared
     ) {
         self.config = config
+        self.networkMonitor = networkMonitor
         
         // Initialize coordinators
         self.streamingCoordinator = StreamingCoordinator(llmService: llmService)
         self.toolCoordinator = ToolExecutionCoordinator()
+        self.retryManager = MessageRetryManager(networkMonitor: networkMonitor, llmService: llmService)
         self.responseOrchestrator = ResponseOrchestrator(
             streamingCoordinator: streamingCoordinator,
             toolCoordinator: toolCoordinator,
@@ -55,6 +64,9 @@ class ConversationManager: ObservableObject {
         self.streamingCoordinator.delegate = self
         self.toolCoordinator.delegate = self
         self.responseOrchestrator.delegate = self
+        
+        // Observe network status
+        setupNetworkObservation()
     }
     
     // MARK: - Public Interface
@@ -62,6 +74,9 @@ class ConversationManager: ObservableObject {
     /// Initialize and load existing conversation
     func initialize() async {
         await loadConversation()
+        
+        // Start network monitoring
+        networkMonitor.startMonitoring()
     }
     
     /// Send a message - configuration handled internally
@@ -81,18 +96,23 @@ class ConversationManager: ObservableObject {
     
     /// Internal implementation with explicit configuration (for testing/flexibility)
     private func sendMessageWithConfig(_ text: String, images: [UIImage], apiKey: String, model: String, systemPrompt: String) async throws {
-        // Create and add user message using MessageFactory
+        // Create and add user message using MessageFactory with .notSent status
         let userMessage = images.isEmpty
-            ? MessageFactory.user(content: text)
-            : MessageFactory.userWithImages(content: text, images: images)
+            ? MessageFactory.user(content: text, sendStatus: .notSent)
+            : MessageFactory.userWithImages(content: text, images: images, sendStatus: .notSent)
         
         messages.append(userMessage)
+        let messageIndex = messages.count - 1
         await persistMessages()
+        
+        // Update to sending status
+        updateMessageSendStatus(at: messageIndex, status: .sending)
         
         // Start conversation flow via orchestrator
         updateState(.preparingResponse)
         
         do {
+            // Send with retry logic
             let result = try await responseOrchestrator.executeConversationFlow(
                 apiKey: apiKey,
                 model: model,
@@ -101,14 +121,44 @@ class ConversationManager: ObservableObject {
             
             logger.log(ConversationLogger.LogLevel.info, "Conversation completed in \(result.turns) turns, hadTools: \(result.hadTools)", context: "sendMessage")
             
+            // Mark as sent
+            updateMessageSendStatus(at: messageIndex, status: .sent)
+            
             // Persist after successful completion
             await persistMessages()
             
         } catch {
             logger.logError(error, context: "sendMessage")
+            
+            // Check if offline
+            if !networkMonitor.isConnected {
+                updateMessageSendStatus(at: messageIndex, status: .offline)
+            } else {
+                // Classify error and update status
+                let failureReason = classifyError(error)
+                let canRetry = shouldRetry(error: error)
+                updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: canRetry))
+            }
+            
+            await persistMessages()
             updateState(.error(error.localizedDescription))
             throw error
         }
+    }
+    
+    /// Manually retry a failed message
+    func retryFailedMessage(at index: Int) async throws {
+        guard index < messages.count else { return }
+        
+        let message = messages[index]
+        guard message.role == .user,
+              let status = message.sendStatus,
+              status.canRetry else {
+            throw SendError.cannotRetry
+        }
+        
+        // Re-send the message
+        try await sendMessage(message.content, images: extractImages(from: message))
     }
     
     /// Load conversation from persistence
@@ -129,6 +179,95 @@ class ConversationManager: ObservableObject {
         } catch {
             logger.logError(error, context: "clearConversation")
         }
+    }
+    
+    // MARK: - Send Status Management
+    
+    /// Update send status for a message
+    private func updateMessageSendStatus(at index: Int, status: SendStatus) {
+        guard index < messages.count else { return }
+        messages[index] = messages[index].withSendStatus(status)
+    }
+    
+    /// Classify error into failure reason
+    private func classifyError(_ error: Error) -> SendStatus.FailureReason {
+        if let llmError = error as? LLMError {
+            switch llmError {
+            case .httpError(let code, _):
+                if code == 401 || code == 403 {
+                    return .authenticationError
+                } else if code == 429 {
+                    return .rateLimitError
+                } else if (500...599).contains(code) {
+                    return .serverError
+                } else {
+                    return .unknown
+                }
+            case .timeout:
+                return .timeout
+            case .networkError:
+                return .networkError
+            default:
+                return .unknown
+            }
+        }
+        
+        // Check for network errors
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            switch nsError.code {
+            case NSURLErrorNotConnectedToInternet,
+                 NSURLErrorNetworkConnectionLost,
+                 NSURLErrorCannotConnectToHost:
+                return .networkError
+            case NSURLErrorTimedOut:
+                return .timeout
+            default:
+                return .networkError
+            }
+        }
+        
+        return .unknown
+    }
+    
+    /// Determine if error is retryable
+    private func shouldRetry(error: Error) -> Bool {
+        if let llmError = error as? LLMError {
+            return llmError.isRetryable
+        }
+        return true // Default to retryable for unknown errors
+    }
+    
+    /// Extract images from message attachments
+    private func extractImages(from message: ChatMessage) -> [UIImage] {
+        guard let attachments = message.attachments else { return [] }
+        return attachments.compactMap { attachment in
+            guard attachment.type == .image else { return nil }
+            return UIImage(data: attachment.data)
+        }
+    }
+    
+    /// Setup network observation
+    private func setupNetworkObservation() {
+        // Observe network status changes
+        Task {
+            for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("NetworkStatusChanged")) {
+                await MainActor.run {
+                    self.isOnline = networkMonitor.isConnected
+                    self.offlineQueueCount = retryManager.offlineQueue.count
+                    
+                    // Process offline queue when network returns
+                    if networkMonitor.isConnected && !retryManager.offlineQueue.isEmpty {
+                        Task {
+                            await retryManager.processOfflineQueue()
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Initial status
+        isOnline = networkMonitor.isConnected
     }
     
     // MARK: - Helper Methods
