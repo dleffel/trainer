@@ -69,18 +69,21 @@ enum MessageFactory {
     // MARK: - User Messages
     
     /// Create a user message
-    /// - Parameter content: The user's message content
+    /// - Parameters:
+    ///   - content: The user's message content
+    ///   - sendStatus: Optional send status (defaults to .notSent for tracking)
     /// - Returns: A ChatMessage from the user
-    static func user(content: String) -> ChatMessage {
-        ChatMessage(role: .user, content: content)
+    static func user(content: String, sendStatus: SendStatus = .notSent) -> ChatMessage {
+        ChatMessage(role: .user, content: content, sendStatus: sendStatus)
     }
     
     /// Create a user message with photo attachments
     /// - Parameters:
     ///   - content: The user's message content
     ///   - images: Array of UIImages to attach (will be compressed to JPEG)
+    ///   - sendStatus: Optional send status (defaults to .notSent for tracking)
     /// - Returns: A ChatMessage from the user with compressed image attachments
-    static func userWithImages(content: String, images: [UIImage]) -> ChatMessage {
+    static func userWithImages(content: String, images: [UIImage], sendStatus: SendStatus = .notSent) -> ChatMessage {
         let attachments = images.compactMap { image -> MessageAttachment? in
             // Compress image to JPEG with 0.8 quality
             guard let jpegData = image.jpegData(compressionQuality: 0.8) else { return nil }
@@ -90,7 +93,8 @@ enum MessageFactory {
         return ChatMessage(
             role: .user,
             content: content,
-            attachments: attachments.isEmpty ? nil : attachments
+            attachments: attachments.isEmpty ? nil : attachments,
+            sendStatus: sendStatus
         )
     }
     
@@ -102,12 +106,14 @@ enum MessageFactory {
     ///   - content: New content (nil to keep existing)
     ///   - reasoning: New reasoning (nil to keep existing)
     ///   - state: New state (nil to keep existing)
+    ///   - sendStatus: New send status (nil to keep existing)
     /// - Returns: A new ChatMessage with updated fields
     static func updated(
         _ message: ChatMessage,
         content: String? = nil,
         reasoning: String? = nil,
-        state: MessageState? = nil
+        state: MessageState? = nil,
+        sendStatus: SendStatus? = nil
     ) -> ChatMessage {
         ChatMessage(
             id: message.id,
@@ -116,7 +122,10 @@ enum MessageFactory {
             reasoning: reasoning ?? message.reasoning,
             date: message.date,
             state: state ?? message.state,
-            attachments: message.attachments
+            attachments: message.attachments,
+            sendStatus: sendStatus ?? message.sendStatus,
+            lastRetryAttempt: message.lastRetryAttempt,
+            retryCount: message.retryCount
         )
     }
     
@@ -136,8 +145,23 @@ enum MessageFactory {
             reasoning: message.reasoning,
             date: message.date,
             state: message.state,
-            attachments: message.attachments
+            attachments: message.attachments,
+            sendStatus: message.sendStatus,
+            lastRetryAttempt: message.lastRetryAttempt,
+            retryCount: message.retryCount
         )
+    }
+    
+    /// Update message send status
+    /// - Parameters:
+    ///   - message: The message to update
+    ///   - sendStatus: The new send status
+    /// - Returns: A new ChatMessage with updated send status
+    static func withSendStatus(
+        _ message: ChatMessage,
+        _ sendStatus: SendStatus
+    ) -> ChatMessage {
+        return message.withSendStatus(sendStatus)
     }
     
     /// Mark a message as completed
@@ -151,7 +175,10 @@ enum MessageFactory {
             reasoning: message.reasoning,
             date: message.date,
             state: .completed,
-            attachments: message.attachments
+            attachments: message.attachments,
+            sendStatus: message.sendStatus,
+            lastRetryAttempt: message.lastRetryAttempt,
+            retryCount: message.retryCount
         )
     }
 }

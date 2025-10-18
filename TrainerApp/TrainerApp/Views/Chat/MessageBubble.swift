@@ -13,6 +13,8 @@ struct MessageBubble: View, Equatable {
     let isLastMessage: Bool
     @ObservedObject var conversationManager: ConversationManager
     let attachments: [MessageAttachment]?
+    let sendStatus: SendStatus?  // NEW: Send status for retry UI
+    let messageIndex: Int  // NEW: For retry action
     
     // MARK: - Equatable Conformance
     
@@ -24,7 +26,8 @@ struct MessageBubble: View, Equatable {
         lhs.reasoning == rhs.reasoning &&
         lhs.isUser == rhs.isUser &&
         lhs.isLastMessage == rhs.isLastMessage &&
-        lhs.attachments?.map(\.id) == rhs.attachments?.map(\.id)
+        lhs.attachments?.map(\.id) == rhs.attachments?.map(\.id) &&
+        lhs.sendStatus == rhs.sendStatus
     }
     
     // MARK: - Environment & State
@@ -51,6 +54,10 @@ struct MessageBubble: View, Equatable {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Send status indicator (for user messages only)
+            if isUser, let status = sendStatus, status != .sent {
+                sendStatusView(status)
+            }
             // Show reasoning section if available and enabled
             if let reasoning = reasoning, !reasoning.isEmpty, showReasoningSetting {
                 Button {
@@ -169,6 +176,61 @@ struct MessageBubble: View, Equatable {
             guard !showReasoning && showReasoningSetting else { return }
             
             updatePreviewLines()
+        }
+    }
+    
+    // MARK: - Send Status View
+    
+    @ViewBuilder
+    private func sendStatusView(_ status: SendStatus) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: status.iconName)
+                .font(.caption)
+                .foregroundColor(statusColor(for: status))
+            
+            Text(status.statusDescription)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            // Retry button for failed messages
+            if status.canRetry {
+                Button {
+                    Task {
+                        try? await conversationManager.retryFailedMessage(at: messageIndex)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Retry")
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.white.opacity(0.25))
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+        .padding(.bottom, 4)
+    }
+    
+    private func statusColor(for status: SendStatus) -> Color {
+        switch status {
+        case .notSent, .sending:
+            return .secondary
+        case .sent:
+            return .green
+        case .retrying:
+            return .orange
+        case .failed:
+            return .red
+        case .offline:
+            return .yellow
         }
     }
     

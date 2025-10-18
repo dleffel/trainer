@@ -5,13 +5,31 @@ import Foundation
 enum LLMError: LocalizedError {
     case missingContent
     case invalidResponse
-    case httpError(Int)
+case httpError(Int, isRetryable: Bool = false)
+    case networkError(Error, isRetryable: Bool = true)
+    case timeout
 
     var errorDescription: String? {
         switch self {
         case .missingContent: return "No content returned by the model."
         case .invalidResponse: return "Unexpected response from the model."
-        case .httpError(let code): return "Network error: HTTP \(code)."
+        case .httpError(let code, _): return "Network error: HTTP \(code)."
+        case .networkError(let error, _): return "Network error: \(error.localizedDescription)"
+        case .timeout: return "Request timed out."
+        }
+    }
+    
+    var isRetryable: Bool {
+        switch self {
+        case .httpError(let code, let retry):
+            // 429 rate limit and 5xx server errors are retryable
+            return retry || code == 429 || (500...599).contains(code)
+        case .networkError(_, let retry):
+            return retry
+        case .timeout:
+            return true
+        case .missingContent, .invalidResponse:
+            return false
         }
     }
 }

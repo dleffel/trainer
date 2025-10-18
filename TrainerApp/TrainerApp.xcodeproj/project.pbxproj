@@ -36,6 +36,9 @@
 		B70B94172EA0B8BF00B9BD7E /* StreamingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */; };
 		B70B941A2EA2CF2500B9BD7E /* ResponseOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94182EA2CF2500B9BD7E /* ResponseOrchestrator.swift */; };
 		B70B941B2EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B94192EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift */; };
+		B70B941D2EA3464D00B9BD7E /* SendStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B941C2EA3464D00B9BD7E /* SendStatus.swift */; };
+		B70B94202EA3466800B9BD7E /* MessageRetryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B941E2EA3466800B9BD7E /* MessageRetryManager.swift */; };
+		B70B94212EA3466800B9BD7E /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B70B941F2EA3466800B9BD7E /* NetworkMonitor.swift */; };
 		B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947112E07006B00BE6537 /* TrainerAppApp.swift */; };
 		B75947142E07006B00BE6537 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75947132E07006B00BE6537 /* ContentView.swift */; };
 		B75947182E07006C00BE6537 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B75947172E07006C00BE6537 /* Assets.xcassets */; };
@@ -107,6 +110,9 @@
 		B70B94142EA0B8BF00B9BD7E /* StreamingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingCoordinator.swift; sourceTree = "<group>"; };
 		B70B94182EA2CF2500B9BD7E /* ResponseOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseOrchestrator.swift; sourceTree = "<group>"; };
 		B70B94192EA2CF2500B9BD7E /* ToolExecutionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolExecutionCoordinator.swift; sourceTree = "<group>"; };
+		B70B941C2EA3464D00B9BD7E /* SendStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendStatus.swift; sourceTree = "<group>"; };
+		B70B941E2EA3466800B9BD7E /* MessageRetryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRetryManager.swift; sourceTree = "<group>"; };
+		B70B941F2EA3466800B9BD7E /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		B759470E2E07006B00BE6537 /* TrainerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrainerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75947112E07006B00BE6537 /* TrainerAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainerAppApp.swift; sourceTree = "<group>"; };
 		B75947132E07006B00BE6537 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -325,6 +331,8 @@
 		B759473D2E0703BD00BE6537 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				B70B941E2EA3466800B9BD7E /* MessageRetryManager.swift */,
+				B70B941F2EA3466800B9BD7E /* NetworkMonitor.swift */,
 				B70B94152EA0B8BF00B9BD7E /* ConversationManager */,
 				B70B93E62E93641B00B9BD7E /* AssistantResponseState.swift */,
 				B70B93E72E93641B00B9BD7E /* MessageFactory.swift */,
@@ -364,6 +372,7 @@
 		B75A866F2E5D886800CB5792 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				B70B941C2EA3464D00B9BD7E /* SendStatus.swift */,
 				B70B93CE2E88E17300B9BD7E /* WorkoutSetResult.swift */,
 				B781C9322E7007C100B866CE /* StructuredWorkout.swift */,
 				B75A866D2E5D886800CB5792 /* TrainingBlock.swift */,
@@ -507,6 +516,7 @@
 				B7E0B0010000000000000003 /* ToolProcessor/Core/ToolExecutorRegistry.swift in Sources */,
 				B7E0B0010000000000000004 /* ToolProcessor/Core/ToolCallRouter.swift in Sources */,
 				B7E0B0010000000000000005 /* ToolProcessor/Core/NewToolProcessor.swift in Sources */,
+				B70B941D2EA3464D00B9BD7E /* SendStatus.swift in Sources */,
 				B70B94102E9DC47200B9BD7E /* TrainingProgramManager.swift in Sources */,
 				B7E0B0010000000000000006 /* ToolProcessor/Utilities/ToolUtilities.swift in Sources */,
 				B7E0B0010000000000000007 /* ToolProcessor/Executors/HealthDataToolExecutor.swift in Sources */,
@@ -534,6 +544,8 @@
 				B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */,
 				B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */,
 				B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */,
+				B70B94202EA3466800B9BD7E /* MessageRetryManager.swift in Sources */,
+				B70B94212EA3466800B9BD7E /* NetworkMonitor.swift in Sources */,
 				B75A866A2E5D884700CB5792 /* WeeklyCalendarView.swift in Sources */,
 				B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */,
 				B75A86702E5D886800CB5792 /* TrainingBlock.swift in Sources */,

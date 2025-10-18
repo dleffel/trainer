@@ -39,7 +39,12 @@ struct ChatMessage: Identifiable, Codable {
     var state: MessageState
     let attachments: [MessageAttachment]?  // Optional array of attachments
     
-    init(id: UUID = UUID(), role: Role, content: String, reasoning: String? = nil, date: Date = Date.current, state: MessageState = .completed, attachments: [MessageAttachment]? = nil) {
+    // NEW: Send status tracking (only relevant for user messages)
+    var sendStatus: SendStatus?
+    var lastRetryAttempt: Date?
+    var retryCount: Int
+    
+    init(id: UUID = UUID(), role: Role, content: String, reasoning: String? = nil, date: Date = Date.current, state: MessageState = .completed, attachments: [MessageAttachment]? = nil, sendStatus: SendStatus? = nil, lastRetryAttempt: Date? = nil, retryCount: Int = 0) {
         self.id = id
         self.role = role
         self.content = content
@@ -47,17 +52,34 @@ struct ChatMessage: Identifiable, Codable {
         self.date = date
         self.state = state
         self.attachments = attachments
+        self.sendStatus = sendStatus
+        self.lastRetryAttempt = lastRetryAttempt
+        self.retryCount = retryCount
     }
     
     /// Create a mutable copy of this message with new content (only if currently streaming)
     func updatedContent(_ newContent: String, reasoning: String? = nil) -> ChatMessage? {
         guard state == .streaming else { return nil }
-        return ChatMessage(id: id, role: role, content: newContent, reasoning: reasoning ?? self.reasoning, date: date, state: state, attachments: attachments)
+        return ChatMessage(id: id, role: role, content: newContent, reasoning: reasoning ?? self.reasoning, date: date, state: state, attachments: attachments, sendStatus: sendStatus, lastRetryAttempt: lastRetryAttempt, retryCount: retryCount)
     }
     
     /// Mark message as completed (no longer modifiable)
     func markCompleted() -> ChatMessage {
-        return ChatMessage(id: id, role: role, content: content, reasoning: reasoning, date: date, state: .completed, attachments: attachments)
+        return ChatMessage(id: id, role: role, content: content, reasoning: reasoning, date: date, state: .completed, attachments: attachments, sendStatus: sendStatus, lastRetryAttempt: lastRetryAttempt, retryCount: retryCount)
+    }
+    
+    /// Update send status
+    func withSendStatus(_ newStatus: SendStatus) -> ChatMessage {
+        // Only increment retry count when transitioning to .retrying, not .sending
+        let shouldIncrementRetry: Bool
+        switch newStatus {
+        case .retrying:
+            shouldIncrementRetry = true
+        default:
+            shouldIncrementRetry = false
+        }
+        
+        return ChatMessage(id: id, role: role, content: content, reasoning: reasoning, date: date, state: state, attachments: attachments, sendStatus: newStatus, lastRetryAttempt: Date.current, retryCount: retryCount + (shouldIncrementRetry ? 1 : 0))
     }
 
     enum Role: String, Codable {
@@ -75,8 +97,11 @@ private struct StoredMessage: Codable {
     let date: Date
     let state: String?  // Optional for backwards compatibility
     let attachments: [MessageAttachment]?  // Optional for image attachments
+    let sendStatus: SendStatus?  // Optional for send tracking
+    let lastRetryAttempt: Date?
+    let retryCount: Int?
     
-    init(id: UUID, role: String, content: String, reasoning: String? = nil, date: Date, state: String? = nil, attachments: [MessageAttachment]? = nil) {
+    init(id: UUID, role: String, content: String, reasoning: String? = nil, date: Date, state: String? = nil, attachments: [MessageAttachment]? = nil, sendStatus: SendStatus? = nil, lastRetryAttempt: Date? = nil, retryCount: Int? = nil) {
         self.id = id
         self.role = role
         self.content = content
@@ -84,6 +109,9 @@ private struct StoredMessage: Codable {
         self.date = date
         self.state = state
         self.attachments = attachments
+        self.sendStatus = sendStatus
+        self.lastRetryAttempt = lastRetryAttempt
+        self.retryCount = retryCount
     }
 }
 
@@ -172,13 +200,13 @@ struct ConversationPersistence {
         return stored.compactMap { s in
             guard let role = ChatMessage.Role(rawValue: s.role) else { return nil }
             let state = MessageState(rawValue: s.state ?? "completed") ?? .completed
-            return ChatMessage(id: s.id, role: role, content: s.content, reasoning: s.reasoning, date: s.date, state: state, attachments: s.attachments)
+            return ChatMessage(id: s.id, role: role, content: s.content, reasoning: s.reasoning, date: s.date, state: state, attachments: s.attachments, sendStatus: s.sendStatus, lastRetryAttempt: s.lastRetryAttempt, retryCount: s.retryCount ?? 0)
         }
     }
     
     private func convertToStored(_ messages: [ChatMessage]) -> [StoredMessage] {
         return messages.map { m in
-            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, reasoning: m.reasoning, date: m.date, state: m.state.rawValue, attachments: m.attachments)
+            StoredMessage(id: m.id, role: m.role.rawValue, content: m.content, reasoning: m.reasoning, date: m.date, state: m.state.rawValue, attachments: m.attachments, sendStatus: m.sendStatus, lastRetryAttempt: m.lastRetryAttempt, retryCount: m.retryCount)
         }
     }
 }

@@ -50,6 +50,21 @@ enum PersistenceKey {
         static let localFileName = "conversation.json"
     }
     
+    // MARK: - Message Retry (Tier 2: Hybrid Storage)
+    
+    enum MessageRetry {
+        /// Prefix for message retry status keys (append messageId)
+        static let statusPrefix = "message_retry_status_"
+        
+        /// Key for offline queue
+        static let offlineQueue = "message_retry_offline_queue"
+        
+        /// Generate a retry status key for a specific message
+        static func status(_ messageId: UUID) -> String {
+            return "\(statusPrefix)\(messageId.uuidString)"
+        }
+    }
+    
     // MARK: - Logging (Tier 3: File-Based)
     
     enum Logging {

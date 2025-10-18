@@ -15,8 +15,8 @@ struct MessageListView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    ForEach(messages) { msg in
-                        bubble(for: msg)
+                    ForEach(Array(messages.enumerated()), id: \.element.id) { index, msg in
+                        bubble(for: msg, at: index)
                             .id(msg.id)
                     }
                     
@@ -60,7 +60,7 @@ struct MessageListView: View {
     // MARK: - Private Helpers
     
     @ViewBuilder
-    private func bubble(for message: ChatMessage) -> some View {
+    private func bubble(for message: ChatMessage, at index: Int) -> some View {
         // Don't show system messages in the UI
         if message.role == .system {
             EmptyView()
@@ -77,7 +77,9 @@ struct MessageListView: View {
                         isUser: false,
                         isLastMessage: isLastMessage,
                         conversationManager: conversationManager,
-                        attachments: message.attachments
+                        attachments: message.attachments,
+                        sendStatus: nil,  // Assistant messages don't have send status
+                        messageIndex: index
                     )
                     .environmentObject(navigationState)
                     Spacer(minLength: 40)
@@ -90,7 +92,9 @@ struct MessageListView: View {
                         isUser: true,
                         isLastMessage: isLastMessage,
                         conversationManager: conversationManager,
-                        attachments: message.attachments
+                        attachments: message.attachments,
+                        sendStatus: message.sendStatus,  // Pass user message send status
+                        messageIndex: index
                     )
                     .environmentObject(navigationState)
                 }
