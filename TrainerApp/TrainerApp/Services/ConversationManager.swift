@@ -55,7 +55,7 @@ class ConversationManager: ObservableObject {
         // Initialize coordinators
         self.streamingCoordinator = StreamingCoordinator(llmService: llmService)
         self.toolCoordinator = ToolExecutionCoordinator()
-        self.retryManager = MessageRetryManager(networkMonitor: networkMonitor, llmService: llmService)
+        self.retryManager = MessageRetryManager(networkMonitor: networkMonitor)
         self.responseOrchestrator = ResponseOrchestrator(
             streamingCoordinator: streamingCoordinator,
             toolCoordinator: toolCoordinator,
