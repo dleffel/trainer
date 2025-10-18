@@ -30,7 +30,8 @@ class MessageRetryManager: ObservableObject {
     
     private let config = RetryConfiguration()
     private let networkMonitor: NetworkMonitor
-    private let persistence: HybridCloudStore<RetryState>
+    private let retryStatePersistence: HybridCloudStore<RetryState>
+    private let queuePersistence: SimpleKeyValueStore<[UUID]>
     private var retryTasks: [UUID: Task<Void, Never>] = [:]
     
     // MARK: - Dependencies
@@ -45,7 +46,8 @@ class MessageRetryManager: ObservableObject {
     ) {
         self.networkMonitor = networkMonitor
         self.llmService = llmService
-        self.persistence = HybridCloudStore<RetryState>()
+        self.retryStatePersistence = HybridCloudStore<RetryState>()
+        self.queuePersistence = SimpleKeyValueStore()
         
         // Load persisted retry state
         loadPersistedState()
@@ -311,7 +313,7 @@ class MessageRetryManager: ObservableObject {
         )
         
         do {
-            try persistence.save(state, forKey: PersistenceKey.MessageRetry.status(messageId))
+            try retryStatePersistence.save(state, forKey: PersistenceKey.MessageRetry.status(messageId))
         } catch {
             print("⚠️ MessageRetryManager: Failed to save retry state: \(error)")
         }
@@ -319,7 +321,7 @@ class MessageRetryManager: ObservableObject {
     
     private func clearRetryState(_ messageId: UUID) {
         do {
-            try persistence.delete(forKey: PersistenceKey.MessageRetry.status(messageId))
+            try retryStatePersistence.delete(forKey: PersistenceKey.MessageRetry.status(messageId))
         } catch {
             print("⚠️ MessageRetryManager: Failed to clear retry state: \(error)")
         }
@@ -328,15 +330,22 @@ class MessageRetryManager: ObservableObject {
     }
     
     private func loadPersistedState() {
-        // Load offline queue (stored as array of UUIDs)
-        // Note: Using SimpleKeyValueStore would be more appropriate for this
-        // For now, skip persistence of offline queue since HybridCloudStore expects RetryState
-        print("📦 MessageRetryManager: Initialized (offline queue persistence not yet implemented)")
+        // Load offline queue using SimpleKeyValueStore
+        if let loadedQueue: [UUID] = queuePersistence.load(forKey: PersistenceKey.MessageRetry.offlineQueue) {
+            offlineQueue = loadedQueue
+            print("📦 MessageRetryManager: Loaded \(loadedQueue.count) queued messages from persistence")
+        } else {
+            print("📦 MessageRetryManager: No persisted offline queue found")
+        }
     }
     
     private func saveOfflineQueue() {
-        // Skip for now - would need SimpleKeyValueStore or different persistence strategy
-        print("📦 MessageRetryManager: Offline queue saved (persistence not yet implemented)")
+        do {
+            try queuePersistence.save(offlineQueue, forKey: PersistenceKey.MessageRetry.offlineQueue)
+            print("📦 MessageRetryManager: Saved \(offlineQueue.count) queued messages")
+        } catch {
+            print("⚠️ MessageRetryManager: Failed to save offline queue: \(error)")
+        }
     }
 }
 
