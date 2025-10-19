@@ -12,49 +12,31 @@ struct MessageListView: View {
     @EnvironmentObject var navigationState: NavigationState
     
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(Array(messages.enumerated()), id: \.element.id) { index, msg in
-                        bubble(for: msg, at: index)
-                            .id(msg.id)
-                    }
-                    
-                    // Use the unified status view from ChatStateComponents
-                    if chatState != .idle {
-                        ChatStatusView(state: chatState)
-                            .id("status-indicator")
-                            .padding(.horizontal, 4)
-                    }
-                    
-                    // Add invisible spacer at bottom to ensure last message isn't cut off
-                    Color.clear
-                        .frame(height: 20)
-                        .id("bottom-spacer")
+        ScrollView {
+            LazyVStack(spacing: 8) {
+                ForEach(Array(messages.enumerated()), id: \.element.id) { index, msg in
+                    bubble(for: msg, at: index)
+                        .id(msg.id)
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .onChange(of: messages.count) { _, _ in
-                scrollToBottom(proxy: proxy, animated: true)
-            }
-            .onChange(of: chatState) { _, newValue in
-                // Only scroll when transitioning to non-idle state
-                if newValue != .idle {
-                    scrollToBottom(proxy: proxy, animated: true)
+                
+                // Use the unified status view from ChatStateComponents
+                if chatState != .idle {
+                    ChatStatusView(state: chatState)
+                        .id("status-indicator")
+                        .padding(.horizontal, 4)
                 }
+                
+                // Add invisible spacer at bottom to ensure last message isn't cut off
+                Color.clear
+                    .frame(height: 20)
+                    .id("bottom-spacer")
             }
-            .onAppear {
-                // Scroll to bottom when view appears (delayed for layout)
-                if messages.count > 0 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        scrollToBottom(proxy: proxy, animated: true)
-                    }
-                }
-            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
         }
+        .defaultScrollAnchor(.bottom)
+        .scrollDismissesKeyboard(.interactively)
     }
     
     // MARK: - Private Helpers
@@ -100,30 +82,6 @@ struct MessageListView: View {
                 }
             }
             .padding(.vertical, 2)
-        }
-    }
-    
-    /// Centralized scroll-to-bottom logic
-    /// - Parameters:
-    ///   - proxy: The ScrollViewProxy for controlling scroll position
-    ///   - animated: Whether to animate the scroll
-    private func scrollToBottom(proxy: ScrollViewProxy, animated: Bool) {
-        let scrollAction = {
-            if chatState != .idle {
-                // When processing, scroll to show status indicator
-                proxy.scrollTo("status-indicator", anchor: .bottom)
-            } else {
-                // When idle, scroll to bottom spacer to ensure last message is fully visible
-                proxy.scrollTo("bottom-spacer", anchor: .bottom)
-            }
-        }
-        
-        if animated {
-            withAnimation(.easeOut(duration: 0.25)) {
-                scrollAction()
-            }
-        } else {
-            scrollAction()
         }
     }
 }
