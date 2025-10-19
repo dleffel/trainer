@@ -22,14 +22,12 @@ struct MessageListView: View {
                 // Use the unified status view from ChatStateComponents
                 if chatState != .idle {
                     ChatStatusView(state: chatState)
-                        .id("status-indicator")
                         .padding(.horizontal, 4)
                 }
                 
                 // Add invisible spacer at bottom to ensure last message isn't cut off
                 Color.clear
                     .frame(height: 20)
-                    .id("bottom-spacer")
             }
             .padding(.horizontal, 12)
             .padding(.top, 8)
