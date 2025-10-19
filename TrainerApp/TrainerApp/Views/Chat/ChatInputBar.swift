@@ -27,6 +27,9 @@ struct ChatInputBar: View {
     // Focus state for keyboard management
     @FocusState private var isInputFocused: Bool
     
+    // Track if view has appeared to prevent initial animation
+    @State private var hasAppeared = false
+    
     var body: some View {
         VStack(spacing: 0) {
             // Image preview row (if images selected) with smooth transitions
@@ -42,7 +45,7 @@ struct ChatInputBar: View {
                     .padding(.vertical, 12)
                 }
                 .background(Color(.systemGray6))
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: photoWrappers.count)
+                .animation(hasAppeared ? .spring(response: 0.3, dampingFraction: 0.7) : nil, value: photoWrappers.count)
             }
             
             // Input controls with modern styling
@@ -85,6 +88,8 @@ struct ChatInputBar: View {
         .onAppear {
             // Initialize photoWrappers on first appear
             syncPhotoWrappers(with: selectedImages)
+            // Set appeared flag after sync to prevent initial animation
+            hasAppeared = true
         }
     }
     
