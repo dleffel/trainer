@@ -53,7 +53,7 @@ struct ContentView: View {
                 await conversationManager.loadConversation()
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .fullScreenCover(isPresented: $showSettings) {
             SettingsView(
                 onClearChat: {
                     Task {
@@ -61,7 +61,6 @@ struct ContentView: View {
                     }
                 }
             )
-            .presentationDetents([.medium, .large])
         }
         .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
             Button("OK") { errorMessage = nil }
