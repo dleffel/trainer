@@ -1,5 +1,200 @@
 import SwiftUI
 
+// MARK: - Supporting Components
+
+/// Compact summary view for workout header showing key details as chips
+struct WorkoutSummaryView: View {
+    let title: String?
+    let duration: Int?
+    let rpe: String?
+    let modality: String?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let title = title {
+                Text(title)
+                    .font(.title3.bold())
+                    .foregroundColor(.primary)
+            }
+            
+            // Horizontal chip layout for key stats
+            HStack(spacing: 8) {
+                if let duration = duration {
+                    Chip(text: "\(duration) min", color: .blue)
+                }
+                if let rpe = rpe {
+                    Chip(text: rpe, color: .orange)
+                }
+                if let modality = modality {
+                    Chip(text: modality, color: .purple)
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.accentColor.opacity(0.08))
+        .cornerRadius(12)
+    }
+    
+    private func workoutIcon(for modality: String) -> String {
+        let lower = modality.lowercased()
+        if lower.contains("bike") || lower.contains("cycling") {
+            return "bicycle"
+        } else if lower.contains("run") {
+            return "figure.run"
+        } else if lower.contains("swim") {
+            return "figure.pool.swim"
+        } else if lower.contains("strength") || lower.contains("lift") {
+            return "dumbbell"
+        } else if lower.contains("yoga") {
+            return "figure.yoga"
+        } else if lower.contains("mobility") {
+            return "figure.flexibility"
+        }
+        return "figure.mixed.cardio"
+    }
+}
+
+/// Collapsible coaching notes view that defaults to collapsed state
+struct CoachingNotesView: View {
+    let notes: String
+    @State private var isExpanded = false
+    
+    private var shouldTruncate: Bool {
+        notes.count > 200 // Threshold for truncation
+    }
+    
+    private var displayText: String {
+        if shouldTruncate && !isExpanded {
+            return String(notes.prefix(200)) + "..."
+        }
+        return notes
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 16))
+                    Text("Coaching Notes")
+                        .font(.subheadline.weight(.medium))
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundColor(.secondary)
+                .padding(12)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(8)
+            }
+            .accessibilityLabel("Coaching notes")
+            .accessibilityHint(isExpanded ? "Tap to collapse" : "Tap to expand")
+            .accessibilityAddTraits(.isHeader)
+            
+            if isExpanded {
+                Text(displayText)
+                    .font(.subheadline)
+                    .foregroundColor(.primary.opacity(0.8))
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(8)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.95).combined(with: .opacity),
+                        removal: .scale(scale: 0.95).combined(with: .opacity)
+                    ))
+                    .accessibilityLabel("Coaching notes: \(displayText)")
+                
+                if shouldTruncate {
+                    Button {
+                        withAnimation {
+                            isExpanded = false
+                        }
+                    } label: {
+                        Text("Read Less")
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(.accentColor)
+                    }
+                    .padding(.leading, 12)
+                }
+            }
+        }
+    }
+}
+
+/// Condensed program context banner for workout detail view
+struct ProgramContextBanner: View {
+    let blockType: BlockType
+    let weekNumber: Int
+    let totalWeeks: Int
+    let daysToDeload: Int?
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: blockType.icon)
+                .font(.caption)
+                .foregroundStyle(blockGradient(for: blockType))
+            
+            Text("Week \(weekNumber)/\(totalWeeks)")
+                .font(.caption.weight(.medium))
+                .foregroundColor(.secondary)
+            
+            Text("•")
+                .foregroundColor(.secondary.opacity(0.5))
+            
+            Text(blockType.rawValue)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            if let days = daysToDeload, days > 0 {
+                Spacer()
+                Text("\(days)d to deload")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.secondarySystemBackground).opacity(0.5))
+        .cornerRadius(8)
+    }
+    
+    private func blockGradient(for type: BlockType) -> LinearGradient {
+        let colors: [Color]
+        switch type.rawValue.lowercased() {
+        case let value where value.contains("hypertrophy"):
+            colors = [.blue, .purple]
+        case let value where value.contains("strength"):
+            colors = [.red, .orange]
+        case let value where value.contains("deload"):
+            colors = [.green, .teal]
+        default:
+            colors = [.blue, .cyan]
+        }
+        
+        return LinearGradient(
+            colors: colors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+}
+
+// MARK: - Weekly Calendar View
+
 struct WeeklyCalendarView: View {
     @ObservedObject var scheduleManager: TrainingScheduleManager
     @State private var selectedWeek: Date
@@ -33,34 +228,43 @@ struct WeeklyCalendarView: View {
         let _ = print("🔍 WeeklyCalendarView.body - Rendering with selectedWeek: \(selectedWeek)")
         let _ = print("🔍 WeeklyCalendarView.body - weekDays count: \(weekDays.count)")
         
-        ScrollView {
-            VStack(spacing: 16) {
-                // Week selector
-                weekSelector
-                
-                // Selected week block info
-                if let block = selectedWeekBlock {
-                    blockInfoCard(block: block, weekNumber: selectedWeekNumber)
-                }
-                
-                // Days of the week
-                weekGrid
-                
-                // Inline workout details
-                if let day = selectedDay {
-                    Divider()
-                        .padding(.vertical, 8)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Week selector
+                    weekSelector
                     
-                    WorkoutDetailsCard(day: day, scheduleManager: scheduleManager)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.95).combined(with: .opacity),
-                            removal: .scale(scale: 0.95).combined(with: .opacity)
-                        ))
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedDay?.id)
-                        .id(day.id) // Force recreation when day changes
+                    // Selected week block info
+                    if let block = selectedWeekBlock {
+                        blockInfoCard(block: block, weekNumber: selectedWeekNumber)
+                    }
+                    
+                    // Days of the week
+                    weekGrid
+                    
+                    // Inline workout details
+                    if let day = selectedDay {
+                        Divider()
+                            .padding(.vertical, 8)
+                        
+                        WorkoutDetailsCard(day: day, scheduleManager: scheduleManager)
+                            .id("workout-detail") // ID for scrolling
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.95).combined(with: .opacity),
+                                removal: .scale(scale: 0.95).combined(with: .opacity)
+                            ))
+                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedDay?.id)
+                    }
+                }
+                .padding(16)
+            }
+            .onChange(of: selectedDay?.id) { oldValue, newValue in
+                if newValue != nil {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        proxy.scrollTo("workout-detail", anchor: .top)
+                    }
                 }
             }
-            .padding(16)
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 50)
@@ -559,6 +763,25 @@ struct WorkoutDetailsCard: View {
                 .accessibilityLabel(isExpanded ? "Collapse details" : "Expand details")
             }
             
+            // NEW: Add program context banner below header
+            if let block = scheduleManager.getBlockForDate(day.date),
+               let program = scheduleManager.currentProgram {
+                let calendar = Calendar.current
+                let weeksSinceStart = calendar.dateComponents([.weekOfYear],
+                                                             from: program.startDate,
+                                                             to: day.date).weekOfYear ?? 0
+                let totalWeek = weeksSinceStart + 1
+                let blockInfo = scheduleManager.getBlockForWeek(totalWeek)
+                let daysToDeload = calendar.dateComponents([.day], from: day.date, to: block.endDate).day
+                
+                ProgramContextBanner(
+                    blockType: block.type,
+                    weekNumber: blockInfo.weekInBlock,
+                    totalWeeks: block.type.duration,
+                    daysToDeload: daysToDeload
+                )
+            }
+            
             // Collapsible content
             if isExpanded {
                 VStack(alignment: .leading, spacing: 12) {
@@ -622,30 +845,13 @@ struct StructuredWorkoutView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Workout header
-            if let title = workout.title {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(Font.title3.bold())
-                    
-                    if let duration = workout.totalDuration {
-                        Text("\(duration) minutes")
-                            .font(.subheadline)
-                            .foregroundColor(.primary.opacity(0.6))
-                    }
-                    
-                    if let notes = workout.notes {
-                        Text(notes)
-                            .font(.subheadline)
-                            .foregroundColor(.primary.opacity(0.6))
-                            .italic()
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.accentColor.opacity(0.1))
-                .cornerRadius(8)
-            }
+            // NEW: Compact summary replaces verbose header
+            WorkoutSummaryView(
+                title: workout.title,
+                duration: workout.totalDuration,
+                rpe: extractRPE(from: workout.notes),
+                modality: extractModality(from: workout.notes)
+            )
             
             // Exercises list
             let exercises = workout.exercises
@@ -655,11 +861,16 @@ struct StructuredWorkoutView: View {
             if count > 1 {
                 HStack(spacing: 8) {
                     Button {
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
                         if selectedExerciseIndex > 0 { selectedExerciseIndex -= 1 }
                     } label: {
                         Image(systemName: "chevron.left")
+                            .frame(width: 44, height: 44)
                     }
                     .disabled(selectedExerciseIndex == 0)
+                    .accessibilityLabel("Previous exercise")
+                    .accessibilityValue("Exercise \(selectedExerciseIndex) of \(count)")
                     
                     Text("Exercise \(min(selectedExerciseIndex + 1, count)) of \(count) — \(selectedExerciseIndex < count ? (exercises[selectedExerciseIndex].name ?? exercises[selectedExerciseIndex].kind.capitalized) : "")")
                         .font(.caption)
@@ -668,11 +879,16 @@ struct StructuredWorkoutView: View {
                         .truncationMode(.tail)
                     
                     Button {
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
                         if selectedExerciseIndex < count - 1 { selectedExerciseIndex += 1 }
                     } label: {
                         Image(systemName: "chevron.right")
+                            .frame(width: 44, height: 44)
                     }
                     .disabled(selectedExerciseIndex >= count - 1)
+                    .accessibilityLabel("Next exercise")
+                    .accessibilityValue("Exercise \(selectedExerciseIndex + 2) of \(count)")
                 }
             }
             
@@ -698,7 +914,52 @@ struct StructuredWorkoutView: View {
             .onPreferenceChange(ExercisePageHeightKey.self) { dict in
                 pageHeights.merge(dict) { _, new in new }
             }
+            .onChange(of: selectedExerciseIndex) { _, _ in
+                // Haptic feedback on exercise change
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+            }
+            
+            // NEW: Coaching notes moved to bottom, collapsible
+            if let notes = workout.notes {
+                CoachingNotesView(notes: notes)
+            }
         }
+    }
+    
+    // Helper to extract RPE from notes
+    private func extractRPE(from notes: String?) -> String? {
+        guard let notes = notes else { return nil }
+        
+        // Look for RPE pattern like "RPE 3-4" or "RPE 6–7"
+        let rpePattern = #"RPE\s*(\d+[-–]\d+|\d+)"#
+        if let range = notes.range(of: rpePattern, options: .regularExpression) {
+            return String(notes[range])
+        }
+        return nil
+    }
+    
+    // Helper to extract modality from notes or workout title
+    private func extractModality(from notes: String?) -> String? {
+        guard let notes = notes else { return nil }
+        
+        let lower = notes.lowercased()
+        if lower.contains("bike") || lower.contains("spin") || lower.contains("cycling") {
+            return "Bike"
+        } else if lower.contains("run") {
+            return "Running"
+        } else if lower.contains("swim") {
+            return "Swimming"
+        } else if lower.contains("erg") || lower.contains("row") {
+            return "Rowing"
+        } else if lower.contains("strength") {
+            return "Strength"
+        } else if lower.contains("yoga") {
+            return "Yoga"
+        } else if lower.contains("mobility") {
+            return "Mobility"
+        }
+        return nil
     }
 }
 
