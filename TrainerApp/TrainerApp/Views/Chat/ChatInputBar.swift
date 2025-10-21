@@ -73,14 +73,6 @@ struct ChatInputBar: View {
             .padding(.vertical, 12)
             .background(.regularMaterial)
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    isInputFocused = false
-                }
-            }
-        }
         .onChange(of: selectedImages) { _, newImages in
             // Sync photoWrappers when selectedImages changes from external sources
             syncPhotoWrappers(with: newImages)
