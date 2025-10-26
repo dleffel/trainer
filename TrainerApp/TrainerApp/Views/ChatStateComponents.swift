@@ -64,8 +64,7 @@ struct ChatStatusView: View {
             case .preparingResponse:
                 StatusBubble(
                     icon: "ellipsis.circle",
-                    text: "Thinking...",
-                    isAnimating: true
+                    text: "Thinking..."
                 )
                 
             case .streaming(let preview):
@@ -82,15 +81,13 @@ struct ChatStatusView: View {
             case .processingTool(_, let description):
                 StatusBubble(
                     icon: "gearshape.2.fill",
-                    text: description,
-                    isAnimating: true
+                    text: description
                 )
                 
             case .finalizing:
                 StatusBubble(
                     icon: "checkmark.circle",
-                    text: "Finalizing...",
-                    isAnimating: false
+                    text: "Finalizing..."
                 )
             }
         }
@@ -102,7 +99,6 @@ struct ChatStatusView: View {
 struct StatusBubble: View {
     let icon: String
     let text: String
-    let isAnimating: Bool
     
     var body: some View {
         HStack(spacing: 10) {

@@ -73,6 +73,11 @@ class StreamingCoordinator {
         systemPrompt: String,
         history: [ChatMessage]
     ) async throws -> StreamingResult {
+        // Ensure cleanup happens even if streaming throws
+        defer {
+            stopUpdateTimer()
+        }
+        
         logger.logStreamingEvent(.started)
         
         var state = AssistantResponseState()
@@ -192,9 +197,6 @@ class StreamingCoordinator {
         // Clear reasoning streaming state
         delegate?.streamingDidUpdateReasoningState(isStreaming: false, latestChunk: nil)
         
-        // Stop batching timer and flush any final update
-        stopUpdateTimer()
-        
         logger.logStreamingEvent(.completed)
         
         return StreamingResult(state: state)
@@ -209,8 +211,9 @@ class StreamingCoordinator {
         
         // Create timer if not exists
         if updateTimer == nil {
-            updateTimer = Timer.scheduledTimer(
-                withTimeInterval: Self.updateInterval,
+            // Create unscheduled timer and add only to .common mode
+            updateTimer = Timer(
+                timeInterval: Self.updateInterval,
                 repeats: true
             ) { [weak self] _ in
                 self?.flushPendingUpdate()

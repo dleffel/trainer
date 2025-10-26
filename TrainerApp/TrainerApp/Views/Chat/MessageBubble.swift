@@ -34,9 +34,6 @@ struct MessageBubble: View, Equatable {
     
     @EnvironmentObject var navigationState: NavigationState
     @State private var showReasoning = false
-    @State private var previewLines: [String] = []
-    @State private var lastReasoningLength: Int = 0
-    @State private var lastPreviewUpdate: Date = .distantPast
     @AppStorage("ShowAIReasoning") private var showReasoningSetting = false
     
     // MARK: - Computed Properties
