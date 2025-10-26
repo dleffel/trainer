@@ -94,11 +94,6 @@ struct ChatStatusView: View {
                 )
             }
         }
-        .transition(.asymmetric(
-            insertion: .scale(scale: 0.8).combined(with: .opacity),
-            removal: .scale(scale: 0.8).combined(with: .opacity)
-        ))
-        .animation(.easeInOut(duration: 0.3), value: state)
         .id("status-indicator")
     }
 }
@@ -108,21 +103,11 @@ struct StatusBubble: View {
     let icon: String
     let text: String
     let isAnimating: Bool
-    @State private var rotation: Double = 0
-    @State private var pulseScale: CGFloat = 1.0
-    @State private var pulseOpacity: Double = 1.0
     
     var body: some View {
         HStack(spacing: 10) {
-            // Animated icon with pulse effect
+            // Static icon (no animations to prevent scroll interference)
             ZStack {
-                // Pulse circle background
-                Circle()
-                    .fill(statusColor.opacity(0.15))
-                    .frame(width: 32, height: 32)
-                    .scaleEffect(pulseScale)
-                    .opacity(pulseOpacity)
-                
                 // Icon container
                 Circle()
                     .fill(statusColor.opacity(0.1))
@@ -136,18 +121,6 @@ struct StatusBubble: View {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(statusColor.gradient)
-                    .rotationEffect(.degrees(isAnimating ? rotation : 0))
-            }
-            .onAppear {
-                if isAnimating {
-                    withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
-                        rotation = 360
-                    }
-                    withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                        pulseScale = 1.2
-                        pulseOpacity = 0
-                    }
-                }
             }
             
             Text(text)
@@ -186,22 +159,12 @@ struct StatusBubble: View {
 
 // MARK: - Enhanced Typing Indicator
 struct EnhancedTypingIndicator: View {
-    @State private var animatingDots = [false, false, false]
-    
     var body: some View {
         HStack(spacing: 6) {
             ForEach(0..<3) { index in
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.blue, .blue.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.blue)
                     .frame(width: 8, height: 8)
-                    .scaleEffect(animatingDots[index] ? 1.2 : 0.8)
-                    .opacity(animatingDots[index] ? 1.0 : 0.5)
             }
             Spacer()
         }
@@ -217,19 +180,6 @@ struct EnhancedTypingIndicator: View {
         )
         .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 1)
         .frame(maxWidth: 100, alignment: .leading)
-        .onAppear {
-            animateDots()
-        }
-    }
-    
-    private func animateDots() {
-        for index in 0..<3 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.2) {
-                withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                    animatingDots[index] = true
-                }
-            }
-        }
     }
 }
 

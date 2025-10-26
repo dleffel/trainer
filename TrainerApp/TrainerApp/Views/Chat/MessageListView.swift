@@ -28,6 +28,7 @@ struct MessageListView: View {
                 // Add invisible spacer at bottom to ensure last message isn't cut off
                 Color.clear
                     .frame(height: 20)
+                    .id("bottom-anchor")
             }
             .padding(.horizontal, 12)
             .padding(.top, 8)

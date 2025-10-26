@@ -37,6 +37,17 @@ class StreamingCoordinator {
     /// Maximum size of token buffer (prevents unbounded growth)
     private static let maxTokenBufferSize = 2000
     
+    /// Update interval for batching UI updates (50ms = 20 FPS)
+    private static let updateInterval: TimeInterval = 0.05
+    
+    // MARK: - Batching State
+    
+    /// Pending message update to be flushed
+    private var pendingUpdate: (index: Int, message: ChatMessage)?
+    
+    /// Timer for batched updates
+    private var updateTimer: Timer?
+    
     // MARK: - Initialization
     init(llmService: LLMServiceProtocol) {
         self.llmService = llmService
@@ -109,7 +120,7 @@ class StreamingCoordinator {
                     
                     Task { @MainActor in
                         if !messageCreated && !streamedContent.isEmpty {
-                            // Create streaming message
+                            // Create streaming message (immediate - only happens once)
                             let message = MessageFactory.assistantStreaming(
                                 content: streamedContent,
                                 reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning
@@ -121,12 +132,12 @@ class StreamingCoordinator {
                                 self.logger.logStreamingEvent(.messageCreated(index: idx))
                             }
                         } else if messageCreated, let idx = messageIndex {
-                            // Update streaming message via delegate
+                            // Schedule batched update instead of immediate update
                             let updated = MessageFactory.assistantStreaming(
                                 content: streamedContent,
                                 reasoning: streamedReasoning.isEmpty ? nil : streamedReasoning
                             )
-                            self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
+                            self.scheduleMessageUpdate(at: idx, with: updated)
                         }
                     }
                 }
@@ -146,7 +157,7 @@ class StreamingCoordinator {
                     self.delegate?.streamingDidUpdateReasoningState(isStreaming: true, latestChunk: reasoning)
                     
                     if !messageCreated && !streamedReasoning.isEmpty {
-                        // Create streaming message with reasoning (even if no content yet)
+                        // Create streaming message with reasoning (immediate - only happens once)
                         let message = MessageFactory.assistantStreaming(
                             content: streamedContent,
                             reasoning: streamedReasoning
@@ -158,12 +169,12 @@ class StreamingCoordinator {
                             self.logger.logStreamingEvent(.messageCreated(index: idx))
                         }
                     } else if messageCreated, let idx = messageIndex {
-                        // Update existing streaming message with new reasoning via delegate
+                        // Schedule batched update instead of immediate update
                         let updated = MessageFactory.assistantStreaming(
                             content: streamedContent,
                             reasoning: streamedReasoning
                         )
-                        self.delegate?.streamingDidUpdateMessage(at: idx, with: updated)
+                        self.scheduleMessageUpdate(at: idx, with: updated)
                     }
                 }
             }
@@ -181,9 +192,51 @@ class StreamingCoordinator {
         // Clear reasoning streaming state
         delegate?.streamingDidUpdateReasoningState(isStreaming: false, latestChunk: nil)
         
+        // Stop batching timer and flush any final update
+        stopUpdateTimer()
+        
         logger.logStreamingEvent(.completed)
         
         return StreamingResult(state: state)
+    }
+    
+    // MARK: - Batching Helpers
+    
+    /// Schedule a message update to be batched
+    private func scheduleMessageUpdate(at index: Int, with message: ChatMessage) {
+        // Store the pending update (overwrites previous if exists)
+        pendingUpdate = (index, message)
+        
+        // Create timer if not exists
+        if updateTimer == nil {
+            updateTimer = Timer.scheduledTimer(
+                withTimeInterval: Self.updateInterval,
+                repeats: true
+            ) { [weak self] _ in
+                self?.flushPendingUpdate()
+            }
+            RunLoop.main.add(updateTimer!, forMode: .common)
+        }
+    }
+    
+    /// Flush the pending update to the delegate
+    private func flushPendingUpdate() {
+        guard let update = pendingUpdate else { return }
+        
+        // Send batched update to delegate
+        delegate?.streamingDidUpdateMessage(at: update.index, with: update.message)
+        
+        // Clear pending
+        pendingUpdate = nil
+    }
+    
+    /// Stop the update timer and flush any remaining update
+    private func stopUpdateTimer() {
+        updateTimer?.invalidate()
+        updateTimer = nil
+        
+        // Flush any final pending update
+        flushPendingUpdate()
     }
     
     // MARK: - Private Helpers
