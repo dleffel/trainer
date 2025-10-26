@@ -185,33 +185,6 @@ struct MessageBubble: View, Equatable {
     
     // MARK: - Private Helpers
     
-    @MainActor
-    private func updatePreviewLines() {
-        // Use the local reasoning parameter - no array scan needed!
-        guard let fullReasoning = reasoning, !fullReasoning.isEmpty else {
-            previewLines = []
-            lastReasoningLength = 0
-            return
-        }
-        
-        // Aggressive throttling: max once per 500ms (2 FPS) to prevent flashing
-        let now = Date()
-        guard now.timeIntervalSince(lastPreviewUpdate) >= 0.5 else { return }
-        
-        // Only update if we've accumulated at least 100 more characters since last update
-        guard fullReasoning.count >= lastReasoningLength + 100 else { return }
-        
-        // Split into lines and take the last 5
-        let allLines = fullReasoning.components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        
-        // Show last 5 lines
-        previewLines = Array(allLines.suffix(5))
-        lastReasoningLength = fullReasoning.count
-        lastPreviewUpdate = now
-    }
-    
     private func handleURL(_ url: URL) {
         print("🔗 Chat link tapped: \(url.absoluteString)")
         if url.scheme == "trainer" && url.host == "calendar" {

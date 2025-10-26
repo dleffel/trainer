@@ -53,7 +53,6 @@ let toolDescriptions: [String: ToolDescription] = [
 // MARK: - Chat Status View
 struct ChatStatusView: View {
     let state: ChatState
-    @State private var isAnimating = false
     
     var body: some View {
         Group {
@@ -71,8 +70,7 @@ struct ChatStatusView: View {
                 if let preview = preview, !preview.isEmpty {
                     StatusBubble(
                         icon: "text.bubble",
-                        text: preview,
-                        isAnimating: true
+                        text: preview
                     )
                 } else {
                     EnhancedTypingIndicator()
