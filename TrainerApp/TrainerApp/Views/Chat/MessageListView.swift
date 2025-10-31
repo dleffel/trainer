@@ -7,13 +7,32 @@ import SwiftUI
 struct MessageListView: View {
     let messages: [ChatMessage]
     let chatState: ChatState
+    let canLoadMore: Bool
+    let totalMessageCount: Int
+    let onLoadMore: () -> Void
     @ObservedObject var conversationManager: ConversationManager
     
     @EnvironmentObject var navigationState: NavigationState
+    @State private var isLoadingMore = false
     
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                // Load More button at the top
+                if canLoadMore {
+                    HStack {
+                        Spacer()
+                        LoadMoreButton(
+                            availableCount: totalMessageCount - messages.count,
+                            isLoading: isLoadingMore,
+                            action: loadMore
+                        )
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                }
+                
                 ForEach(Array(messages.enumerated()), id: \.element.id) { index, msg in
                     bubble(for: msg, at: index)
                         .id(msg.id)
@@ -29,13 +48,34 @@ struct MessageListView: View {
                 Color.clear
                     .frame(height: 20)
                     .id("bottom-anchor")
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
+            .defaultScrollAnchor(.bottom)
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: navigationState.scrollToBottomTrigger) { _, _ in
+                withAnimation {
+                    proxy.scrollTo("bottom-anchor", anchor: .bottom)
+                }
+            }
         }
-        .defaultScrollAnchor(.bottom)
-        .scrollDismissesKeyboard(.interactively)
+    }
+    
+    // MARK: - Actions
+    
+    private func loadMore() {
+        guard !isLoadingMore else { return }
+        
+        isLoadingMore = true
+        
+        // Small delay for smooth animation
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            onLoadMore()
+            isLoadingMore = false
+        }
     }
     
     // MARK: - Private Helpers
@@ -66,6 +106,9 @@ struct MessageListView: View {
                     Spacer(minLength: 40)
                 } else {
                     Spacer(minLength: 40)
+                    // Calculate global index for user messages (needed for retry functionality)
+                    // Formula: globalIndex = (totalMessageCount - displayMessages.count) + displayIndex
+                    let globalIndex = (totalMessageCount - messages.count) + index
                     MessageBubble(
                         messageId: message.id,
                         text: message.content,
@@ -75,7 +118,7 @@ struct MessageListView: View {
                         conversationManager: conversationManager,
                         attachments: message.attachments,
                         sendStatus: message.sendStatus,  // Pass user message send status
-                        messageIndex: index
+                        messageIndex: globalIndex
                     )
                     .environmentObject(navigationState)
                 }
