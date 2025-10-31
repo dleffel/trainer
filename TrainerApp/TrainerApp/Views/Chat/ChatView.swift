@@ -17,7 +17,15 @@ struct ChatView: View {
     // MARK: - Computed Properties
     
     private var messages: [ChatMessage] {
-        conversationManager.messages
+        conversationManager.displayMessages
+    }
+    
+    private var canLoadMore: Bool {
+        conversationManager.canLoadMore
+    }
+    
+    private var totalMessageCount: Int {
+        conversationManager.allMessages.count
     }
     
     private var chatState: ChatState {
@@ -43,6 +51,9 @@ struct ChatView: View {
                 MessageListView(
                     messages: messages,
                     chatState: chatState,
+                    canLoadMore: canLoadMore,
+                    totalMessageCount: totalMessageCount,
+                    onLoadMore: { conversationManager.loadMoreMessages() },
                     conversationManager: conversationManager
                 )
                 

@@ -7,7 +7,16 @@ import Combine
 @MainActor
 class ConversationManager: ObservableObject {
     // MARK: - Published Properties
-    @Published var messages: [ChatMessage] = []
+    
+    // Full conversation history (used for API context and persistence)
+    @Published private(set) var allMessages: [ChatMessage] = []
+    
+    // Windowed messages for UI display (performance optimization)
+    @Published private(set) var displayMessages: [ChatMessage] = []
+    
+    // Indicates if there are more messages to load
+    @Published private(set) var canLoadMore: Bool = false
+    
     @Published var conversationState: ConversationState = .idle
     
     // Reasoning preview state for UI
@@ -24,6 +33,11 @@ class ConversationManager: ObservableObject {
     private let logger = ConversationLogger.shared
     private var networkCancellable: AnyCancellable?
     
+    // Message windowing configuration
+    private let initialWindowSize: Int = 50
+    private let loadMoreBatchSize: Int = 25
+    private var displayOffset: Int = 0  // Tracks how many older messages we've loaded
+    
     // MARK: - Coordinators
     private let streamingCoordinator: StreamingCoordinator
     private let toolCoordinator: ToolExecutionCoordinator
@@ -36,7 +50,7 @@ class ConversationManager: ObservableObject {
     /// Computed property: messages suitable for API context
     /// This replaces the previous dual-array pattern (messages + conversationHistory)
     private var apiHistory: [ChatMessage] {
-        messages.filter { message in
+        allMessages.filter { message in
             // Only include completed messages in API history
             message.state == .completed
         }
@@ -103,14 +117,15 @@ class ConversationManager: ObservableObject {
             ? MessageFactory.user(content: text, sendStatus: .notSent)
             : MessageFactory.userWithImages(content: text, images: images, sendStatus: .notSent)
         
-        messages.append(userMessage)
-        let messageIndex = messages.count - 1
+        allMessages.append(userMessage)
+        updateDisplayWindow()
+        let messageIndex = allMessages.count - 1
         await persistMessages()
         
         // Check if offline before attempting
         guard networkMonitor.isConnected else {
             updateMessageSendStatus(at: messageIndex, status: .offline)
-            retryManager.addToOfflineQueue(messages[messageIndex].id)
+            retryManager.addToOfflineQueue(allMessages[messageIndex].id)
             self.offlineQueueCount = self.retryManager.offlineQueue.count
             await persistMessages()
             throw SendError.offline
@@ -143,6 +158,7 @@ class ConversationManager: ObservableObject {
                 
                 // Mark as sent
                 updateMessageSendStatus(at: messageIndex, status: .sent)
+                updateDisplayWindow()
                 
                 // Persist after successful completion
                 await persistMessages()
@@ -159,7 +175,7 @@ class ConversationManager: ObservableObject {
                 // Check if offline
                 if !networkMonitor.isConnected {
                     updateMessageSendStatus(at: messageIndex, status: .offline)
-                    retryManager.addToOfflineQueue(messages[messageIndex].id)
+                    retryManager.addToOfflineQueue(allMessages[messageIndex].id)
                     self.offlineQueueCount = self.retryManager.offlineQueue.count
                     await persistMessages()
                     throw SendError.offline
@@ -170,6 +186,7 @@ class ConversationManager: ObservableObject {
                     // Allow manual retry even if auto-retry exhausted or not applicable
                     let allowManualRetry = (!canRetry) || attempt >= maxAttempts
                     updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: allowManualRetry))
+                    updateDisplayWindow()
                     await persistMessages()
                     updateState(.error(error.localizedDescription))
                     throw error
@@ -177,6 +194,7 @@ class ConversationManager: ObservableObject {
                 
                 // Update status to retrying (show next attempt number)
                 updateMessageSendStatus(at: messageIndex, status: .retrying(attempt: attempt + 1, maxAttempts: maxAttempts))
+                updateDisplayWindow()
                 await persistMessages()
                 
                 // Calculate delay with exponential backoff and constant jitter
@@ -197,9 +215,9 @@ class ConversationManager: ObservableObject {
     
     /// Manually retry a failed message
     func retryFailedMessage(at index: Int) async throws {
-        guard index < messages.count else { return }
+        guard index < allMessages.count else { return }
         
-        let message = messages[index]
+        let message = allMessages[index]
         guard message.role == .user,
               let status = message.sendStatus,
               status.canRetry else {
@@ -219,7 +237,7 @@ class ConversationManager: ObservableObject {
         // Check if offline before attempting
         guard networkMonitor.isConnected else {
             updateMessageSendStatus(at: messageIndex, status: .offline)
-            retryManager.addToOfflineQueue(messages[messageIndex].id)
+            retryManager.addToOfflineQueue(allMessages[messageIndex].id)
             self.offlineQueueCount = self.retryManager.offlineQueue.count
             await persistMessages()
             throw SendError.offline
@@ -252,6 +270,7 @@ class ConversationManager: ObservableObject {
                 
                 // Mark as sent
                 updateMessageSendStatus(at: messageIndex, status: .sent)
+                updateDisplayWindow()
                 
                 // Persist after successful completion
                 await persistMessages()
@@ -268,7 +287,7 @@ class ConversationManager: ObservableObject {
                 // Check if offline
                 if !networkMonitor.isConnected {
                     updateMessageSendStatus(at: messageIndex, status: .offline)
-                    retryManager.addToOfflineQueue(messages[messageIndex].id)
+                    retryManager.addToOfflineQueue(allMessages[messageIndex].id)
                     self.offlineQueueCount = self.retryManager.offlineQueue.count
                     await persistMessages()
                     throw SendError.offline
@@ -279,6 +298,7 @@ class ConversationManager: ObservableObject {
                     // Allow manual retry even if auto-retry exhausted or not applicable
                     let allowManualRetry = (!canRetry) || attempt >= maxAttempts
                     updateMessageSendStatus(at: messageIndex, status: .failed(reason: failureReason, canRetry: allowManualRetry))
+                    updateDisplayWindow()
                     await persistMessages()
                     updateState(.error(error.localizedDescription))
                     throw error
@@ -286,6 +306,7 @@ class ConversationManager: ObservableObject {
                 
                 // Update status to retrying (show next attempt number)
                 updateMessageSendStatus(at: messageIndex, status: .retrying(attempt: attempt + 1, maxAttempts: maxAttempts))
+                updateDisplayWindow()
                 await persistMessages()
                 
                 // Calculate delay with exponential backoff and constant jitter
@@ -307,16 +328,22 @@ class ConversationManager: ObservableObject {
     /// Load conversation from persistence
     func loadConversation() async {
         do {
-            messages = try persistence.load()
+            allMessages = try persistence.load()
+            updateDisplayWindow()
         } catch {
             logger.logError(error, context: "loadConversation")
-            messages = []
+            allMessages = []
+            displayMessages = []
+            canLoadMore = false
         }
     }
     
     /// Clear all messages and persistence
     func clearConversation() async {
-        messages.removeAll()
+        allMessages.removeAll()
+        displayMessages.removeAll()
+        canLoadMore = false
+        displayOffset = 0
         do {
             try persistence.clear()
         } catch {
@@ -324,12 +351,56 @@ class ConversationManager: ObservableObject {
         }
     }
     
+    /// Load more older messages into the display window
+    func loadMoreMessages() {
+        let totalMessages = allMessages.count
+        let currentDisplayCount = displayMessages.count
+        
+        // Calculate how many more messages we can load
+        let availableOlderMessages = totalMessages - currentDisplayCount
+        guard availableOlderMessages > 0 else {
+            canLoadMore = false
+            return
+        }
+        
+        // Increase offset by batch size
+        displayOffset += loadMoreBatchSize
+        updateDisplayWindow()
+        
+        logger.log(.info, "Loaded \(loadMoreBatchSize) more messages. Display: \(displayMessages.count)/\(totalMessages)", context: "loadMoreMessages")
+    }
+    
     // MARK: - Send Status Management
     
     /// Update send status for a message
     private func updateMessageSendStatus(at index: Int, status: SendStatus) {
-        guard index < messages.count else { return }
-        messages[index] = messages[index].withSendStatus(status)
+        guard index < allMessages.count else { return }
+        allMessages[index] = allMessages[index].withSendStatus(status)
+    }
+    
+    /// Update the display window based on current offset and window size
+    private func updateDisplayWindow() {
+        let totalMessages = allMessages.count
+        
+        // If we have fewer messages than initial window, show all
+        if totalMessages <= initialWindowSize {
+            displayMessages = allMessages
+            canLoadMore = false
+            displayOffset = 0
+            return
+        }
+        
+        // Calculate window size (initial + loaded batches)
+        let windowSize = initialWindowSize + displayOffset
+        
+        // Determine start index (show most recent messages)
+        let startIndex = max(0, totalMessages - windowSize)
+        displayMessages = Array(allMessages[startIndex..<totalMessages])
+        
+        // Can load more if we're not showing everything
+        canLoadMore = startIndex > 0
+        
+        logger.log(.debug, "Display window updated: showing \(displayMessages.count)/\(totalMessages) messages, canLoadMore: \(canLoadMore)", context: "updateDisplayWindow")
     }
     
     /// Classify error into failure reason
@@ -419,7 +490,7 @@ class ConversationManager: ObservableObject {
                     Task {
                         for messageId in queuedMessageIds {
                             // Find the message index
-                            if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                            if let index = self.allMessages.firstIndex(where: { $0.id == messageId }) {
                                 print("🔄 ConversationManager: Retrying message at index \(index)")
                                 try? await self.retryFailedMessage(at: index)
                             }
@@ -470,8 +541,8 @@ class ConversationManager: ObservableObject {
     /// Persist messages to storage
     private func persistMessages() async {
         do {
-            try persistence.save(messages)
-            logger.logPersistence("save", messageCount: messages.count)
+            try persistence.save(allMessages)
+            logger.logPersistence("save", messageCount: allMessages.count)
         } catch {
             logger.logError(error, context: "persistMessages")
         }
@@ -517,16 +588,18 @@ extension ConversationState {
 extension ConversationManager: StreamingStateDelegate {
     func streamingDidCreateMessage(_ message: ChatMessage) -> Int {
         // Append the message and return its index
-        messages.append(message)
-        let index = messages.count - 1
+        allMessages.append(message)
+        updateDisplayWindow()
+        let index = allMessages.count - 1
         logger.log(ConversationLogger.LogLevel.debug, "Streaming message created at index \(index)", context: "Streaming")
         return index
     }
     
     func streamingDidUpdateMessage(at index: Int, with message: ChatMessage) {
         // Update our messages array with the latest version
-        if index < messages.count {
-            messages[index] = message
+        if index < allMessages.count {
+            allMessages[index] = message
+            updateDisplayWindow()
         }
     }
     
@@ -555,14 +628,15 @@ extension ConversationManager: ToolExecutionStateDelegate {
     }
     
     func toolExecutionDidUpdateMessage(at index: Int, with message: ChatMessage) {
-        if index < messages.count {
+        if index < allMessages.count {
             // Update with cleaned content from tool coordinator
-            messages[index] = MessageFactory.updated(
-                messages[index],
-                content: message.content.isEmpty ? messages[index].content : message.content,
+            allMessages[index] = MessageFactory.updated(
+                allMessages[index],
+                content: message.content.isEmpty ? allMessages[index].content : message.content,
                 reasoning: message.reasoning,
                 state: message.state
             )
+            updateDisplayWindow()
         }
     }
 }
@@ -579,21 +653,23 @@ extension ConversationManager: ResponseOrchestrationDelegate {
     }
     
     func orchestrationDidCreateMessage(_ message: ChatMessage) {
-        messages.append(message)
+        allMessages.append(message)
+        updateDisplayWindow()
     }
     
     func orchestrationDidUpdateMessage(at index: Int, with message: ChatMessage) {
-        if index < messages.count {
-            messages[index] = message
+        if index < allMessages.count {
+            allMessages[index] = message
+            updateDisplayWindow()
         }
     }
     
     func orchestrationNeedsMessage(at index: Int) -> ChatMessage? {
-        return index < messages.count ? messages[index] : nil
+        return index < allMessages.count ? allMessages[index] : nil
     }
     
     func orchestrationNeedsMessageCount() -> Int {
-        return messages.count
+        return allMessages.count
     }
     
     func orchestrationNeedsMeaningfulResponse(from history: [ChatMessage]) -> String {

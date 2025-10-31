@@ -16,12 +16,26 @@ struct ContentView: View {
     
     // Navigation state for deep linking and tab selection
     @EnvironmentObject var navigationState: NavigationState
+    
+    // Custom binding to detect tab re-selection
+    private var selectedTabBinding: Binding<Int> {
+        Binding(
+            get: { navigationState.selectedTab },
+            set: { newValue in
+                // If tapping chat tab while already on it, scroll to bottom
+                if navigationState.selectedTab == 0 && newValue == 0 {
+                    navigationState.triggerScrollToBottom()
+                }
+                navigationState.selectedTab = newValue
+            }
+        )
+    }
 
     private let healthKitManager = HealthKitManager.shared
     private let config = AppConfiguration.shared
 
     var body: some View {
-        TabView(selection: $navigationState.selectedTab) {
+        TabView(selection: selectedTabBinding) {
             ChatView(
                 conversationManager: conversationManager,
                 showSettings: $showSettings,
