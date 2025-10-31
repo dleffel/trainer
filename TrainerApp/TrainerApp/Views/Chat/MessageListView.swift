@@ -106,6 +106,9 @@ struct MessageListView: View {
                     Spacer(minLength: 40)
                 } else {
                     Spacer(minLength: 40)
+                    // Calculate global index for user messages (needed for retry functionality)
+                    // Formula: globalIndex = (totalMessageCount - displayMessages.count) + displayIndex
+                    let globalIndex = (totalMessageCount - messages.count) + index
                     MessageBubble(
                         messageId: message.id,
                         text: message.content,
@@ -115,7 +118,7 @@ struct MessageListView: View {
                         conversationManager: conversationManager,
                         attachments: message.attachments,
                         sendStatus: message.sendStatus,  // Pass user message send status
-                        messageIndex: index
+                        messageIndex: globalIndex
                     )
                     .environmentObject(navigationState)
                 }
