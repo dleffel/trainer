@@ -276,15 +276,31 @@ struct WeeklyCalendarView: View {
                     
                     guard horizontalAmount > verticalAmount else { return }
                     
-                    if value.translation.width < -50 {
-                        // Swipe left = next week
-                        withAnimation {
-                            selectedWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedWeek) ?? selectedWeek
+                    // Navigate day-to-day if a day is selected, otherwise week-to-week
+                    if let currentDay = selectedDay {
+                        if value.translation.width < -50 {
+                            // Swipe left = next day
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
+                            navigateToNextDay(from: currentDay)
+                        } else if value.translation.width > 50 {
+                            // Swipe right = previous day
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
+                            navigateToPreviousDay(from: currentDay)
                         }
-                    } else if value.translation.width > 50 {
-                        // Swipe right = previous week
-                        withAnimation {
-                            selectedWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedWeek) ?? selectedWeek
+                    } else {
+                        // No day selected, navigate week-to-week
+                        if value.translation.width < -50 {
+                            // Swipe left = next week
+                            withAnimation {
+                                selectedWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedWeek) ?? selectedWeek
+                            }
+                        } else if value.translation.width > 50 {
+                            // Swipe right = previous week
+                            withAnimation {
+                                selectedWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedWeek) ?? selectedWeek
+                            }
                         }
                     }
                 }
@@ -544,6 +560,56 @@ struct WeeklyCalendarView: View {
                 print("🔍 DEBUG - Selected week is: \(block.type.rawValue) - Week \(selectedWeekNumber)")
             } else {
                 print("🔍 DIAGNOSTIC - WARNING: getBlockForDate(\(selectedWeek)) returned nil!")
+            }
+        }
+    }
+    
+    private func navigateToNextDay(from currentDay: WorkoutDay) {
+        guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDay.date) else { return }
+        
+        // Check if next day is in current week
+        if let nextDay = weekDays.first(where: { calendar.isDate($0.date, inSameDayAs: nextDate) }) {
+            // Next day is in current week
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedDay = nextDay
+            }
+        } else {
+            // Next day is in next week
+            withAnimation {
+                selectedWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedWeek) ?? selectedWeek
+            }
+            // After week loads, select the first day
+            DispatchQueue.main.async {
+                if let firstDay = weekDays.first {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedDay = firstDay
+                    }
+                }
+            }
+        }
+    }
+    
+    private func navigateToPreviousDay(from currentDay: WorkoutDay) {
+        guard let prevDate = calendar.date(byAdding: .day, value: -1, to: currentDay.date) else { return }
+        
+        // Check if previous day is in current week
+        if let prevDay = weekDays.first(where: { calendar.isDate($0.date, inSameDayAs: prevDate) }) {
+            // Previous day is in current week
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                selectedDay = prevDay
+            }
+        } else {
+            // Previous day is in previous week
+            withAnimation {
+                selectedWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedWeek) ?? selectedWeek
+            }
+            // After week loads, select the last day
+            DispatchQueue.main.async {
+                if let lastDay = weekDays.last {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedDay = lastDay
+                    }
+                }
             }
         }
     }
@@ -836,17 +902,10 @@ struct WorkoutDetailsCard: View {
 
 struct StructuredWorkoutView: View {
     let workout: StructuredWorkout
-    @State private var selectedExerciseIndex: Int = 0
-    @State private var pageHeights: [Int: CGFloat] = [:]
-    private var pagerHeight: CGFloat {
-        // Keep the pager tight to content to avoid vertical whitespace
-        // with sensible defaults and bounds.
-        max(180, min(pageHeights[selectedExerciseIndex] ?? 320, 600))
-    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // NEW: Compact summary replaces verbose header
+            // Compact summary header
             WorkoutSummaryView(
                 title: workout.title,
                 duration: workout.totalDuration,
@@ -854,74 +913,12 @@ struct StructuredWorkoutView: View {
                 modality: extractModality(from: workout.notes)
             )
             
-            // Exercises list
-            let exercises = workout.exercises
-            let count = exercises.count
-            let showDots = count <= 4
-            
-            if count > 1 {
-                HStack(spacing: 8) {
-                    Button {
-                        let generator = UIImpactFeedbackGenerator(style: .light)
-                        generator.impactOccurred()
-                        if selectedExerciseIndex > 0 { selectedExerciseIndex -= 1 }
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .frame(width: 44, height: 44)
-                    }
-                    .disabled(selectedExerciseIndex == 0)
-                    .accessibilityLabel("Previous exercise")
-                    .accessibilityValue("Exercise \(selectedExerciseIndex) of \(count)")
-                    
-                    Text("Exercise \(min(selectedExerciseIndex + 1, count)) of \(count) — \(selectedExerciseIndex < count ? (exercises[selectedExerciseIndex].name ?? exercises[selectedExerciseIndex].kind.capitalized) : "")")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    
-                    Button {
-                        let generator = UIImpactFeedbackGenerator(style: .light)
-                        generator.impactOccurred()
-                        if selectedExerciseIndex < count - 1 { selectedExerciseIndex += 1 }
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .frame(width: 44, height: 44)
-                    }
-                    .disabled(selectedExerciseIndex >= count - 1)
-                    .accessibilityLabel("Next exercise")
-                    .accessibilityValue("Exercise \(selectedExerciseIndex + 2) of \(count)")
-                }
+            // Vertical stack of all exercises
+            ForEach(workout.exercises, id: \.id) { exercise in
+                ExerciseCard(exercise: exercise)
             }
             
-            TabView(selection: $selectedExerciseIndex) {
-                ForEach(Array(exercises.enumerated()), id: \.offset) { index, exercise in
-                    // Make the page height track actual content height to remove vertical whitespace
-                    VStack(alignment: .leading, spacing: 0) {
-                        ExerciseCard(exercise: exercise)
-                    }
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear
-                                .preference(key: ExercisePageHeightKey.self, value: [index: proxy.size.height])
-                        }
-                    )
-                    .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: showDots ? .automatic : .never))
-            .indexViewStyle(.page(backgroundDisplayMode: .interactive))
-            .frame(maxWidth: .infinity)
-            .frame(height: pagerHeight)
-            .onPreferenceChange(ExercisePageHeightKey.self) { dict in
-                pageHeights.merge(dict) { _, new in new }
-            }
-            .onChange(of: selectedExerciseIndex) { _, _ in
-                // Haptic feedback on exercise change
-                let generator = UIImpactFeedbackGenerator(style: .light)
-                generator.impactOccurred()
-            }
-            
-            // NEW: Coaching notes moved to bottom, collapsible
+            // Coaching notes at bottom
             if let notes = workout.notes {
                 CoachingNotesView(notes: notes)
             }
@@ -961,13 +958,6 @@ struct StructuredWorkoutView: View {
             return "Mobility"
         }
         return nil
-    }
-}
-
-private struct ExercisePageHeightKey: PreferenceKey {
-    static var defaultValue: [Int: CGFloat] = [:]
-    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
-        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
     }
 }
 
