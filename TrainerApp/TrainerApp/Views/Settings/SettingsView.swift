@@ -10,9 +10,7 @@ struct SettingsView: View {
     private let config = AppConfiguration.shared
     @State private var apiKey: String = AppConfiguration.shared.apiKey
     @State private var developerModeEnabled = UserDefaults.standard.bool(forKey: "DeveloperModeEnabled")
-    @State private var apiLoggingEnabled = UserDefaults.standard.bool(forKey: "APILoggingEnabled")
     @AppStorage("ShowAIReasoning") private var showAIReasoning = false
-    @State private var showDebugMenu = false
     @State private var showTimeControl = false
 
     var body: some View {
@@ -38,35 +36,17 @@ struct SettingsView: View {
                 Section("Developer Options") {
                     Group {
                         Toggle("Developer Mode", isOn: $developerModeEnabled)
-                        .onChange(of: developerModeEnabled) { _, newValue in
-                            UserDefaults.standard.set(newValue, forKey: "DeveloperModeEnabled")
-                            if !newValue {
-                                // Disable API logging when developer mode is turned off
-                                apiLoggingEnabled = false
-                                UserDefaults.standard.set(false, forKey: "APILoggingEnabled")
+                            .onChange(of: developerModeEnabled) { _, newValue in
+                                UserDefaults.standard.set(newValue, forKey: "DeveloperModeEnabled")
+                            }
+    
+                        if developerModeEnabled {
+                            Button {
+                                showTimeControl = true
+                            } label: {
+                                Label("Time Control", systemImage: "clock.arrow.circlepath")
                             }
                         }
-                    
-                    if developerModeEnabled {
-                        Toggle("API Logging", isOn: $apiLoggingEnabled)
-                            .onChange(of: apiLoggingEnabled) { _, newValue in
-                                UserDefaults.standard.set(newValue, forKey: "APILoggingEnabled")
-                                APILogger.shared.setLoggingEnabled(newValue)
-                            }
-                        
-                        Button {
-                            showDebugMenu = true
-                        } label: {
-                            Label("View API Logs", systemImage: "doc.text.magnifyingglass")
-                        }
-                        .disabled(!apiLoggingEnabled)
-                        
-                        Button {
-                            showTimeControl = true
-                        } label: {
-                            Label("Time Control", systemImage: "clock.arrow.circlepath")
-                        }
-                    }
                 }
                 }
                 
@@ -92,10 +72,6 @@ struct SettingsView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $showDebugMenu) {
-            DebugMenuView()
-                .presentationDetents([.large])
         }
         .sheet(isPresented: $showTimeControl) {
             NavigationView {

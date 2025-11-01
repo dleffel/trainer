@@ -11,7 +11,6 @@ enum PersistenceKey {
     enum Settings {
         static let apiKey = "OPENROUTER_API_KEY"
         static let developerMode = "DeveloperModeEnabled"
-        static let apiLogging = "APILoggingEnabled"
         static let dateProviderTestMode = "DateProvider_TestMode"
         static let dateProviderSimulatedDate = "DateProvider_SimulatedDate"
         static let dateProviderTimeOffset = "DateProvider_TimeOffset"
