@@ -278,14 +278,15 @@ struct WeeklyCalendarView: View {
                     
                     // Navigate day-to-day if a day is selected, otherwise week-to-week
                     if let currentDay = selectedDay {
-                        let generator = UIImpactFeedbackGenerator(style: .light)
-                        generator.impactOccurred()
-                        
                         if value.translation.width < -50 {
                             // Swipe left = next day
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
                             navigateToNextDay(from: currentDay)
                         } else if value.translation.width > 50 {
                             // Swipe right = previous day
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
                             navigateToPreviousDay(from: currentDay)
                         }
                     } else {
@@ -578,7 +579,7 @@ struct WeeklyCalendarView: View {
                 selectedWeek = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedWeek) ?? selectedWeek
             }
             // After week loads, select the first day
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.async {
                 if let firstDay = weekDays.first {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         selectedDay = firstDay
@@ -603,7 +604,7 @@ struct WeeklyCalendarView: View {
                 selectedWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedWeek) ?? selectedWeek
             }
             // After week loads, select the last day
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            DispatchQueue.main.async {
                 if let lastDay = weekDays.last {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         selectedDay = lastDay
@@ -913,7 +914,7 @@ struct StructuredWorkoutView: View {
             )
             
             // Vertical stack of all exercises
-            ForEach(Array(workout.exercises.enumerated()), id: \.offset) { index, exercise in
+            ForEach(workout.exercises, id: \.id) { exercise in
                 ExerciseCard(exercise: exercise)
             }
             
