@@ -11,7 +11,6 @@ enum PersistenceKey {
     enum Settings {
         static let apiKey = "OPENROUTER_API_KEY"
         static let developerMode = "DeveloperModeEnabled"
-        static let apiLogging = "APILoggingEnabled"
         static let dateProviderTestMode = "DateProvider_TestMode"
         static let dateProviderSimulatedDate = "DateProvider_SimulatedDate"
         static let dateProviderTimeOffset = "DateProvider_TimeOffset"
@@ -63,19 +62,6 @@ enum PersistenceKey {
         static func status(_ messageId: UUID) -> String {
             return "\(statusPrefix)\(messageId.uuidString)"
         }
-    }
-    
-    // MARK: - Logging (Tier 3: File-Based)
-    
-    enum Logging {
-        /// Directory name for API logs
-        static let apiLogsDirectory = "APILogs"
-        
-        /// Active log file name
-        static let activeLogFile = "api_logs.json"
-        
-        /// Metadata file name
-        static let metadataFile = "api_logs_metadata.json"
     }
     
     // MARK: - Helper Methods
