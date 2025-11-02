@@ -44,19 +44,11 @@
 		B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */; };
 		B75C33372E59A5A5004C515B /* ToolParameterParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E59A5A5004C515B /* ToolParameterParser.swift */; };
 		B75C33392E59A5A6004C515B /* ToolProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33382E59A5A6004C515B /* ToolProcessor.swift */; };
-		B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33342E5993D8004C515B /* APILogEntry.swift */; };
-		B75C333B2E5993D8004C515B /* APILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33352E5993D8004C515B /* APILogger.swift */; };
-		B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33362E5993D8004C515B /* LoggingPersistence.swift */; };
 		B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33402E59A6C7004C515B /* HealthKitManager.swift */; };
 		B75C33432E59A829004C515B /* SystemPrompt.md in Resources */ = {isa = PBXBuildFile; fileRef = B75C33422E59A829004C515B /* SystemPrompt.md */; };
 		B75C33442E59A5A7004C515B /* ConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33432E59A5A7004C515B /* ConversationManager.swift */; };
 		B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = B75C33442E59A5A8004C515B /* ConversationPersistence.swift */; };
 		B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */; };
-		B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9222E639C4800B866CE /* URLSession+Logging.swift */; };
-		B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C92A2E639CB300B866CE /* ExportOptionsView.swift */; };
-		B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9282E639CB300B866CE /* DebugMenuView.swift */; };
-		B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9272E639CB300B866CE /* APILogDetailView.swift */; };
-		B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9242E639C5600B866CE /* EnhancedAPILogger.swift */; };
 		B781C9332E7007C100B866CE /* StructuredWorkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B781C9322E7007C100B866CE /* StructuredWorkout.swift */; };
 		B7A1B2342E6800F000CB5792 /* ChatStateComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */; };
 		B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1B2352E6900F100CB5792 /* DateProvider.swift */; };
@@ -113,9 +105,6 @@
 		B75A866B2E5D885400CB5792 /* TrainingScheduleManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingScheduleManager.swift; sourceTree = "<group>"; };
 		B75A866D2E5D886800CB5792 /* TrainingBlock.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingBlock.swift; sourceTree = "<group>"; };
 		B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrainingCalendar.swift; sourceTree = "<group>"; };
-		B75C33342E5993D8004C515B /* APILogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogEntry.swift; sourceTree = "<group>"; };
-		B75C33352E5993D8004C515B /* APILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogger.swift; sourceTree = "<group>"; };
-		B75C33362E5993D8004C515B /* LoggingPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggingPersistence.swift; sourceTree = "<group>"; };
 		B75C33362E59A5A5004C515B /* ToolParameterParser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolParameterParser.swift; sourceTree = "<group>"; };
 		B75C33382E59A5A6004C515B /* ToolProcessor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ToolProcessor.swift; sourceTree = "<group>"; };
 		B75C33402E59A6C7004C515B /* HealthKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
@@ -124,11 +113,6 @@
 		B75C33442E59A5A8004C515B /* ConversationPersistence.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ConversationPersistence.swift; sourceTree = "<group>"; };
 		B75C33452E5B53D9004C515B /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		B781C91D2E60C1A400B866CE /* SystemPromptLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemPromptLoader.swift; sourceTree = "<group>"; };
-		B781C9222E639C4800B866CE /* URLSession+Logging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLSession+Logging.swift"; sourceTree = "<group>"; };
-		B781C9242E639C5600B866CE /* EnhancedAPILogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedAPILogger.swift; sourceTree = "<group>"; };
-		B781C9272E639CB300B866CE /* APILogDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APILogDetailView.swift; sourceTree = "<group>"; };
-		B781C9282E639CB300B866CE /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
-		B781C92A2E639CB300B866CE /* ExportOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportOptionsView.swift; sourceTree = "<group>"; };
 		B781C9322E7007C100B866CE /* StructuredWorkout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredWorkout.swift; sourceTree = "<group>"; };
 		B7A1B2332E6800F000CB5792 /* ChatStateComponents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ChatStateComponents.swift; sourceTree = "<group>"; };
 		B7A1B2352E6900F100CB5792 /* DateProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateProvider.swift; sourceTree = "<group>"; };
@@ -273,7 +257,6 @@
 				B7D1A5392E07352C00D19700 /* TrainerAppDebug.entitlements */,
 				B759474B2E07048400BE6537 /* TrainerApp.entitlements */,
 				B759473C2E0703BD00BE6537 /* Extensions */,
-				B75C33372E5993D8004C515B /* Logging */,
 				B75947362E0703BD00BE6537 /* Managers */,
 				B759473D2E0703BD00BE6537 /* Services */,
 				B75947112E07006B00BE6537 /* TrainerAppApp.swift */,
@@ -311,7 +294,6 @@
 		B759473C2E0703BD00BE6537 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				B781C9222E639C4800B866CE /* URLSession+Logging.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -366,17 +348,6 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
-		B75C33372E5993D8004C515B /* Logging */ = {
-			isa = PBXGroup;
-			children = (
-				B781C9242E639C5600B866CE /* EnhancedAPILogger.swift */,
-				B75C33342E5993D8004C515B /* APILogEntry.swift */,
-				B75C33352E5993D8004C515B /* APILogger.swift */,
-				B75C33362E5993D8004C515B /* LoggingPersistence.swift */,
-			);
-			path = Logging;
-			sourceTree = "<group>";
-		};
 		B75C33442E5B53D9004C515B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -397,9 +368,6 @@
 		B781C92B2E639CB300B866CE /* Debug */ = {
 			isa = PBXGroup;
 			children = (
-				B781C9272E639CB300B866CE /* APILogDetailView.swift */,
-				B781C9282E639CB300B866CE /* DebugMenuView.swift */,
-				B781C92A2E639CB300B866CE /* ExportOptionsView.swift */,
 				B7A1B2362E6900F200CB5792 /* SimpleDeveloperTimeControl.swift */,
 			);
 			path = Debug;
@@ -511,7 +479,6 @@
 				B75C33452E59A5A8004C515B /* ConversationPersistence.swift in Sources */,
 				B7LLMS022E00000000000002 /* LLMService.swift in Sources */,
 				B7CONF012E00000000000001 /* AppConfiguration.swift in Sources */,
-				B781C9232E639C4800B866CE /* URLSession+Logging.swift in Sources */,
 				B70B93E02E90E63E00B9BD7E /* FileStore.swift in Sources */,
 				B70B93E12E90E63E00B9BD7E /* SimpleKeyValueStore.swift in Sources */,
 				B70B93E22E90E63E00B9BD7E /* PersistenceStore.swift in Sources */,
@@ -521,10 +488,7 @@
 				B70B940C2E9DB92E00B9BD7E /* TrainingBlockScheduler.swift in Sources */,
 				B70B93E42E90E63E00B9BD7E /* PersistenceKey.swift in Sources */,
 				B70B93E52E90E63E00B9BD7E /* PersistenceError.swift in Sources */,
-				B781C92C2E639CB300B866CE /* ExportOptionsView.swift in Sources */,
 				B781C9332E7007C100B866CE /* StructuredWorkout.swift in Sources */,
-				B781C92D2E639CB300B866CE /* DebugMenuView.swift in Sources */,
-				B781C92E2E639CB300B866CE /* APILogDetailView.swift in Sources */,
 				B781C91F2E60C1A400B866CE /* SystemPromptLoader.swift in Sources */,
 				B75A866A2E5D884700CB5792 /* WeeklyCalendarView.swift in Sources */,
 				B75C33412E59A6C7004C515B /* HealthKitManager.swift in Sources */,
@@ -533,10 +497,6 @@
 				B75A86712E5D886800CB5792 /* TrainingCalendar.swift in Sources */,
 				B75947122E07006B00BE6537 /* TrainerAppApp.swift in Sources */,
 				B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */,
-				B75C333A2E5993D8004C515B /* APILogEntry.swift in Sources */,
-				B75C333B2E5993D8004C515B /* APILogger.swift in Sources */,
-				B75C333C2E5993D8004C515B /* LoggingPersistence.swift in Sources */,
-				B781C9302E639CB300B866CE /* EnhancedAPILogger.swift in Sources */,
 				B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */,
 				B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */,
 			);
