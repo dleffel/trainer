@@ -206,8 +206,13 @@ struct WeeklyCalendarView: View {
     @EnvironmentObject var navigationState: NavigationState
     @State private var hasNavigatedToTarget = false
     @State private var isLoadingWeek = false
+    @State private var swipeDirection: SwipeDirection = .none
     
     private let calendar = Calendar.current
+    
+    enum SwipeDirection {
+        case left, right, none
+    }
     
     init(scheduleManager: TrainingScheduleManager) {
         self.scheduleManager = scheduleManager
@@ -249,32 +254,46 @@ struct WeeklyCalendarView: View {
                             .padding(.vertical, 8)
                         
                         WorkoutDetailsCard(day: day, scheduleManager: scheduleManager)
-                            .id("workout-detail") // ID for scrolling
-                            .transition(.asymmetric(
-                                insertion: .scale(scale: 0.95).combined(with: .opacity),
-                                removal: .scale(scale: 0.95).combined(with: .opacity)
-                            ))
-                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedDay?.id)
+                            .id("workout-detail-\(day.id)") // Unique ID per day for proper transitions
+                            .transition(slideTransition(for: swipeDirection))
+                            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedDay?.id)
                     }
                 }
                 .padding(16)
             }
             .onChange(of: selectedDay?.id) { oldValue, newValue in
-                if newValue != nil {
+                if let dayId = newValue {
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo("workout-detail", anchor: .top)
+                        proxy.scrollTo("workout-detail-\(dayId)", anchor: .top)
                     }
                 }
             }
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 50)
+                .onChanged { value in
+                    // Provide visual hint during drag
+                    let horizontalAmount = abs(value.translation.width)
+                    let verticalAmount = abs(value.translation.height)
+                    
+                    guard horizontalAmount > verticalAmount, horizontalAmount > 30 else { return }
+                    
+                    // Set direction preview
+                    if value.translation.width < 0 {
+                        swipeDirection = .left
+                    } else {
+                        swipeDirection = .right
+                    }
+                }
                 .onEnded { value in
                     // Only trigger on horizontal swipes (not vertical scrolls)
                     let horizontalAmount = abs(value.translation.width)
                     let verticalAmount = abs(value.translation.height)
                     
-                    guard horizontalAmount > verticalAmount else { return }
+                    guard horizontalAmount > verticalAmount else {
+                        swipeDirection = .none
+                        return
+                    }
                     
                     // Navigate day-to-day if a day is selected, otherwise week-to-week
                     if let currentDay = selectedDay {
@@ -302,6 +321,11 @@ struct WeeklyCalendarView: View {
                                 selectedWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedWeek) ?? selectedWeek
                             }
                         }
+                    }
+                    
+                    // Reset direction after animation completes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        swipeDirection = .none
                     }
                 }
         )
@@ -567,10 +591,13 @@ struct WeeklyCalendarView: View {
     private func navigateToNextDay(from currentDay: WorkoutDay) {
         guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDay.date) else { return }
         
+        // Set direction before changing selection
+        swipeDirection = .left
+        
         // Check if next day is in current week
         if let nextDay = weekDays.first(where: { calendar.isDate($0.date, inSameDayAs: nextDate) }) {
             // Next day is in current week
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                 selectedDay = nextDay
             }
         } else {
@@ -581,7 +608,7 @@ struct WeeklyCalendarView: View {
             // After week loads, select the first day
             DispatchQueue.main.async {
                 if let firstDay = weekDays.first {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                         selectedDay = firstDay
                     }
                 }
@@ -592,10 +619,13 @@ struct WeeklyCalendarView: View {
     private func navigateToPreviousDay(from currentDay: WorkoutDay) {
         guard let prevDate = calendar.date(byAdding: .day, value: -1, to: currentDay.date) else { return }
         
+        // Set direction before changing selection
+        swipeDirection = .right
+        
         // Check if previous day is in current week
         if let prevDay = weekDays.first(where: { calendar.isDate($0.date, inSameDayAs: prevDate) }) {
             // Previous day is in current week
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                 selectedDay = prevDay
             }
         } else {
@@ -606,7 +636,7 @@ struct WeeklyCalendarView: View {
             // After week loads, select the last day
             DispatchQueue.main.async {
                 if let lastDay = weekDays.last {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                         selectedDay = lastDay
                     }
                 }
@@ -633,6 +663,26 @@ struct WeeklyCalendarView: View {
                 selectedDay = targetDay
                 navigationState.targetWorkoutDate = nil
             }
+        }
+    }
+    
+    private func slideTransition(for direction: SwipeDirection) -> AnyTransition {
+        switch direction {
+        case .left:
+            // Swiping left = next day
+            return .asymmetric(
+                insertion: .move(edge: .trailing).combined(with: .opacity),
+                removal: .move(edge: .leading).combined(with: .opacity)
+            )
+        case .right:
+            // Swiping right = previous day
+            return .asymmetric(
+                insertion: .move(edge: .leading).combined(with: .opacity),
+                removal: .move(edge: .trailing).combined(with: .opacity)
+            )
+        case .none:
+            // Fallback for programmatic selection (e.g., tapping day cards)
+            return .scale(scale: 0.95).combined(with: .opacity)
         }
     }
 }
