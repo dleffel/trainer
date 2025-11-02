@@ -184,21 +184,8 @@ class LLMService: LLMServiceProtocol {
         ))
         request.httpBody = body
 
-        // Log the request if enabled
-        let startTime = Date()
-        // Use EnhancedAPILogger with delegate-based streaming awareness
-        let (data, resp) = try await URLSession.shared.enhancedLoggingDataTask(with: request)
+        let (data, resp) = try await URLSession.shared.data(for: request)
         
-        // Log the API call if logging is enabled
-        if UserDefaults.standard.bool(forKey: "APILoggingEnabled") {
-            APILogger.shared.log(
-                request: request,
-                response: resp,
-                data: data,
-                error: nil,
-                startTime: startTime
-            )
-        }
         if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw LLMError.httpError(http.statusCode)
         }
@@ -278,7 +265,7 @@ class LLMService: LLMServiceProtocol {
         request.httpBody = try JSONEncoder().encode(reqBody)
         
         // Stream response lines
-        let (bytes, resp, logId) = try await URLSession.shared.streamingLoggingDataTask(for: request)
+        let (bytes, resp) = try await URLSession.shared.bytes(for: request)
         
         // If server returns an error status, consume the body to surface details, then throw
         if let http = resp as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
@@ -296,17 +283,6 @@ class LLMService: LLMServiceProtocol {
                 print("❌ Streaming error \(http.statusCode): <no body>")
             }
             
-            // Complete logging with error
-            let errorMessage = (try? JSONSerialization.jsonObject(with: errorData) as? [String: Any])
-                .flatMap { ($0["error"] as? [String: Any])?["message"] as? String }
-                ?? String(data: errorData, encoding: .utf8) ?? "<no body>"
-            
-            URLSession.shared.completeStreamingLog(
-                id: logId,
-                response: http,
-                responseBody: errorMessage,
-                error: LLMError.httpError(http.statusCode)
-            )
             throw LLMError.httpError(http.statusCode)
         }
         
@@ -335,23 +311,8 @@ class LLMService: LLMServiceProtocol {
         }
         
         guard !fullText.isEmpty else {
-            // Complete logging with error
-            URLSession.shared.completeStreamingLog(
-                id: logId,
-                response: resp,
-                responseBody: "",
-                error: LLMError.missingContent
-            )
             throw LLMError.missingContent
         }
-        
-        // Complete logging with successful response
-        URLSession.shared.completeStreamingLog(
-            id: logId,
-            response: resp,
-            responseBody: fullText,
-            error: nil
-        )
         
         if !fullReasoning.isEmpty {
             print("🧠 Captured streaming reasoning content (\(fullReasoning.count) chars)")
