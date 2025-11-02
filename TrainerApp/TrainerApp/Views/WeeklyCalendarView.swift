@@ -254,7 +254,7 @@ struct WeeklyCalendarView: View {
                             .padding(.vertical, 8)
                         
                         WorkoutDetailsCard(day: day, scheduleManager: scheduleManager)
-                            .id("workout-detail-\(day.id)") // Unique ID per day for proper transitions
+                            .id("workout-detail-\(day.date.timeIntervalSince1970)") // Stable ID based on date
                             .transition(slideTransition(for: swipeDirection))
                             .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selectedDay?.id)
                     }
@@ -262,15 +262,15 @@ struct WeeklyCalendarView: View {
                 .padding(16)
             }
             .onChange(of: selectedDay?.id) { oldValue, newValue in
-                if let dayId = newValue {
+                if let day = selectedDay {
                     withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo("workout-detail-\(dayId)", anchor: .top)
+                        proxy.scrollTo("workout-detail-\(day.date.timeIntervalSince1970)", anchor: .top)
                     }
                 }
             }
         }
         .simultaneousGesture(
-            DragGesture(minimumDistance: 50)
+            DragGesture(minimumDistance: 10)
                 .onChanged { value in
                     // Provide visual hint during drag
                     let horizontalAmount = abs(value.translation.width)
@@ -503,7 +503,8 @@ struct WeeklyCalendarView: View {
                     .onTapGesture {
                         let generator = UIImpactFeedbackGenerator(style: .medium)
                         generator.impactOccurred()
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        swipeDirection = .none
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                             selectedDay = day
                         }
                     }
