@@ -129,7 +129,7 @@ class LLMService: LLMServiceProtocol {
     /// - 200 KB request cap (drops oldest first)
     /// - Image gating: include images only for latest attachment-bearing message
     /// - Timestamp policy: apply timestamps to last K user messages only
-    struct PayloadBuilder {
+    private struct PayloadBuilder {
         let config: AppConfiguration
         
         func buildMessages(from fullHistory: [ChatMessage]) -> [APIMessage] {
