@@ -87,6 +87,7 @@ class StreamingCoordinator {
         var isBufferingTool = false
         var messageCreated = false
         var messageIndex: Int? = nil
+        var loggedMessageCreatedTiming = false
         
         let result = try await llmService.streamComplete(
             apiKey: apiKey,
@@ -135,6 +136,10 @@ class StreamingCoordinator {
                             if let idx = self.delegate?.streamingDidCreateMessage(message) {
                                 messageIndex = idx
                                 self.logger.logStreamingEvent(.messageCreated(index: idx))
+                                if !loggedMessageCreatedTiming {
+                                    self.logger.logTiming("message_created", timestamp: Date().timeIntervalSince1970)
+                                    loggedMessageCreatedTiming = true
+                                }
                             }
                         } else if messageCreated, let idx = messageIndex {
                             // Schedule batched update instead of immediate update
@@ -172,6 +177,10 @@ class StreamingCoordinator {
                         if let idx = self.delegate?.streamingDidCreateMessage(message) {
                             messageIndex = idx
                             self.logger.logStreamingEvent(.messageCreated(index: idx))
+                            if !loggedMessageCreatedTiming {
+                                self.logger.logTiming("message_created", timestamp: Date().timeIntervalSince1970)
+                                loggedMessageCreatedTiming = true
+                            }
                         }
                     } else if messageCreated, let idx = messageIndex {
                         // Schedule batched update instead of immediate update

@@ -62,6 +62,8 @@ class LLMService: LLMServiceProtocol {
     
     private init() {}
     
+    private let logger = ConversationLogger.shared
+    
     // MARK: - Private Types
     
     /// API message structure for chat completions
@@ -121,6 +123,105 @@ class LLMService: LLMServiceProtocol {
         return formatter
     }()
     
+    // MARK: - Payload Builder (Balanced preset policies)
+    /// Builds a trimmed payload honoring:
+    /// - Max recent messages
+    /// - 200 KB request cap (drops oldest first)
+    /// - Image gating: include images only for latest attachment-bearing message
+    /// - Timestamp policy: apply timestamps to last K user messages only
+    struct PayloadBuilder {
+        let config: AppConfiguration
+        
+        func buildMessages(from fullHistory: [ChatMessage]) -> [APIMessage] {
+            // 1) Start with last N messages
+            let recent = Array(fullHistory.suffix(config.maxMessagesForRequest))
+            
+            // 2) Determine which user messages get timestamps
+            let userIndices = recent.indices.filter { recent[$0].role == .user }
+            let lastK = max(0, userIndices.count - config.timestampUserMessagesCount)
+            let timestampUserIndexSet = Set(userIndices.suffix(from: lastK))
+            
+            // 3) Determine latest attachment-bearing message index (if any)
+            let latestAttachmentIndex = recent.lastIndex(where: { msg in
+                if let a = msg.attachments { return !a.isEmpty } else { return false }
+            })
+            
+            // 4) Convert to APIMessage with policies
+            var apiMessages = recent.enumerated().map { (idx, msg) in
+                toAPIMessage(
+                    from: msg,
+                    isTimestampedUser: timestampUserIndexSet.contains(idx),
+                    isLatestAttachmentMessage: (idx == latestAttachmentIndex)
+                )
+            }
+            
+            // 5) Enforce request size cap by dropping oldest messages until under cap
+            // Note: This size estimate encodes just the messages array (system prompt added by caller).
+            while encodedSize(of: apiMessages) > config.maxRequestKB * 1024 && !apiMessages.isEmpty {
+                apiMessages.removeFirst()
+            }
+            
+            return apiMessages
+        }
+        
+        private func toAPIMessage(from message: ChatMessage, isTimestampedUser: Bool, isLatestAttachmentMessage: Bool) -> APIMessage {
+            let role: String
+            switch message.role {
+            case .user: role = "user"
+            case .assistant: role = "assistant"
+            case .system: role = "system"
+            }
+            
+            // Build text content with timestamp policy
+            let textContent: String? = {
+                guard !message.content.isEmpty else { return nil }
+                if message.role == .user && isTimestampedUser {
+                    let ts = LLMService.messageTimestampFormatter.string(from: message.date)
+                    return "[\(ts)]\n\(message.content)"
+                } else {
+                    // No timestamps for assistant/system or older user messages
+                    return message.content
+                }
+            }()
+            
+            // Attachment gating
+            if let attachments = message.attachments, !attachments.isEmpty {
+                if isLatestAttachmentMessage && config.includeImagesPolicy == .latestOnly {
+                    // Keep images for this message
+                    var parts: [APIMessage.ContentPart] = []
+                    if let text = textContent {
+                        parts.append(APIMessage.ContentPart(type: "text", text: text, image_url: nil))
+                    }
+                    for attachment in attachments where attachment.type == .image {
+                        let base64 = attachment.data.base64EncodedString()
+                        let dataUrl = "data:\(attachment.mimeType);base64,\(base64)"
+                        parts.append(APIMessage.ContentPart(type: "image_url", text: nil, image_url: APIMessage.ContentPart.ImageURL(url: dataUrl)))
+                    }
+                    return APIMessage(role: role, content: .multipart(parts))
+                } else {
+                    // Drop images for older messages, optionally keep a compact placeholder
+                    let placeholder = "[image omitted]"
+                    if let text = textContent, !text.isEmpty {
+                        let merged = text + "\n" + placeholder
+                        return APIMessage(role: role, content: .text(merged))
+                    } else {
+                        return APIMessage(role: role, content: .text(placeholder))
+                    }
+                }
+            } else {
+                // No attachments: simple text policy
+                return APIMessage(role: role, content: .text(textContent ?? ""))
+            }
+        }
+        
+        private func encodedSize(of messages: [APIMessage]) -> Int {
+            struct Wrapper: Codable { let messages: [APIMessage] }
+            let wrapper = Wrapper(messages: messages)
+            let data = try? JSONEncoder().encode(wrapper)
+            return data?.count ?? 0
+        }
+    }
+    
     // MARK: - Public Interface
     
     func complete(
@@ -156,33 +257,30 @@ class LLMService: LLMServiceProtocol {
         request.addValue("TrainerApp", forHTTPHeaderField: "X-Title")
         request.timeoutInterval = 120.0 // 2 minutes timeout for GPT-5 responses
 
+        // Build system prompt (temporal enhanced)
         var msgs: [APIMessage] = []
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
             msgs.append(APIMessage(role: "system", content: .text(enhancedSystemPrompt)))
-            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in complete() method")
         }
         
-        // Add messages with timestamp enhancement
-        for m in history {
-            msgs.append(enhanceMessageWithTimestamp(m))
-        }
+        // Build trimmed payload with Balanced policies
+        let builder = PayloadBuilder(config: AppConfiguration.shared)
+        let builtMessages = builder.buildMessages(from: history)
+        msgs.append(contentsOf: builtMessages)
         
-        // Debug logging for timestamp enhancement
-        print("📅 TEMPORAL_DEBUG: Enhanced \(history.count) messages with timestamps")
-        if let firstMessage = history.first {
-            let sample = formatMessageTimestamp(firstMessage.date)
-            print("📅 Sample timestamp format: \(sample)")
-        }
-
-        // Check if model supports reasoning
-        let includeReasoning = supportsReasoning(model: model)
+        // Reasoning inclusion per model and config
+        let includeReasoning = supportsReasoning(model: model) && AppConfiguration.shared.includeReasoning
+        
         let body = try JSONEncoder().encode(RequestBody(
             model: model,
             messages: msgs,
             include_reasoning: includeReasoning ? true : nil
         ))
         request.httpBody = body
+        
+        // Instrumentation
+        logger.log(.info, "request_body_size_bytes: \(body.count)", context: "LLMService.complete")
 
         let (data, resp) = try await URLSession.shared.data(for: request)
         
@@ -235,34 +333,31 @@ class LLMService: LLMServiceProtocol {
         request.addValue("TrainerApp", forHTTPHeaderField: "X-Title")
         request.timeoutInterval = 120.0 // Keep consistent with non-streaming
         
+        // Build system prompt (temporal enhanced)
         var msgs: [APIMessage] = []
         if !systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let enhancedSystemPrompt = createTemporalSystemPrompt(systemPrompt, conversationHistory: history)
             msgs.append(APIMessage(role: "system", content: .text(enhancedSystemPrompt)))
-            print("🕒 TEMPORAL_DEBUG: Using enhanced system prompt in streamComplete() method")
         }
         
-        // Add messages with timestamp enhancement
-        for m in history {
-            msgs.append(enhanceMessageWithTimestamp(m))
-        }
+        // Build trimmed payload with Balanced policies
+        let builder = PayloadBuilder(config: AppConfiguration.shared)
+        let builtMessages = builder.buildMessages(from: history)
+        msgs.append(contentsOf: builtMessages)
         
-        // Debug logging for timestamp enhancement
-        print("📅 TEMPORAL_DEBUG: Enhanced \(history.count) messages with timestamps")
-        if let firstMessage = history.first {
-            let sample = formatMessageTimestamp(firstMessage.date)
-            print("📅 Sample timestamp format: \(sample)")
-        }
-        
-        // Check if model supports reasoning
-        let includeReasoning = supportsReasoning(model: model)
+        // Reasoning inclusion per model and config
+        let includeReasoning = supportsReasoning(model: model) && AppConfiguration.shared.includeReasoning
         let reqBody = StreamRequestBody(
             model: model,
             messages: msgs,
             stream: true,
             include_reasoning: includeReasoning ? true : nil
         )
-        request.httpBody = try JSONEncoder().encode(reqBody)
+        let encodedBody = try JSONEncoder().encode(reqBody)
+        request.httpBody = encodedBody
+        
+        // Instrumentation
+        logger.log(.info, "request_body_size_bytes: \(encodedBody.count)", context: "LLMService.streamComplete")
         
         // Stream response lines
         let (bytes, resp) = try await URLSession.shared.bytes(for: request)
@@ -288,10 +383,17 @@ class LLMService: LLMServiceProtocol {
         
         var fullText = ""
         var fullReasoning = ""
+        var loggedFirstDataLine = false
+        var loggedFirstContentToken = false
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
             let payload = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
             if payload == "[DONE]" { break }
+            
+            if !loggedFirstDataLine {
+                logger.logTiming("first_data_line", timestamp: Date().timeIntervalSince1970)
+                loggedFirstDataLine = true
+            }
             
             guard let data = payload.data(using: .utf8),
                   let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data),
@@ -306,6 +408,10 @@ class LLMService: LLMServiceProtocol {
             // Handle content tokens
             if let content = delta.content, !content.isEmpty {
                 fullText += content
+                if !loggedFirstContentToken {
+                    logger.logTiming("first_content_token", timestamp: Date().timeIntervalSince1970)
+                    loggedFirstContentToken = true
+                }
                 onToken(content)
             }
         }

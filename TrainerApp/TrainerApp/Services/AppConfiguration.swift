@@ -33,6 +33,27 @@ class AppConfiguration {
         SystemPromptLoader.loadSystemPromptWithSchedule()
     }
     
+// MARK: - Payload/Reasoning Policies (Balanced preset defaults)
+// These can be promoted to user-facing settings later if desired.
+enum IncludeImagesPolicy { case latestOnly }
+
+/// Maximum number of recent messages to include in each LLM request
+let maxMessagesForRequest: Int = 20
+
+/// Maximum request body size in kilobytes (hard cap)
+let maxRequestKB: Int = 200
+
+/// Include reasoning tokens if the model supports it
+var includeReasoning: Bool = true
+
+/// Show a live reasoning preview in UI status while streaming
+var showReasoningPreview: Bool = true
+
+/// Apply timestamps only to the last K user messages (0 = disabled)
+let timestampUserMessagesCount: Int = 3
+
+/// Policy for including images in requests (only the latest attachment-bearing message)
+let includeImagesPolicy: IncludeImagesPolicy = .latestOnly
     // MARK: - API Key Management
     
     private let apiKeyKey = "OPENROUTER_API_KEY"

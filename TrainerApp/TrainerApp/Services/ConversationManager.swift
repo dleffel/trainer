@@ -610,6 +610,26 @@ extension ConversationManager: StreamingStateDelegate {
     func streamingDidUpdateReasoningState(isStreaming: Bool, latestChunk: String?) {
         self.isStreamingReasoning = isStreaming
         self.latestReasoningChunk = latestChunk
+        
+        // Surface a short, single-line reasoning preview in the chat status while streaming
+        if AppConfiguration.shared.showReasoningPreview {
+            if let chunk = latestChunk, !chunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                // Sanitize to a single line and clip to ~120 chars (end-biased to show most recent reasoning)
+                let trimmed = chunk.trimmingCharacters(in: .whitespacesAndNewlines)
+                let singleLine = trimmed.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                let maxLen = 120
+                let preview: String
+                if singleLine.count > maxLen {
+                    preview = String(singleLine.suffix(maxLen))
+                } else {
+                    preview = singleLine
+                }
+                updateState(.streaming(progress: preview))
+            } else if isStreaming {
+                // Still streaming but no preview chunk yet
+                updateState(.streaming(progress: nil))
+            }
+        }
     }
 }
 
