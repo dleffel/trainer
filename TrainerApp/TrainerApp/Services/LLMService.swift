@@ -141,9 +141,10 @@ class LLMService: LLMServiceProtocol {
             let lastK = max(0, userIndices.count - config.timestampUserMessagesCount)
             let timestampUserIndexSet = Set(userIndices.suffix(from: lastK))
             
-            // 3) Determine latest attachment-bearing message index (if any)
+            // 3) Determine latest image-bearing message index (if any)
             let latestAttachmentIndex = recent.lastIndex(where: { msg in
-                if let a = msg.attachments { return !a.isEmpty } else { return false }
+                guard let a = msg.attachments else { return false }
+                return a.contains { $0.type == .image }
             })
             
             // 4) Convert to APIMessage with policies
