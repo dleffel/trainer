@@ -124,8 +124,9 @@ class ResponseOrchestrator {
     ) async throws -> AssistantResponseState {
         delegate?.orchestrationDidUpdateState(.streaming(progress: nil))
         
-        let requestStart = Date()
-        logger.logTiming("request_start", timestamp: requestStart.timeIntervalSince1970)
+        // Timer 1: Message send button pressed to request preparation
+        let messageSendTime = Date()
+        print("⏱️ [TIMING] Message send initiated at \(messageSendTime.timeIntervalSince1970)")
         
         var state: AssistantResponseState
         
@@ -134,6 +135,11 @@ class ResponseOrchestrator {
             guard let history = delegate?.orchestrationNeedsAPIHistory() else {
                 throw NSError(domain: "ResponseOrchestrator", code: -1, userInfo: [NSLocalizedDescriptionKey: "No API history available"])
             }
+            
+            // Timer 2: Request object prepared, about to open network connection
+            let requestPreparedTime = Date()
+            let prepTime = requestPreparedTime.timeIntervalSince(messageSendTime)
+            print("⏱️ [TIMING] Request prepared in \(String(format: "%.3f", prepTime))s, opening network connection...")
             
             let result = try await streamingCoordinator.streamResponse(
                 apiKey: apiKey,

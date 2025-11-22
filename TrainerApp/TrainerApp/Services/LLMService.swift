@@ -264,6 +264,10 @@ class LLMService: LLMServiceProtocol {
         )
         request.httpBody = try JSONEncoder().encode(reqBody)
         
+        // Timer: Network connection about to open
+        let connectionStartTime = Date()
+        print("⏱️ [TIMING] Opening network connection to LLM at \(connectionStartTime.timeIntervalSince1970)")
+        
         // Stream response lines
         let (bytes, resp) = try await URLSession.shared.bytes(for: request)
         
@@ -288,6 +292,8 @@ class LLMService: LLMServiceProtocol {
         
         var fullText = ""
         var fullReasoning = ""
+        var firstTokenReceived = false
+        
         for try await line in bytes.lines {
             guard line.hasPrefix("data: ") else { continue }
             let payload = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
@@ -299,16 +305,33 @@ class LLMService: LLMServiceProtocol {
             
             // Handle reasoning tokens
             if let reasoning = delta.reasoning, !reasoning.isEmpty {
+                if !firstTokenReceived {
+                    let firstTokenTime = Date()
+                    let timeToFirstToken = firstTokenTime.timeIntervalSince(connectionStartTime)
+                    print("⏱️ [TIMING] First token (reasoning) received in \(String(format: "%.3f", timeToFirstToken))s")
+                    firstTokenReceived = true
+                }
                 fullReasoning += reasoning
                 onReasoning(reasoning)
             }
             
             // Handle content tokens
             if let content = delta.content, !content.isEmpty {
+                if !firstTokenReceived {
+                    let firstTokenTime = Date()
+                    let timeToFirstToken = firstTokenTime.timeIntervalSince(connectionStartTime)
+                    print("⏱️ [TIMING] First token (content) received in \(String(format: "%.3f", timeToFirstToken))s")
+                    firstTokenReceived = true
+                }
                 fullText += content
                 onToken(content)
             }
         }
+        
+        // Timer: Connection closing
+        let connectionEndTime = Date()
+        let totalConnectionTime = connectionEndTime.timeIntervalSince(connectionStartTime)
+        print("⏱️ [TIMING] LLM connection closed after \(String(format: "%.3f", totalConnectionTime))s")
         
         guard !fullText.isEmpty else {
             throw LLMError.missingContent
