@@ -8,10 +8,17 @@ struct SettingsView: View {
     var onClearChat: () -> Void
     
     private let config = AppConfiguration.shared
+    private let organizerCredentials = ExerciseAPICredentials.shared
+    
     @State private var apiKey: String = AppConfiguration.shared.apiKey
     @State private var developerModeEnabled = UserDefaults.standard.bool(forKey: "DeveloperModeEnabled")
     @AppStorage("ShowAIReasoning") private var showAIReasoning = false
     @State private var showTimeControl = false
+    
+    // Organizer API credentials
+    @State private var organizerEmail: String = ExerciseAPICredentials.shared.email
+    @State private var organizerPassword: String = ExerciseAPICredentials.shared.password
+    @State private var showPasswordFormatError = false
 
     var body: some View {
         NavigationStack {
@@ -24,6 +31,33 @@ struct SettingsView: View {
                     Text("Get your API key at [openrouter.ai](https://openrouter.ai)")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                }
+                
+                Section("Organizer API") {
+                    TextField("Email", text: $organizerEmail)
+                        .textContentType(.emailAddress)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+                        .keyboardType(.emailAddress)
+                    
+                    SecureField("App Password (xxxx-xxxx-xxxx-xxxx-xxxx-xxxx)", text: $organizerPassword)
+                        .textContentType(.password)
+                        .autocorrectionDisabled()
+                        .autocapitalization(.none)
+                    
+                    Text("Generate an app password in Organizer → Settings → App Passwords. Used for syncing workout data.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if organizerCredentials.hasCredentials {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Credentials configured")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    }
                 }
                 
                 Section("AI Features") {
@@ -66,7 +100,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") {
-                        config.apiKey = apiKey
+                        saveSettings()
                     }
                 }
             }
@@ -77,6 +111,33 @@ struct SettingsView: View {
             }
             .presentationDetents([.large])
         }
+        .alert("Invalid Password Format", isPresented: $showPasswordFormatError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The app password should be in the format: xxxx-xxxx-xxxx-xxxx-xxxx-xxxx (6 groups of 4 characters separated by dashes)")
+        }
+    }
+    
+    // MARK: - Save Settings
+    
+    private func saveSettings() {
+        // Save OpenRouter API key
+        config.apiKey = apiKey
+        
+        // Validate and save Organizer credentials
+        let trimmedEmail = organizerEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPassword = organizerPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Only validate password format if one is provided
+        if !trimmedPassword.isEmpty && !organizerCredentials.validatePasswordFormat(trimmedPassword) {
+            showPasswordFormatError = true
+            return
+        }
+        
+        organizerCredentials.email = trimmedEmail
+        organizerCredentials.password = trimmedPassword
+        
+        print("✅ Settings saved - OpenRouter: \(apiKey.isEmpty ? "not set" : "configured"), Organizer: \(organizerCredentials.hasCredentials ? "configured" : "not set")")
     }
     
     // MARK: - Private Helpers
