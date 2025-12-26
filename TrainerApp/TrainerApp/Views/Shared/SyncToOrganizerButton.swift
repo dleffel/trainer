@@ -6,7 +6,7 @@ struct SyncToOrganizerButton: View {
     let day: WorkoutDay
     @ObservedObject var scheduleManager: TrainingScheduleManager
     
-    @StateObject private var syncService = DaySyncService.shared
+    @ObservedObject private var syncService = DaySyncService.shared
     @State private var isSyncing = false
     @State private var showSuccess = false
     @State private var showError = false
