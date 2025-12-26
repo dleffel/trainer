@@ -384,16 +384,18 @@ struct MappedCardioWorkout: Codable {
 
 struct MappedCardioInterval: Codable {
     let completed: Bool?
-    let durationSec: Int?
-    let distanceM: Int?
-    let paceSecPerKm: Int?
-    let cadence: Int?
-    let strokeRateSpm: Int?
-    let powerW: Int?
-    let avgHeartRate: Int?
-    let avgPowerW: Int?
-    let calories: Int?
-    let perceivedEffort: Int?
+    // Use Double to handle LLM returning floats (e.g., 283.6 for pace)
+    // These get converted to Int in toRequest()
+    let durationSec: Double?
+    let distanceM: Double?
+    let paceSecPerKm: Double?
+    let cadence: Double?
+    let strokeRateSpm: Double?
+    let powerW: Double?
+    let avgHeartRate: Double?
+    let avgPowerW: Double?
+    let calories: Double?
+    let perceivedEffort: Double?
     let notes: String?
     let targetDuration: String?
     let targetDistance: String?
@@ -403,20 +405,20 @@ struct MappedCardioInterval: Codable {
     let targetPower: String?
     let displayOrder: Int?
     
-    /// Convert to API request format
+    /// Convert to API request format (Double -> Int conversion)
     func toRequest() -> CardioIntervalRequest {
         CardioIntervalRequest(
             completed: completed,
-            durationSec: durationSec,
-            distanceM: distanceM,
-            paceSecPerKm: paceSecPerKm,
-            cadence: cadence,
-            strokeRateSpm: strokeRateSpm,
-            powerW: powerW,
-            avgHeartRate: avgHeartRate,
-            avgPowerW: avgPowerW,
-            calories: calories,
-            perceivedEffort: perceivedEffort,
+            durationSec: durationSec.map { Int($0.rounded()) },
+            distanceM: distanceM.map { Int($0.rounded()) },
+            paceSecPerKm: paceSecPerKm.map { Int($0.rounded()) },
+            cadence: cadence.map { Int($0.rounded()) },
+            strokeRateSpm: strokeRateSpm.map { Int($0.rounded()) },
+            powerW: powerW.map { Int($0.rounded()) },
+            avgHeartRate: avgHeartRate.map { Int($0.rounded()) },
+            avgPowerW: avgPowerW.map { Int($0.rounded()) },
+            calories: calories.map { Int($0.rounded()) },
+            perceivedEffort: perceivedEffort.map { Int($0.rounded()) },
             notes: notes,
             targetDuration: targetDuration,
             targetDistance: targetDistance,
