@@ -81,6 +81,14 @@ When clearing data (e.g., "Clear Workout Data"):
 - Update ALL related managers
 - When adding new persisted fields, ALWAYS update clear methods
 
+## LLM Response Parsing
+
+When decoding JSON responses from LLMs into Swift models:
+- Use `Double?` instead of `Int?` for numeric fields that may contain integers
+- LLMs are unpredictable with exact numeric types and may return `283.6` when you expect `283`
+- Swift's `JSONDecoder` strictly enforces types and will fail if it receives a float for an Int field
+- Convert to `Int` using `.rounded()` at the point of use (e.g., when building API requests)
+- Example: Define model fields as `Double?`, then use `Int(value.rounded())` when integer is needed
 
 ## Reminders
 - Test builds without changing directories
