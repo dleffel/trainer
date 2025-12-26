@@ -11,6 +11,9 @@ enum APIDayPrimaryModality: String, Codable {
     case mobility
     case hiking
     case rest
+    case swimming      // Pool or open water workouts
+    case crossTraining // Mixed-modality training
+    case testing       // Fitness assessment (VO2max, FTP, etc.)
 }
 
 /// Cardio modality types
