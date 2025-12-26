@@ -913,6 +913,14 @@ struct WorkoutDetailsCard: View {
                         .padding(.vertical, 8)
 
                     ResultsSection(day: day, scheduleManager: scheduleManager)
+                    
+                    // Sync to Organizer button
+                    if day.hasWorkout {
+                        Divider()
+                            .padding(.vertical, 8)
+                        
+                        SyncToOrganizerButton(day: day, scheduleManager: scheduleManager)
+                    }
                 }
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.95).combined(with: .opacity),

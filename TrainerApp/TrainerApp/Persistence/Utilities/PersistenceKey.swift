@@ -64,6 +64,16 @@ enum PersistenceKey {
         }
     }
     
+    // MARK: - Organizer API (Tier 1: UserDefaults)
+    
+    enum OrganizerAPI {
+        /// Email for Organizer API authentication
+        static let email = "OrganizerAPI_Email"
+        
+        /// App password for Organizer API authentication
+        static let password = "OrganizerAPI_Password"
+    }
+    
     // MARK: - Helper Methods
     
     /// Generate a standardized date key (yyyy-MM-dd in UTC)

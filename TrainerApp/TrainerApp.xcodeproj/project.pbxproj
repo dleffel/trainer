@@ -71,6 +71,12 @@
 		B7E0B001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E0A001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift */; };
 		B7F5D7F62EB3EAC4001A0A2B /* LoadMoreButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F5D7F52EB3EAC4001A0A2B /* LoadMoreButton.swift */; };
 		B7LLMS022E00000000000002 /* LLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7LLMS012E00000000000001 /* LLMService.swift */; };
+		B7SYNC012EDD000000000001 /* ExerciseAPICredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7SYNC022EDD000000000001 /* ExerciseAPICredentials.swift */; };
+		B7SYNC032EDD000000000002 /* ExerciseAPIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7SYNC042EDD000000000002 /* ExerciseAPIModels.swift */; };
+		B7SYNC052EDD000000000003 /* ExerciseAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7SYNC062EDD000000000003 /* ExerciseAPIService.swift */; };
+		B7SYNC072EDD000000000004 /* WorkoutToAPIMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7SYNC082EDD000000000004 /* WorkoutToAPIMapper.swift */; };
+		B7SYNC092EDD000000000005 /* DaySyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7SYNC0A2EDD000000000005 /* DaySyncService.swift */; };
+		B7SYNC0B2EDD000000000006 /* SyncToOrganizerButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7SYNC0C2EDD000000000006 /* SyncToOrganizerButton.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -143,6 +149,12 @@
 		B7E0A001000000000000000A /* ToolProcessor/Executors/WorkoutToolExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolProcessor/Executors/WorkoutToolExecutor.swift; sourceTree = "<group>"; };
 		B7F5D7F52EB3EAC4001A0A2B /* LoadMoreButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadMoreButton.swift; sourceTree = "<group>"; };
 		B7LLMS012E00000000000001 /* LLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMService.swift; sourceTree = "<group>"; };
+		B7SYNC022EDD000000000001 /* ExerciseAPICredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseAPICredentials.swift; sourceTree = "<group>"; };
+		B7SYNC042EDD000000000002 /* ExerciseAPIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseAPIModels.swift; sourceTree = "<group>"; };
+		B7SYNC062EDD000000000003 /* ExerciseAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseAPIService.swift; sourceTree = "<group>"; };
+		B7SYNC082EDD000000000004 /* WorkoutToAPIMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutToAPIMapper.swift; sourceTree = "<group>"; };
+		B7SYNC0A2EDD000000000005 /* DaySyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySyncService.swift; sourceTree = "<group>"; };
+		B7SYNC0C2EDD000000000006 /* SyncToOrganizerButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncToOrganizerButton.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -227,6 +239,7 @@
 				B70B93F82E9C7E4000B9BD7E /* ImagePicker.swift */,
 				B70B93F92E9C7E4000B9BD7E /* LinkDetectingText.swift */,
 				B70B93FA2E9C7E4000B9BD7E /* PhotoAttachmentButton.swift */,
+				B7SYNC0C2EDD000000000006 /* SyncToOrganizerButton.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -329,6 +342,10 @@
 				B75C33442E59A5A8004C515B /* ConversationPersistence.swift */,
 				B7LLMS012E00000000000001 /* LLMService.swift */,
 				B7CONF022E00000000000002 /* AppConfiguration.swift */,
+				B7SYNC022EDD000000000001 /* ExerciseAPICredentials.swift */,
+				B7SYNC062EDD000000000003 /* ExerciseAPIService.swift */,
+				B7SYNC082EDD000000000004 /* WorkoutToAPIMapper.swift */,
+				B7SYNC0A2EDD000000000005 /* DaySyncService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -354,6 +371,7 @@
 				B781C9322E7007C100B866CE /* StructuredWorkout.swift */,
 				B75A866D2E5D886800CB5792 /* TrainingBlock.swift */,
 				B75A866E2E5D886800CB5792 /* TrainingCalendar.swift */,
+				B7SYNC042EDD000000000002 /* ExerciseAPIModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -515,6 +533,12 @@
 				B75A866C2E5D885400CB5792 /* TrainingScheduleManager.swift in Sources */,
 				B7A1B2372E6900F100CB5792 /* DateProvider.swift in Sources */,
 				B7A1B2382E6900F200CB5792 /* SimpleDeveloperTimeControl.swift in Sources */,
+				B7SYNC012EDD000000000001 /* ExerciseAPICredentials.swift in Sources */,
+				B7SYNC032EDD000000000002 /* ExerciseAPIModels.swift in Sources */,
+				B7SYNC052EDD000000000003 /* ExerciseAPIService.swift in Sources */,
+				B7SYNC072EDD000000000004 /* WorkoutToAPIMapper.swift in Sources */,
+				B7SYNC092EDD000000000005 /* DaySyncService.swift in Sources */,
+				B7SYNC0B2EDD000000000006 /* SyncToOrganizerButton.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
