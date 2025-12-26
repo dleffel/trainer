@@ -5,7 +5,7 @@ import Foundation
 class WorkoutToAPIMapper {
     static let shared = WorkoutToAPIMapper()
     
-    private let model = "openai/gpt-5-mini"
+    private let model = "openai/gpt-4o-mini"
     
     private init() {}
     
