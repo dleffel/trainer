@@ -92,7 +92,7 @@ class WorkoutToAPIMapper {
         ```json
         {
             "entry": {
-                "primaryModality": "strength|rowing|spinning|running|mobility|hiking|rest",
+                "primaryModality": "strength|rowing|spinning|running|mobility|hiking|rest|swimming|crossTraining|testing",
                 "dayNotes": "string or null"
             },
             "strengthExercises": [
@@ -193,6 +193,9 @@ class WorkoutToAPIMapper {
         ### 4. Modality Detection:
            - primaryModality: main focus of the day
            - cardio modality: "row*" → "rowing", "bike*"/"spin*" → "spinning", "run*" → "running"
+           - "swim*" → "swimming" (pool or open water workouts)
+           - "cross*"/"mixed*"/"circuit*" → "crossTraining" (mixed-modality training)
+           - "test*"/"assess*"/"FTP*"/"VO2*" → "testing" (fitness assessments)
 
         ### 5. Coach Notes:
            - coachNotes: Put the FULL prescription text from the plan here
